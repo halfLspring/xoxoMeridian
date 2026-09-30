@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { HomePhotoRotation } from "@/components/home/HomePhotoRotation";
 import type { HomePhotoElementData } from "@/components/home/types";
 import { clampPhotoSize } from "@/lib/home-spatial";
 
@@ -12,6 +13,8 @@ export function HomePhotoElement({
   onMove,
   onMoveEnd,
   onResizeEnd,
+  onRotate,
+  onRotateEnd,
   onCaption,
   onDelete,
   registerAnchor,
@@ -23,6 +26,8 @@ export function HomePhotoElement({
   onMove: (id: string, x: number, y: number) => void;
   onMoveEnd: (id: string, x: number, y: number) => void;
   onResizeEnd: (id: string, width: number, height: number) => void;
+  onRotate: (id: string, rotation: number) => void;
+  onRotateEnd: (id: string, rotation: number) => void;
   onCaption: (id: string, caption: string) => void;
   onDelete: (id: string) => void;
   registerAnchor: (id: string, getRect: () => DOMRect | null) => () => void;
@@ -39,6 +44,7 @@ export function HomePhotoElement({
     startX: element.x,
     startY: element.y,
     startWidth: element.width,
+    startRotation: element.rotation,
     aspectRatio: element.width / Math.max(element.height, 1),
     downTime: 0,
   });
@@ -58,7 +64,7 @@ export function HomePhotoElement({
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (deleting) return;
     const target = event.target as HTMLElement;
-    if (target.closest("[data-caption-area]") || target.closest("button")) return;
+    if (target.closest("[data-caption-area], [data-rotation-control]") || target.closest("button")) return;
 
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -86,9 +92,10 @@ export function HomePhotoElement({
       startClientX: event.clientX,
       startClientY: event.clientY,
       startWidth: element.width,
+      startRotation: element.rotation,
       aspectRatio: element.width / Math.max(element.height, 1),
     };
-  }, [deleting, element.width, element.height]);
+  }, [deleting, element.width, element.height, element.rotation]);
 
   const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (deleting || !dragRef.current.active || dragRef.current.resizing) return;
@@ -113,28 +120,31 @@ export function HomePhotoElement({
     onMoveEnd(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
   }, [deleting, element.id, onMoveEnd, onSelect]);
 
+  const getResizeSize = useCallback((clientX: number, clientY: number) => {
+    const drag = dragRef.current;
+    const radians = drag.startRotation * Math.PI / 180;
+    const dx = clientX - drag.startClientX;
+    const dy = clientY - drag.startClientY;
+    return clampPhotoSize({
+      width: drag.startWidth + dx * Math.cos(radians) + dy * Math.sin(radians),
+      aspectRatio: drag.aspectRatio,
+    });
+  }, []);
+
   const onResizePointerMove = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     if (deleting || !dragRef.current.active || !dragRef.current.resizing) return;
-    const dx = event.clientX - dragRef.current.startClientX;
-    const size = clampPhotoSize({
-      width: dragRef.current.startWidth + dx,
-      aspectRatio: dragRef.current.aspectRatio,
-    });
+    const size = getResizeSize(event.clientX, event.clientY);
     rootRef.current?.style.setProperty("--home-photo-width", `${size.width}px`);
     rootRef.current?.style.setProperty("--home-photo-height", `${size.height}px`);
-  }, [deleting]);
+  }, [deleting, getResizeSize]);
 
   const onResizePointerUp = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     if (deleting || !dragRef.current.active || !dragRef.current.resizing) return;
     dragRef.current.active = false;
     dragRef.current.resizing = false;
-    const dx = event.clientX - dragRef.current.startClientX;
-    const size = clampPhotoSize({
-      width: dragRef.current.startWidth + dx,
-      aspectRatio: dragRef.current.aspectRatio,
-    });
+    const size = getResizeSize(event.clientX, event.clientY);
     onResizeEnd(element.id, size.width, size.height);
-  }, [deleting, element.id, onResizeEnd]);
+  }, [deleting, element.id, getResizeSize, onResizeEnd]);
 
   return (
     <div
@@ -149,6 +159,7 @@ export function HomePhotoElement({
         height: "var(--home-photo-height)",
         ["--home-photo-width" as string]: `${element.width}px`,
         ["--home-photo-height" as string]: `${element.height}px`,
+        transform: `rotate(${element.rotation}deg)`,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -213,6 +224,15 @@ export function HomePhotoElement({
         >
           &times;
         </button>
+
+        <HomePhotoRotation
+          photoRef={rootRef}
+          rotation={element.rotation}
+          caption={element.caption || "未标注照片"}
+          disabled={deleting}
+          onPreview={(rotation) => onRotate(element.id, rotation)}
+          onCommit={(rotation) => onRotateEnd(element.id, rotation)}
+        />
 
         <button
           type="button"

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AtlasConnectionData } from "@/components/atlas/types";
 import type { HomeBoardSnapshot, HomePhotoElementData } from "@/components/home/types";
 
-type PhotoPatch = Partial<Pick<HomePhotoElementData, "x" | "y" | "width" | "height" | "caption">>;
+type PhotoPatch = Partial<Pick<HomePhotoElementData, "x" | "y" | "width" | "height" | "caption" | "rotation">>;
 type PhotoQueue = { pending: PhotoPatch | null; running: boolean; deleteRequested: boolean };
 type MutationKind = "patch" | "photo-delete" | "connection-delete";
 type SaveState = {
@@ -20,6 +20,7 @@ function patchSubject(patch: PhotoPatch) {
     patch.x !== undefined || patch.y !== undefined ? "照片位置" : null,
     patch.width !== undefined || patch.height !== undefined ? "照片大小" : null,
     patch.caption !== undefined ? "照片标注" : null,
+    patch.rotation !== undefined ? "照片角度" : null,
   ].filter(Boolean);
   return subjects.length === 1 ? subjects[0]! : "照片更改";
 }

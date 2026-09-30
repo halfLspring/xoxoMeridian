@@ -236,6 +236,10 @@ export function HomeTimelineBoard({
         onResizePhotoEnd={(id, width, height) => {
           savePhotoPatch(id, { width, height });
         }}
+        onRotatePhoto={(id, rotation) => updatePhoto(id, { rotation })}
+        onRotatePhotoEnd={(id, rotation) => {
+          savePhotoPatch(id, { rotation });
+        }}
         onCaptionPhoto={(id, caption) => {
           savePhotoPatch(id, { caption: caption.trim() });
         }}

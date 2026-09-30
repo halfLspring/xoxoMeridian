@@ -258,4 +258,54 @@ describe("Home board room-scoped anchor authorization", () => {
     expect((await createConnection("home-auth-room-b-anchor", "home-auth-photo-two")).status).toBe(201);
     expect((await deleteConnection("home-auth-hidden-connection")).status).toBe(200);
   });
+
+  it("persists photo rotation within 25 degrees and rejects larger or non-photo rotation", async () => {
+    const user = await createTestUser({ id: "home-rotation-user" });
+    authState.currentUserId = user.id;
+    await prisma.atlasBoard.create({ data: { id: "home-board" } });
+    const post = await prisma.post.create({
+      data: {
+        slug: "home-rotation-post",
+        title: "Home rotation post",
+        content: "An anchor must remain unrotated.",
+        type: "user_post",
+        authorId: user.id,
+        publishedAt: new Date("2026-09-29T00:00:00.000Z"),
+      },
+    });
+    await prisma.atlasElement.createMany({
+      data: [
+        {
+          id: "home-rotation-photo",
+          boardId: "home-board",
+          type: "photo",
+          imageUrl: "/brand/logo_white.svg",
+          x: 20,
+          y: 30,
+          createdById: user.id,
+        },
+        {
+          id: "home-rotation-anchor",
+          boardId: "home-board",
+          type: "note",
+          postId: post.id,
+          x: 40,
+          y: 50,
+          createdById: user.id,
+        },
+      ],
+    });
+
+    expect((await patchElement("home-rotation-photo", { rotation: 25 })).status).toBe(200);
+    expect((await prisma.atlasElement.findUniqueOrThrow({ where: { id: "home-rotation-photo" } })).rotation).toBe(25);
+    expect((await patchElement("home-rotation-photo", { rotation: -25 })).status).toBe(200);
+    expect((await prisma.atlasElement.findUniqueOrThrow({ where: { id: "home-rotation-photo" } })).rotation).toBe(-25);
+
+    for (const rotation of [25.1, -25.1, "10", null]) {
+      expect((await patchElement("home-rotation-photo", { rotation })).status).toBe(400);
+      expect((await prisma.atlasElement.findUniqueOrThrow({ where: { id: "home-rotation-photo" } })).rotation).toBe(-25);
+    }
+    expect((await patchElement("home-rotation-anchor", { rotation: 10 })).status).toBe(400);
+    expect((await prisma.atlasElement.findUniqueOrThrow({ where: { id: "home-rotation-anchor" } })).rotation).toBe(0);
+  });
 });

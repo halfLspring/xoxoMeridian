@@ -19,6 +19,8 @@ export function HomeSpatialLayer({
   onMovePhoto,
   onMovePhotoEnd,
   onResizePhotoEnd,
+  onRotatePhoto,
+  onRotatePhotoEnd,
   onCaptionPhoto,
   onDeletePhoto,
   onDeleteConnection,
@@ -37,6 +39,8 @@ export function HomeSpatialLayer({
   onMovePhoto: (id: string, x: number, y: number) => void;
   onMovePhotoEnd: (id: string, x: number, y: number) => void;
   onResizePhotoEnd: (id: string, width: number, height: number) => void;
+  onRotatePhoto: (id: string, rotation: number) => void;
+  onRotatePhotoEnd: (id: string, rotation: number) => void;
   onCaptionPhoto: (id: string, caption: string) => void;
   onDeletePhoto: (id: string) => void;
   onDeleteConnection: (id: string) => void;
@@ -56,6 +60,8 @@ export function HomeSpatialLayer({
             onMove={onMovePhoto}
             onMoveEnd={onMovePhotoEnd}
             onResizeEnd={onResizePhotoEnd}
+            onRotate={onRotatePhoto}
+            onRotateEnd={onRotatePhotoEnd}
             onCaption={onCaptionPhoto}
             onDelete={onDeletePhoto}
             registerAnchor={registerPhotoAnchor}

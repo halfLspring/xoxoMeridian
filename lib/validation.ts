@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { HOME_PHOTO_MAX_ROTATION } from "@/lib/home-spatial";
 import { memoCreateFields, memoUpdateFields, scheduleDescriptionSchema } from "@/lib/life-authoring-contract";
 import {
   hasAtMostOneScheduledJobTrigger,
@@ -243,6 +244,7 @@ export const homeBoardElementPatchSchema = z
   .object({
     x: z.number().finite().optional(),
     y: z.number().finite().optional(),
+    rotation: z.number().finite().min(-HOME_PHOTO_MAX_ROTATION).max(HOME_PHOTO_MAX_ROTATION).optional(),
     zIndex: z.number().int().min(0).max(10000).optional(),
     caption: z.preprocess(trim, z.string().max(200)).optional(),
     width: z.number().positive().min(120).max(640).optional(),

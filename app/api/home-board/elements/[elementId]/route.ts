@@ -32,6 +32,9 @@ export async function PATCH(
     }
 
     const body = await readJsonBody(request, homeBoardElementPatchSchema);
+    if (body.rotation !== undefined && (element.type !== "photo" || element.postId !== null)) {
+      return jsonError("Only home photos can be rotated", 400);
+    }
     const updated = await prisma.atlasElement.update({
       where: { id: elementId, AND: [accessWhere] },
       data: body,

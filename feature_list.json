@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-23",
-  "featuresNumber": 36,
+  "updatedAt": "2026-09-29",
+  "featuresNumber": 37,
   "priorityPolicy": "P2 以用户体验为首要指标：综合核心操作受阻或结果失真程度、当前产品入口的影响范围、触发频率与恢复成本排序；同等影响时优先已有直接行为证据的问题。priorityRank 表示本批 P2 的执行建议顺序，数字越小越优先，不改变 QAM 严重级别；频率是基于代码路径与触发条件的定性判断，不是线上统计。dependencies 只表达实现前置条件，不用依赖链代替排名。本批登记前 10 项，按 priorityRank 逐项实施；当前状态与验收证据以各 feature 为准。",
   "archivedFeatureFiles": [
     "docs/harness/archive/features-001-053.json"
@@ -682,6 +682,23 @@
         "补充组件与真实浏览器回归，运行 ./init.sh、npm run check 和风险匹配的生产浏览器验证，并记录结果与交接"
       ],
       "evidence": "2026-09-23 完成；依赖 feat-080、feat-088 均为 done。私聊快照在关窗后仅对已知 pending/running 任务持续读取，终态后停止；页面隐藏时暂停、恢复可见后继续，原有身份与迟到请求栅栏保留。入口持续显示“小助手正在思考…”，完成/失败显示短时反馈，确认任务与快照时间戳相同也以快照终态为准。组件定向 2 文件/36 项通过；./scripts/run-node22.sh ./init.sh exit 0（实施前 95 文件/920 项）；首次 npm run check 因旧拖拽断言仍要求压制任务结果而 exit 1，更新预期与点击后失败提醒回归后 ./scripts/run-node22.sh npm run check exit 0（95 文件/922 项、生产构建、覆盖率 56.96/52.39/61.80/57.43）。定向生产 Playwright 2/2（含 setup）验证关窗完成提醒；sudo -n -g docker -u dadalv ./scripts/run-node22.sh env E2E_SOFTWARE_WEBGL=true npm run check:full exit 0：95 文件/922 项、生产构建、真实 PostgreSQL 39 文件/165 项、生产 Playwright 62/62。开发 /api/health HTTP 200、ok/db=true；next-env 生成引用已恢复，工件清理与详细命令见 progress.md#feat-089。未改数据库、Worker、依赖或部署配置，未运行 Compose smoke。"
+    },
+    {
+      "id": "feat-090",
+      "name": "/home 照片旋转与右键添加图片菜单定位",
+      "description": "为 /home 空间画布中的照片增加可操作且可保存的旋转能力，并修复在画布空白处右击后“添加图片”菜单与鼠标位置明显错位的问题。",
+      "priority": "P2",
+      "priorityReason": "用户直接反馈 /home 照片无法旋转，且右键“添加图片”菜单出现在远离指针的位置；两项都影响当前空间画布的常用交互，但仍可通过现有功能继续使用页面。",
+      "status": "done",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "/home 照片使用单个角落旋转手柄，移除角度滑杆；鼠标与触摸连续拖动在 -25° 到 +25° 之间平稳调整，键盘可微调，单击可输入角度或恢复水平；取消手势恢复原角度，旋转不误触移动、缩放或删除",
+        "旋转角度经过 -25° 到 +25° 的输入校验并按照片独立保存；刷新页面和再次进入 /home 后保持所设角度，保存失败时给出明确反馈与重试能力；现有移动、缩放、标注、删除、连线及成员权限保持可用",
+        "在 /home 画布空白处右击时，“添加图片”菜单出现在指针附近并与右击位置对齐；页面滚动、不同视口尺寸及视口边缘右击时仍就近显示且不被裁切，菜单关闭与键盘操作可用",
+        "选择“添加图片”后上传流程仍正常，新增照片使用当次右击对应的画布位置；菜单的视口定位和照片的画布坐标不混用",
+        "补充旋转保存与权限的真实 PostgreSQL 集成回归，以及鼠标、键盘、触摸旋转和右键菜单定位的生产浏览器回归；实施时运行 ./init.sh、npm run check:full，并将结果同步到状态与交接"
+      ],
+      "evidence": "2026-09-29 用户验收后复核完成：旧滑杆随照片旋转且读数挤压轨道，连续移动 60 次出现 15 次反向跳动；已改为用户选择的单个角落手柄，范围 ±25°。固定中心和指针捕获保证连续预览，松手保存；取消回退、键盘微调、数值输入和恢复水平可用，倾斜缩放使用局部轴投影。./scripts/run-node22.sh ./init.sh exit 0（96 文件/923 项）；旋转组件 6/6、连续生产旋转旅程复跑 3 次通过（含 setup 4/4）。最终 ./scripts/run-node22.sh env E2E_SOFTWARE_WEBGL=true npm run check:full exit 0：96 文件/928 项、生产构建、覆盖率 56.92/52.34/61.80/57.44、真实 PostgreSQL 39 文件/166 项、生产 Playwright 64/64。前两轮触摸夹具的入场动画时序失败已通过原生事件定位并修正，精度未放宽；历史失败和最终证据见 progress.md#feat-090。UI/代码审查、参考资料和前后截图见 docs/reviews/feat-090/README.md。右键菜单定位及去黑线改动保留；生成文件已恢复、工件已清理，未提交或部署。"
     }
   ]
 }

@@ -396,6 +396,245 @@ test("retries Home photo edits and deletions without false success after failure
   }
 });
 
+test("opens the Home add-photo menu beside the right-clicked point", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/home");
+  const board = page.locator(".home-spatial-board");
+  const boardBox = await board.boundingBox();
+  if (!boardBox) throw new Error("首页画布不可见");
+
+  const point = { x: boardBox.x + 24, y: boardBox.y + 180 };
+  await page.mouse.click(point.x, point.y, { button: "right" });
+  const menu = page.locator("[data-home-context-menu]");
+  await expect(menu.getByRole("button", { name: "添加图片" })).toBeVisible();
+  const menuBox = await menu.boundingBox();
+  if (!menuBox) throw new Error("添加图片菜单不可见");
+  expect(Math.abs(menuBox.x - point.x)).toBeLessThanOrEqual(4);
+  expect(Math.abs(menuBox.y - point.y)).toBeLessThanOrEqual(4);
+
+  await page.evaluate(() => { document.body.style.minHeight = "1600px"; });
+  await page.evaluate(() => window.scrollTo(0, 200));
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  const scrolledPoint = { x: 24, y: 200 };
+  await page.mouse.click(scrolledPoint.x, scrolledPoint.y, { button: "right" });
+  const scrolledMenuBox = await menu.boundingBox();
+  if (!scrolledMenuBox) throw new Error("滚动后的添加图片菜单不可见");
+  expect(Math.abs(scrolledMenuBox.x - scrolledPoint.x)).toBeLessThanOrEqual(4);
+  expect(Math.abs(scrolledMenuBox.y - scrolledPoint.y)).toBeLessThanOrEqual(4);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.mouse.click(1260, 760, { button: "right" });
+  const edgeMenuBox = await menu.boundingBox();
+  if (!edgeMenuBox) throw new Error("视口边缘的添加图片菜单不可见");
+  expect(edgeMenuBox.x).toBeGreaterThanOrEqual(0);
+  expect(edgeMenuBox.y).toBeGreaterThanOrEqual(0);
+  expect(edgeMenuBox.x + edgeMenuBox.width).toBeLessThanOrEqual(1280);
+  expect(edgeMenuBox.y + edgeMenuBox.height).toBeLessThanOrEqual(800);
+
+  await menu.getByRole("button", { name: "添加图片" }).press("Escape");
+  await expect(menu).toHaveCount(0);
+
+  let uploadedId: string | null = null;
+  try {
+    const uploadBoardBox = await board.boundingBox();
+    if (!uploadBoardBox) throw new Error("上传前首页画布不可见");
+    await page.mouse.click(point.x, point.y, { button: "right" });
+    await menu.getByRole("button", { name: "添加图片" }).press("Enter");
+    await expect(page.getByRole("heading", { name: "添加图片" })).toBeVisible();
+    const caption = `菜单定位上传 ${Date.now().toString(36)}`;
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "position.png", mimeType: "image/png", buffer: MINIMAL_PNG,
+    });
+    await page.getByPlaceholder("给图片添加一行标注…").fill(caption);
+    const upload = page.waitForResponse((response) => response.url().endsWith("/api/home-board/uploads") && response.request().method() === "POST");
+    await page.getByRole("button", { name: "上传", exact: true }).click();
+    const response = await upload;
+    expect(response.status()).toBe(201);
+    const payload = await response.json() as { element: { id: string; x: number; y: number } };
+    uploadedId = payload.element.id;
+    expect(Math.abs(payload.element.x - (point.x - uploadBoardBox.x))).toBeLessThanOrEqual(2);
+    expect(Math.abs(payload.element.y - (point.y - uploadBoardBox.y))).toBeLessThanOrEqual(2);
+    await expect(page.getByRole("img", { name: caption, exact: true })).toBeVisible();
+  } finally {
+    if (uploadedId) {
+      const cleanup = await page.request.delete(`/api/home-board/elements/${uploadedId}`, {
+        headers: { origin: new URL(page.url()).origin },
+      });
+      expect(cleanup.status()).toBe(200);
+    }
+  }
+});
+
+test("rotates a Home photo smoothly with a handle, keyboard and touch, and persists the final angle", async ({ page, browser }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const databaseUrl = process.env.E2E_DATABASE_URL
+    ?? (await readFile(resolve("test-results/.e2e-database-url"), "utf8")).trim();
+  const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+  const photoId = `e2e-home-rotation-${Date.now().toString(36)}`;
+  const caption = "旋转验收照片";
+  const photoUrl = `/api/home-board/elements/${photoId}`;
+  const visualRotation = (photo: Locator) => photo.evaluate((element) => {
+    const values = getComputedStyle(element).transform.match(/matrix\(([^)]+)\)/)?.[1].split(",").map(Number);
+    if (!values) throw new Error("照片缺少可见旋转变换");
+    return Math.atan2(values[1], values[0]) * 180 / Math.PI;
+  });
+  const gesturePoints = async (handle: Locator) => {
+    // 入场动画在 hydration 后的 rAF 才启动，先等动画挂载并结束，再读取手势中心。
+    await handle.page().locator(".page-enter").evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+    });
+    await handle.scrollIntoViewIfNeeded();
+    const { photoBox, handleBox } = await handle.evaluate((button) => {
+      const photo = button.closest("[data-home-photo]");
+      if (!photo) throw new Error("旋转手柄没有对应照片");
+      return { photoBox: photo.getBoundingClientRect().toJSON(), handleBox: button.getBoundingClientRect().toJSON() };
+    });
+    const center = { x: photoBox.x + photoBox.width / 2, y: photoBox.y + photoBox.height / 2 };
+    const start = { x: handleBox.x + handleBox.width / 2, y: handleBox.y + handleBox.height / 2 };
+    const radius = Math.hypot(start.x - center.x, start.y - center.y);
+    const angle = Math.atan2(start.y - center.y, start.x - center.x);
+    return (delta: number) => ({
+      x: center.x + radius * Math.cos(angle + delta * Math.PI / 180),
+      y: center.y + radius * Math.sin(angle + delta * Math.PI / 180),
+    });
+  };
+
+  try {
+    const user = await db.user.findUniqueOrThrow({ where: { email: E2E_USERS[0].email } });
+    await db.atlasBoard.upsert({ where: { id: "home-board" }, update: {}, create: { id: "home-board" } });
+    await db.atlasElement.create({ data: {
+      id: photoId, boardId: "home-board", type: "photo",
+      x: 50, y: 400, width: 240, height: 180, rotation: 0,
+      caption, imageUrl: "/brand/logo_white.svg", createdById: user.id,
+    } });
+    await page.goto("/home");
+    const photo = page.locator("[data-home-photo]").filter({ has: page.getByRole("img", { name: caption, exact: true }) });
+    const handle = photo.getByRole("button", { name: `旋转照片：${caption}` });
+    await photo.hover();
+    await expect(handle).toHaveCSS("opacity", "1");
+    await expect(photo.getByRole("slider")).toHaveCount(0);
+    const writes: unknown[] = [];
+    page.on("request", (request) => {
+      if (request.url().endsWith(photoUrl) && request.method() === "PATCH") writes.push(request.postDataJSON());
+    });
+    const saveAfter = async (action: () => Promise<unknown>) => {
+      const response = page.waitForResponse((item) => item.url().endsWith(photoUrl) && item.request().method() === "PATCH" && item.ok());
+      await action();
+      await response;
+    };
+
+    // 每一度都检查呈现，持续拖动进入边界再反向，不能靠单击滑杆通过。
+    const at = await gesturePoints(handle);
+    await page.mouse.move(at(0).x, at(0).y);
+    await page.mouse.down();
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(0, 0);
+    for (let delta = 1; delta <= 30; delta += 1) {
+      await page.mouse.move(at(delta).x, at(delta).y);
+      if (delta >= 2) await expect.poll(() => visualRotation(photo)).toBeCloseTo(Math.min(delta, 25), 0);
+    }
+    for (let delta = 29; delta >= 25; delta -= 1) {
+      await page.mouse.move(at(delta).x, at(delta).y);
+      await expect.poll(() => visualRotation(photo)).toBeCloseTo(delta - 5, 0);
+    }
+    expect(writes).toEqual([]);
+    await saveAfter(() => page.mouse.up());
+    expect(writes).toEqual([{ rotation: 20 }]);
+    expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photoId } }))
+      .toMatchObject({ rotation: 20, x: 50, y: 400, width: 240, height: 180 });
+    await page.screenshot({ path: testInfo.outputPath("rotation-handle-desktop.png") });
+
+    await saveAfter(() => handle.press("ArrowRight"));
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(21, 0);
+    await saveAfter(() => handle.press("Shift+ArrowRight"));
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(25, 0);
+    await saveAfter(() => handle.press("Home"));
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(0, 0);
+
+    await handle.click();
+    const angleInput = page.getByRole("spinbutton", { name: "照片旋转角度" });
+    await angleInput.fill("26");
+    await angleInput.press("Enter");
+    expect(await angleInput.evaluate((input: HTMLInputElement) => input.validity.rangeOverflow)).toBe(true);
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(0, 0);
+    await angleInput.fill("-25");
+    await saveAfter(() => angleInput.press("Enter"));
+    await page.reload();
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(-25, 0);
+    await page.goto("/about");
+    await page.goto("/home");
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(-25, 0);
+
+    // 在非零初始角度和真实滚动位置下拖动；Escape 恢复原角度，不提交取消的手势。
+    await page.evaluate(() => { document.body.style.minHeight = "1600px"; window.scrollTo(0, 120); });
+    await photo.hover();
+    const cancelAt = await gesturePoints(handle);
+    const beforeCancel = writes.length;
+    await page.mouse.move(cancelAt(0).x, cancelAt(0).y);
+    await page.mouse.down();
+    await page.mouse.move(cancelAt(15).x, cancelAt(15).y, { steps: 10 });
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(-10, 0);
+    await handle.press("Escape");
+    await page.mouse.up();
+    await expect.poll(() => visualRotation(photo)).toBeCloseTo(-25, 0);
+    expect(writes).toHaveLength(beforeCancel);
+
+    // 倾斜后的缩放沿照片自身横轴计算，不能继续把屏幕 dx 当作宽度变化。
+    const resize = photo.getByRole("button", { name: `调整照片大小：${caption}` });
+    const resizeBox = await resize.boundingBox();
+    if (!resizeBox) throw new Error("缩放手柄不可见");
+    const resizeStart = { x: resizeBox.x + resizeBox.width / 2, y: resizeBox.y + resizeBox.height / 2 };
+    await page.mouse.move(resizeStart.x, resizeStart.y);
+    await page.mouse.down();
+    await page.mouse.move(resizeStart.x + 40 * Math.cos(-25 * Math.PI / 180), resizeStart.y + 40 * Math.sin(-25 * Math.PI / 180), { steps: 5 });
+    await saveAfter(() => page.mouse.up());
+    const resized = await db.atlasElement.findUniqueOrThrow({ where: { id: photoId } });
+    expect(resized.width).toBeCloseTo(280, 1);
+    expect(resized.rotation).toBe(-25);
+
+    const reset = await page.request.patch(photoUrl, {
+      headers: { origin: new URL(page.url()).origin },
+      data: { rotation: 0, width: 240, height: 180 },
+    });
+    expect(reset.status()).toBe(200);
+    const touchContext = await browser.newContext({
+      hasTouch: true, viewport: { width: 390, height: 844 }, storageState: "test-results/.auth/user-one.json",
+    });
+    try {
+      const touchPage = await touchContext.newPage();
+      await touchPage.goto(new URL("/home", page.url()).href);
+      const touchPhoto = touchPage.locator("[data-home-photo]").filter({ has: touchPage.getByRole("img", { name: caption, exact: true }) });
+      const touchHandle = touchPhoto.getByRole("button", { name: `旋转照片：${caption}` });
+      await expect(touchHandle).toHaveCSS("opacity", "1");
+      const touchAt = await gesturePoints(touchHandle);
+      const cdp = await touchContext.newCDPSession(touchPage);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ ...touchAt(0), id: 1 }] });
+      for (let delta = -2; delta >= -20; delta -= 2) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...touchAt(delta), id: 1 }] });
+        await expect.poll(() => visualRotation(touchPhoto)).toBeCloseTo(delta, 0);
+      }
+      const touchSave = touchPage.waitForResponse((response) => response.url().endsWith(photoUrl) && response.request().method() === "PATCH" && response.ok());
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await touchSave;
+      expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photoId } }))
+        .toMatchObject({ rotation: -20, x: 50, y: 400, width: 240, height: 180 });
+      await touchPage.screenshot({ path: testInfo.outputPath("rotation-handle-touch.png") });
+      const touchCancelAt = await gesturePoints(touchHandle);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ ...touchCancelAt(0), id: 1 }] });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...touchCancelAt(10), id: 1 }] });
+      await expect.poll(() => visualRotation(touchPhoto)).toBeCloseTo(-10, 0);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+      await expect.poll(() => visualRotation(touchPhoto)).toBeCloseTo(-20, 0);
+      expect((await db.atlasElement.findUniqueOrThrow({ where: { id: photoId } })).rotation).toBe(-20);
+    } finally {
+      await touchContext.close();
+    }
+  } finally {
+    await db.atlasElement.deleteMany({ where: { id: photoId } });
+    await db.$disconnect();
+  }
+});
+
 test("renders the authenticated home navigation", async ({ page }) => {
   await page.goto("/home");
 

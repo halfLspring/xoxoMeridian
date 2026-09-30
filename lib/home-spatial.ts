@@ -4,6 +4,7 @@ export const HOME_PHOTO_MIN_WIDTH = 120;
 export const HOME_PHOTO_MAX_WIDTH = 640;
 export const HOME_PHOTO_INITIAL_MAX_WIDTH = 240;
 export const HOME_PHOTO_INITIAL_MAX_HEIGHT = 240;
+export const HOME_PHOTO_MAX_ROTATION = 25;
 
 export function clampPhotoSize({
   width,

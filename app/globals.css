@@ -288,6 +288,116 @@ body:has(.home-linen-page) {
   color: #dc2626;
 }
 
+.home-photo-rotate-handle {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #a7c49b;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  color: #3a5b22;
+  box-shadow: 0 2px 8px rgba(40, 48, 52, 0.12);
+  cursor: grab;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.home-photo-rotate-handle:active {
+  cursor: grabbing;
+}
+
+.home-photo-element:hover .home-photo-rotate-handle,
+.home-photo-element:focus-within .home-photo-rotate-handle,
+.home-photo-element.is-selected .home-photo-rotate-handle,
+.home-photo-rotate-handle.is-active {
+  opacity: 1;
+}
+
+.home-photo-rotate-handle:focus-visible,
+.home-photo-angle-editor :focus-visible {
+  outline: 2px solid #668a5b;
+  outline-offset: 2px;
+}
+
+.home-photo-angle {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #3a5b22;
+  color: white;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.home-photo-rotate-handle:hover .home-photo-angle,
+.home-photo-rotate-handle:focus-visible .home-photo-angle,
+.home-photo-rotate-handle.is-active .home-photo-angle {
+  opacity: 1;
+}
+
+.home-photo-angle-editor {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 184px;
+  min-height: 44px;
+  padding: 6px;
+  border: 1px solid #d9e3d4;
+  border-radius: 10px;
+  background: white;
+  color: #3a5b22;
+  box-shadow: 0 4px 14px rgba(40, 48, 52, 0.14);
+  font-size: 13px;
+}
+
+.home-photo-angle-editor input {
+  min-width: 0;
+  width: 64px;
+  flex: 1;
+  padding: 3px;
+  border-radius: 4px;
+}
+
+.home-photo-angle-editor button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.home-photo-angle-editor button:hover {
+  background: #edf3e9;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .home-photo-rotate-handle {
+    width: 44px;
+    height: 44px;
+    opacity: 1;
+  }
+
+  .home-photo-angle {
+    top: 48px;
+  }
+}
+
 .home-photo-resize {
   position: absolute;
   right: -5px;
