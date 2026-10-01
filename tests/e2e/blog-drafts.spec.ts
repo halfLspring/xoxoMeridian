@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { PrismaClient } from "@prisma/client";
 import { expect, test, type Frame, type Locator, type Page } from "@playwright/test";
 import { withStudyUser } from "@/tests/e2e/support/study";
 import { E2E_PASSWORD, E2E_USERS } from "@/tests/e2e/support/credentials";
@@ -24,6 +25,250 @@ async function waitForWorkLayout(page: Page, editor: Locator) {
   await expect(editor).toBeVisible();
   await page.waitForFunction(() => [...document.querySelectorAll(".page-enter")].every(node => node.getAnimations().every(animation => animation.playState === "finished")));
 }
+
+async function workGeometry(editor: Locator) {
+  return editor.evaluate(node => {
+    const rect = (target: Element) => {
+      const box = target.getBoundingClientRect();
+      return { x: box.x + scrollX, y: box.y + scrollY, width: box.width, height: box.height };
+    };
+    const row = node.closest(".work-timeline-row")!;
+    return {
+      outer: rect(node), frame: rect(node.querySelector(".work-frame")!), crop: rect(node.querySelector(".work-crop")!),
+      scene: rect(node.querySelector(".work-scene")!), post: rect(node.querySelector("[data-work-post]")!),
+      row: rect(row), next: rect(row.nextElementSibling!),
+    };
+  });
+}
+
+async function waitForPublishedLayout(page: Page, editor: Locator, savedWidth: number) {
+  await waitForWorkLayout(page, editor);
+  // 初次 SSR 尚未读取宿主宽度；等实际等比适配和居中完成后，才比较同一显示比例的两态。
+  await expect.poll(() => editor.evaluate((node, width) => {
+    const host = node.parentElement!.getBoundingClientRect(), frame = node.getBoundingClientRect();
+    const displayedWidth = Math.min(width, host.width);
+    return Math.abs(frame.width - displayedWidth) <= 1 && Math.abs(frame.x - host.x - (host.width - displayedWidth) / 2) <= 1;
+  }, savedWidth)).toBe(true);
+}
+
+function expectSameGeometry(actual: Awaited<ReturnType<typeof workGeometry>>, expected: Awaited<ReturnType<typeof workGeometry>>) {
+  for (const key of Object.keys(expected) as Array<keyof typeof expected>) {
+    for (const dimension of ["x", "y", "width", "height"] as const) {
+      expect(Math.abs(actual[key][dimension] - expected[key][dimension]), `${key}.${dimension}`).toBeLessThanOrEqual(1);
+    }
+  }
+}
+
+for (const example of [
+  { name: "桌面", screen: { width: 1440, height: 1100 }, width: 1240, height: 520, x: 0, y: 0 },
+  { name: "已调整裁切窗口", screen: { width: 1440, height: 1100 }, width: 720, height: 310, x: 80, y: 40 },
+  { name: "窄屏等比", screen: { width: 390, height: 844 }, width: 960, height: 540, x: 0, y: 0 },
+  { name: "小窗口外置控件", screen: { width: 390, height: 844 }, width: 160, height: 120, x: 0, y: 0 },
+]) {
+  test(`作品浏览与编辑保持相同几何：${example.name}、反复切换及刷新不写入`, async ({ context }, testInfo) => {
+    await withStudyUser(context, async ({ page, db, userId }) => {
+      const work = await db.blogWork.create({ data: {
+        owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } },
+        status: "published", publishedAt: new Date("2050-05-02T16:30:00Z"),
+        viewportWidth: example.width, viewportHeight: example.height, viewportX: example.x, viewportY: example.y,
+      } });
+      await db.blogWork.create({ data: { ownerId: userId, boardId: "home-board", status: "published", publishedAt: new Date("2050-05-04T00:00:00Z"), viewportHeight: 200 } });
+      const post = await db.post.create({ data: { workId: work.id, authorId: userId, workOrder: 0, title: "窗口内的博文", content: "编辑状态不改变构图", slug: randomUUID(), publishedAt: new Date("2049-01-01T00:00:00Z"), authorTimezone: "Asia/Shanghai" } });
+      await db.atlasElement.create({ data: { workId: work.id, boardId: "home-board", postId: post.id, type: "note", x: 96, y: 72, width: 352, height: 180 } });
+      const storedElements = await db.atlasElement.findMany({ where: { workId: work.id } });
+      const writes: string[] = [];
+      page.on("request", request => { if (request.method() === "PATCH" && request.url().includes(`/api/blog/works/${work.id}`)) writes.push(request.url()); });
+      await page.setViewportSize(example.screen);
+      await page.goto("/home");
+      const editor = page.locator(`[data-work-id="${work.id}"]`);
+      await waitForPublishedLayout(page, editor, example.width);
+      const before = await workGeometry(editor);
+      for (let cycle = 0; cycle < 2; cycle++) {
+        const refresh = page.waitForResponse(reply => new URL(reply.url()).pathname === `/api/blog/works/${work.id}` && reply.request().method() === "GET");
+        await editor.getByRole("button", { name: "编辑作品", exact: true }).click();
+        await (await refresh).finished();
+        await expect(editor.getByRole("button", { name: "退出编辑", exact: true })).toBeVisible();
+        const editing = await workGeometry(editor);
+        if (cycle === 0) {
+          const header = await editor.locator(".work-header").boundingBox();
+          console.log(`作品几何 ${example.name}: ${JSON.stringify({ before, editing, header })}`);
+          await testInfo.attach("作品两态几何", { contentType: "application/json", body: JSON.stringify({ before, editing, header }) });
+        }
+        expectSameGeometry(editing, before);
+        expect(editing.outer).toEqual(editing.frame);
+        expect(editing.outer).toEqual(editing.crop);
+        await expect(editor.getByRole("button", { name: /^调整草稿.+边界$/ })).toHaveCount(8);
+        for (const name of ["删除作品", "退出编辑", "博文", "图片", "连线"]) {
+          await editor.getByRole("button", { name, exact: true }).click({ trial: true });
+        }
+        await editor.getByRole("button", { name: "退出编辑", exact: true }).click();
+        await expect(editor.getByRole("button", { name: "编辑作品", exact: true })).toBeVisible();
+        expectSameGeometry(await workGeometry(editor), before);
+      }
+      await page.reload();
+      await waitForPublishedLayout(page, editor, example.width);
+      expectSameGeometry(await workGeometry(editor), before);
+      expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toEqual(work);
+      expect(await db.atlasElement.findMany({ where: { workId: work.id } })).toEqual(storedElements);
+      expect(writes).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`published-${example.name}.png`) });
+    });
+  });
+}
+
+async function seedTimeWork(db: PrismaClient, userId: string, followingHeight = 200) {
+  const work = await db.blogWork.create({ data: {
+    owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } },
+    status: "published", publishedAt: new Date("2050-05-02T16:30:00Z"), viewportWidth: 960, viewportHeight: 540,
+  } });
+  await db.blogWork.create({ data: { ownerId: userId, boardId: "home-board", status: "published", publishedAt: new Date("2050-05-04T00:00:00Z"), viewportHeight: followingHeight } });
+  const post = await db.post.create({ data: { workId: work.id, authorId: userId, workOrder: 0, title: "单篇时间保持独立", content: "时间浮层不改变作品构图", slug: randomUUID(), publishedAt: new Date("2049-01-01T00:00:00Z"), authorTimezone: "Asia/Shanghai" } });
+  await db.atlasElement.create({ data: { workId: work.id, boardId: "home-board", postId: post.id, type: "note", x: 96, y: 72, width: 352, height: 180 } });
+  return work;
+}
+
+test("作品发布时间在框外悬停可读、键盘可达且 Escape 关闭，两态均不改变占位", async ({ context }, testInfo) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const work = await seedTimeWork(db, userId);
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    await page.goto("/home");
+    const editor = page.locator(`[data-work-id="${work.id}"]`);
+    const trigger = editor.getByRole("button", { name: "查看作品发布时间", exact: true });
+    const tooltip = page.getByRole("tooltip", { name: "作品发布时间", exact: true });
+    await waitForPublishedLayout(page, editor, work.viewportWidth);
+    await page.mouse.move(1, 100);
+    await expect(tooltip).toHaveCount(0);
+    await expect(editor.locator(".work-header time")).toHaveCount(0);
+    await expect(editor.locator(".work-post time")).toHaveAttribute("datetime", "2049-01-01T00:00:00.000Z");
+    // 控制的只是悬停关闭宽限期，所有尺寸仍由真实浏览器布局提供。
+    await page.clock.install();
+    for (const mode of ["浏览", "编辑"]) {
+      const before = await workGeometry(editor);
+      await editor.hover({ position: { x: 600, y: 260 } });
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip.locator("time")).toHaveAttribute("datetime", "2050-05-02T16:30:00.000Z");
+      await expect(tooltip).toContainText("05/03/2050");
+      const frame = (await editor.boundingBox())!, popup = (await tooltip.boundingBox())!;
+      expect(popup.x).toBeCloseTo(frame.x, 0);
+      expect(popup.y + popup.height).toBeLessThanOrEqual(frame.y - 12);
+      expectSameGeometry(await workGeometry(editor), before);
+      await editor.hover({ position: { x: 800, y: 400 } });
+      expect(await tooltip.boundingBox()).toEqual(popup);
+      await tooltip.hover();
+      await page.clock.runFor(250);
+      await expect(tooltip).toBeVisible();
+      expect(await tooltip.evaluate(node => {
+        const box = node.getBoundingClientRect();
+        return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`published-time-${mode}.png`) });
+      await page.mouse.move(1, 100);
+      await page.clock.runFor(250);
+      await expect(tooltip).toHaveCount(0);
+      expectSameGeometry(await workGeometry(editor), before);
+      if (mode === "浏览") {
+        // 真实 Tab 导航进入时间入口；Escape 不移动焦点，Enter 可再次查看。
+        await editor.getByRole("button", { name: "编辑作品", exact: true }).focus();
+        await page.keyboard.press("Shift+Tab");
+        await expect(trigger).toBeFocused();
+        await expect(tooltip).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(tooltip).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+        await page.keyboard.press("Enter");
+        await expect(tooltip).toBeVisible();
+        await page.keyboard.press("Tab");
+        await page.clock.runFor(250);
+        await expect(tooltip).toHaveCount(0);
+        const refresh = page.waitForResponse(reply => new URL(reply.url()).pathname === `/api/blog/works/${work.id}` && reply.request().method() === "GET");
+        await page.keyboard.press("Enter");
+        await (await refresh).finished();
+        await expect(editor.getByRole("button", { name: "退出编辑", exact: true })).toBeVisible();
+      }
+    }
+    expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toEqual(work);
+  });
+});
+
+test("作品时间浮层在窄屏右侧和顶部避让，缩放手柄及裁切保持可用", async ({ context }, testInfo) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    // 用真实的后续作品保证足够滚动空间，不依赖首页空白高度或其它用例留下的内容。
+    const work = await seedTimeWork(db, userId, 2400);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/home");
+    const editor = page.locator(`[data-work-id="${work.id}"]`);
+    await waitForPublishedLayout(page, editor, work.viewportWidth);
+    await editor.getByRole("button", { name: "编辑作品", exact: true }).click();
+    const edge = editor.getByRole("button", { name: "调整草稿左边界", exact: true });
+    const handle = (await edge.boundingBox())!;
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await expect(page.getByRole("tooltip", { name: "作品发布时间" })).toBeVisible();
+    const saved = page.waitForResponse(reply => new URL(reply.url()).pathname === `/api/blog/works/${work.id}` && reply.request().method() === "PATCH");
+    await page.mouse.down();
+    await page.mouse.move(handle.x + handle.width / 2 + 190, handle.y + handle.height / 2, { steps: 6 });
+    await page.mouse.up();
+    expect((await saved).status()).toBe(200);
+    await (await saved).finished();
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    const resized = await db.blogWork.findUniqueOrThrow({ where: { id: work.id } });
+    expect(resized.viewportWidth).toBeLessThan(work.viewportWidth);
+    await page.mouse.move(1, 100);
+    await page.keyboard.press("Escape");
+    await editor.evaluate(node => window.scrollTo(0, node.getBoundingClientRect().top + scrollY - 4));
+    await expect.poll(async () => Math.abs((await editor.boundingBox())!.y - 4)).toBeLessThanOrEqual(1);
+    const before = await workGeometry(editor), frame = (await editor.boundingBox())!;
+    await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height - 20);
+    const tooltip = page.getByRole("tooltip", { name: "作品发布时间" });
+    await expect(tooltip).toBeVisible();
+    const popup = (await tooltip.boundingBox())!;
+    expect(popup.x).toBeLessThan(frame.x);
+    expect(popup.x).toBeGreaterThanOrEqual(8);
+    expect(popup.x + popup.width).toBeLessThanOrEqual(382);
+    expect(popup.y).toBeGreaterThanOrEqual(frame.y + frame.height + 12);
+    expect(popup.y + popup.height).toBeLessThanOrEqual(836);
+    expectSameGeometry(await workGeometry(editor), before);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("published-time-viewport-edge.png") });
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toHaveCount(0);
+    expectSameGeometry(await workGeometry(editor), before);
+    expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toEqual(resized);
+  });
+});
+
+test("触屏可点按作品时间并收起，未发布草稿没有虚构的发布时间", async ({ browser }, testInfo) => {
+  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  try {
+    await withStudyUser(context, async ({ page, db, userId }) => {
+      const work = await seedTimeWork(db, userId);
+      await page.goto("/home");
+      const editor = page.locator(`[data-work-id="${work.id}"]`);
+      await waitForPublishedLayout(page, editor, work.viewportWidth);
+      const before = await workGeometry(editor);
+      const trigger = editor.getByRole("button", { name: "查看作品发布时间", exact: true });
+      const tooltip = page.getByRole("tooltip", { name: "作品发布时间" });
+      await expect(tooltip).toHaveCount(0);
+      await trigger.tap();
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip).toContainText("05/03/2050");
+      expectSameGeometry(await workGeometry(editor), before);
+      await trigger.tap();
+      await expect(tooltip).toHaveCount(0);
+      await trigger.tap();
+      await expect(tooltip).toBeVisible();
+      await page.touchscreen.tap(4, 300);
+      await expect(tooltip).toHaveCount(0);
+      expectSameGeometry(await workGeometry(editor), before);
+      expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toEqual(work);
+      const draft = await db.blogWork.create({ data: { ownerId: userId, boardId: "home-board" } });
+      await page.goto(`/home?draft=${draft.id}`);
+      const privateEditor = page.getByRole("region", { name: "空间草稿" });
+      await waitForWorkLayout(page, privateEditor);
+      await expect(privateEditor.getByRole("button", { name: "查看作品发布时间" })).toHaveCount(0);
+      await expect(page.getByRole("tooltip", { name: "作品发布时间" })).toHaveCount(0);
+    });
+  } finally { await context.close(); }
+});
 
 async function startFrameMove(page: Page, editor: Locator, edge = "上") {
   const border = editor.getByRole("button", { name: `平移草稿${edge}边框`, exact: true });
@@ -264,13 +509,18 @@ test.describe("作品时间水合", () => {
         expect(response?.status()).toBe(200);
         const html = await response!.text();
         const selectors = [
-          `[data-work-id="${published.work.id}"] .work-badge`,
           `[data-work-post="${published.post.id}"] .work-post-meta`,
         ];
         const serverText = await page.evaluate(({ html, selectors }) => {
           const doc = new DOMParser().parseFromString(html, "text/html");
           return selectors.map(selector => doc.querySelector(selector)?.textContent?.trim());
         }, { html, selectors });
+        const publishedEditor = page.locator(`[data-work-id="${published.work.id}"]`);
+        await waitForPublishedLayout(page, publishedEditor, published.work.viewportWidth);
+        await expect(publishedEditor.locator(".work-header time")).toHaveCount(0);
+        await publishedEditor.getByRole("button", { name: "查看作品发布时间" }).click();
+        await expect(page.getByRole("tooltip", { name: "作品发布时间" }).locator("time")).toHaveText(scenario.date);
+        await page.keyboard.press("Escape");
         // 成功打开并读取列表证明页面已水合；同时检查原始响应里的时间，避免只有客户端渲染的假通过。
         await page.getByRole("link", { name: "My Draft", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: "My Draft" });
@@ -281,10 +531,7 @@ test.describe("作品时间水合", () => {
           expect(serverText[index]).toBeTruthy();
           await expect(page.locator(selectors[index])).toHaveText(serverText[index]!);
         }
-        expect(serverText).toEqual([
-          `E2E Focus · ${scenario.date}`,
-          `E2E Focus · ${scenario.timestamp}`,
-        ]);
+        expect(serverText).toEqual([`E2E Focus · ${scenario.timestamp}`]);
         await expect(draftButton.locator("time")).toHaveText(scenario.timestamp);
         await expect(dialog.getByRole("button", { name: /^未命名草稿/ }).locator("time")).toHaveText("09/30/2026, 23:30");
         await draftButton.click();

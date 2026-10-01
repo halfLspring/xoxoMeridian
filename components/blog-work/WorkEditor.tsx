@@ -8,11 +8,11 @@ import { WorkFrame, type WorkFrameValue } from "@/components/blog-work/WorkFrame
 import { WorkDialog } from "@/components/blog-work/WorkDialog";
 import { WorkPostForm } from "@/components/blog-work/WorkPostForm";
 import { WorkConnectionPicker } from "@/components/blog-work/WorkConnectionPicker";
+import { WorkPublishedTime } from "@/components/blog-work/WorkPublishedTime";
 import { MarkdownContent } from "@/components/blog/MarkdownContent";
 import { fitHomePhotoSizeToBounds } from "@/lib/home-spatial";
 import { photoPatchSchema, type WorkWindow } from "@/lib/blog-work/schemas";
 import type { WorkSnapshot, WorkElement } from "@/lib/blog-work/types";
-import { formatPostTimestamp } from "@/lib/post-time";
 
 export type LeaveHandler = (next: () => void) => void;
 const onlyWindow = (w: WorkWindow): WorkWindow => ({ viewportX: w.viewportX, viewportY: w.viewportY, viewportWidth: w.viewportWidth, viewportHeight: w.viewportHeight });
@@ -32,6 +32,7 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const [photoPatches, setPhotoPatches] = useState<Record<string, Partial<WorkElement>>>({}), [frame, setFrame] = useState<WorkFrameValue | null>(null);
   const [framePreview, setFramePreview] = useState<WorkFrameValue | null>(null);
   const [scale, setScale] = useState(1), root = useRef<HTMLDivElement>(null);
+  const workFrame = useRef<HTMLElement>(null);
   const [availableWidth, setAvailableWidth] = useState(initial.viewportWidth);
   const [availableLeft, setAvailableLeft] = useState(0);
   const header = useRef<HTMLElement>(null), footer = useRef<HTMLElement>(null);
@@ -138,7 +139,7 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const controlsOutside = frameHeight < controlsSize.header + controlsSize.footer + 24;
   const frameStyle = {
     width: frameWidth,
-    height: editing ? frameHeight : undefined,
+    height: frameHeight,
     left: offsetX,
     top: offsetY,
     marginLeft,
@@ -181,10 +182,11 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     <WorkCanvas work={merged} scale={scale} editing={editing} disabled={state === "auth-invalid" || locked} onPhotoPreview={previewPhoto} onPhotoCommit={commitPhoto} onDeletePhoto={id => { void enqueue({ operation: "photo.delete", id }); }} onPost={id => { if (!locked) setModal(`post:${id}`); }} onSelect={chooseEndpoint} selected={selected} registerAnchor={registerAnchor} />
   </WorkFrame>;
   if (state === "auth-invalid") return <div role="alert">登录已失效。<Link href="/">重新登录</Link></div>;
-  return <div ref={root} className="work-editor-host"><section style={frameStyle} className={`blog-work ${editing ? "blog-work-editing" : ""} ${controlsOutside ? "work-controls-outside" : ""}`} data-work-id={work.id} aria-label={work.status === "draft" ? "空间草稿" : "已发布作品"}>
+  return <div ref={root} className="work-editor-host"><section ref={workFrame} style={frameStyle} className={`blog-work ${editing ? "blog-work-editing" : ""} ${controlsOutside ? "work-controls-outside" : ""}`} data-work-id={work.id} aria-label={work.status === "draft" ? "空间草稿" : "已发布作品"}>
     <header ref={header} className="work-header">
-      <span className="work-badge">{work.status === "draft" ? <><strong>DRAFT</strong><LockKeyhole size={14} />仅自己可见</> : <>{work.ownerName} · <time dateTime={work.publishedAt!}>{formatPostTimestamp(new Date(work.publishedAt!), { timezone: work.posts[0]?.authorTimezone, dateOnly: true })}</time></>}</span>
+      {work.status === "draft" && <span className="work-badge"><strong>DRAFT</strong><LockKeyhole size={14} />仅自己可见</span>}
       <div className="work-actions">
+        {work.status === "published" && work.publishedAt && <WorkPublishedTime anchorRef={workFrame} ownerName={work.ownerName} publishedAt={work.publishedAt} timezone={work.posts[0]?.authorTimezone} />}
         {editing && <span role="status" className={!busy ? "work-save-status work-save-status-saved" : "work-save-status"}>{state === "failed" ? deleting ? "删除失败" : "保存失败" : state === "conflict" ? deleting ? "删除冲突" : "修改冲突" : deleting ? "删除中…" : publishing ? "发布中…" : busy ? "保存中…" : "已自动保存"}</span>}
         {editing && work.status === "published" && work.canManage && work.ownerId === actorId && <button className="work-danger" disabled={busy || leaving} onClick={deleteWork}>删除作品</button>}
         {editing ? <button disabled={deleting} onClick={() => requestLeave(() => { setEditing(false); onClose(); })}>{work.status === "draft" ? "退出草稿" : "退出编辑"}</button> : <button onClick={() => { setEditing(true); void save.refresh(); }}>编辑作品</button>}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "updatedAt": "2026-10-01",
-  "featuresNumber": 9,
+  "featuresNumber": 11,
   "priorityPolicy": "P2 以用户体验为首要指标：综合核心操作受阻或结果失真程度、当前产品入口的影响范围、触发频率与恢复成本排序；同等影响时优先已有直接行为证据的问题。priorityRank 表示本批 P2 的执行建议顺序，数字越小越优先，不改变 QAM 严重级别；频率是基于代码路径与触发条件的定性判断，不是线上统计。dependencies 只表达实现前置条件，不用依赖链代替排名。本批登记前 10 项，按 priorityRank 逐项实施；当前状态与验收证据以各 feature 为准。",
   "archivedFeatureFiles": [
     "docs/harness/archive/features-001-053.json",
@@ -138,10 +138,10 @@
     {
       "id": "feat-102",
       "name": "草稿及其发布作品编辑前后占位高度一致性修复",
-      "description": "按用户两张截图登记：同一空间作品在非编辑态比编辑态占用更多垂直空间，水平方向长度不变。截图包含“编辑作品／退出编辑”，复现须覆盖草稿发布后的作品切换。从第一性原理明确作品裁切窗口、显示比例、外框占位与操作控件的关系，使相同内容、窗口数据和视口下的编辑状态切换不改变作品占位尺寸；具体根因仍需真实浏览器测量确认。 按用户补充方案，将组级发布时间从顶部栏常驻内容改为悬停作品组件时浮现的弹窗，默认锚定作品边框左上角外侧，不参与作品占位。",
+      "description": "修复同一空间作品在浏览态比编辑态额外占用垂直空间、内容原点随切换跳变的问题。真实浏览器已确认根因为顶部栏只在浏览态参与文档流，以及两态外框高度约束不同。作品外框、裁切范围与时间线占位统一由保存的窗口数据和显示比例决定；顶部控件脱离文档流。按用户补充方案，将组级作者/发布时间迁移至悬停作品时默认锚定边框左上角外侧的浮层，支持键盘和触屏查看，保留既有裁切、保存、发布及单篇时间语义。",
       "priority": "P2",
       "priorityReason": "用户提供直接视觉证据，状态切换造成作品高度和内容布局跳变，影响空间构图与编辑结果的可预期性。",
-      "status": "not-started",
+      "status": "done",
       "dependencies": [
         "feat-091",
         "feat-097"
@@ -155,7 +155,7 @@
         "保留既有非破坏裁切、图文尺寸和相对坐标、连线锚点、八向缩放、本人未发布草稿整组平移及自动保存/退出语义；已发布作品继续按首次发布时间定位，不新增私密草稿浏览模式、不改发布规则或扩展编辑功能。",
         "补齐真实 Playwright 布局回归，以同一作品切换前后的 DOM 几何、内容位置和可见控件作为断言；覆盖时间弹窗的悬停/聚焦/触屏查看、离开或 Escape 关闭、边框外定位与视口边缘避让，并断言显示和隐藏前后占位不变。留存修复前失败、修复后通过的证据，不能以 jsdom 尺寸 mock、源码字符串扫描或仅截图肉眼检查替代浏览器测量。实施时运行 ./init.sh 与 npm run check:full，完成状态记录与工件清理后才可标记 done。"
       ],
-      "evidence": "2026-10-01 按用户“登记 feat”要求新增，尚未实施。参考图 1 为 4e2c28fd-e032-42b3-9bf5-8fc17b9d734d.png（编辑态），图 2 为 94c6bc56-53c7-42ec-9e21-a5fc8bcd3593.png（非编辑态）；原图保留在工作区，不加入提交。登记前核对根列表与全部归档最大编号为 101，依赖 feat-091、feat-097 均为 done。只读代码线索：components/blog-work/WorkEditor.tsx 的 frameStyle 仅编辑态指定 frameHeight；app/globals.css 仅对编辑态顶部栏等控件设绝对定位，非编辑态顶部栏参与正常文档流。该差异与现象吻合，但未经同视口浏览器复现，不能作为已验证根因。本轮仅修改任务与交接记录，保留 feat-101 的 in-progress 状态及所有既有工作区改动；未运行 ./init.sh、npm run check 或 npm run check:full，原因是适用纯文档/状态登记门禁例外，不代表应用验证通过。登记核验：python3 内联账本/路径校验 exit 0，根 8 项、归档 94 项、全局 102 个唯一 ID，状态/依赖及引用路径有效；与登记前会话基线逐字段对照，既有条目不变，归档 SHA-256 不变。featuresNumber=8，按阈值跳过归档；git diff --check exit 0。 2026-10-01 用户补充方案已写入描述与验收：将顶部栏的组级发布时间迁移至悬停作品时在边框左上角外侧浮现的时间弹窗，并要求浮层不参与占位、可通过键盘/触屏查看；本次仍仅补充待办方案，status、dependencies 与 featuresNumber 不变，未开始实现或执行应用门禁。 方案补充收尾：python3 内联账本/路径校验 exit 0，根 8 项与全局 102 个唯一 ID、状态/依赖/链接有效；其余条目逐字段不变、归档 SHA-256 不变，git diff --check exit 0，git status --short 已核对。"
+      "evidence": "2026-10-01 按用户“登记 feat”要求新增，尚未实施。参考图 1 为 4e2c28fd-e032-42b3-9bf5-8fc17b9d734d.png（编辑态），图 2 为 94c6bc56-53c7-42ec-9e21-a5fc8bcd3593.png（非编辑态）；原图保留在工作区，不加入提交。登记前核对根列表与全部归档最大编号为 101，依赖 feat-091、feat-097 均为 done。只读代码线索：components/blog-work/WorkEditor.tsx 的 frameStyle 仅编辑态指定 frameHeight；app/globals.css 仅对编辑态顶部栏等控件设绝对定位，非编辑态顶部栏参与正常文档流。该差异与现象吻合，但未经同视口浏览器复现，不能作为已验证根因。本轮仅修改任务与交接记录，保留 feat-101 的 in-progress 状态及所有既有工作区改动；未运行 ./init.sh、npm run check 或 npm run check:full，原因是适用纯文档/状态登记门禁例外，不代表应用验证通过。登记核验：python3 内联账本/路径校验 exit 0，根 8 项、归档 94 项、全局 102 个唯一 ID，状态/依赖及引用路径有效；与登记前会话基线逐字段对照，既有条目不变，归档 SHA-256 不变。featuresNumber=8，按阈值跳过归档；git diff --check exit 0。 2026-10-01 用户补充方案已写入描述与验收：将顶部栏的组级发布时间迁移至悬停作品时在边框左上角外侧浮现的时间弹窗，并要求浮层不参与占位、可通过键盘/触屏查看；本次仍仅补充待办方案，status、dependencies 与 featuresNumber 不变，未开始实现或执行应用门禁。 方案补充收尾：python3 内联账本/路径校验 exit 0，根 8 项与全局 102 个唯一 ID、状态/依赖/链接有效；其余条目逐字段不变、归档 SHA-256 不变，git diff --check exit 0，git status --short 已核对。 2026-10-01 用户授权开始完成 feat-102；已核对 feat-091/feat-097 均 done、feat-100/feat-101 已收尾，当前仅本项 in-progress。计划先以真实浏览器记录几何差异，再统一布局与框外时间浮层，完成回归及完整门禁。 实施基线 ./scripts/run-node22.sh ./init.sh exit 0（105 文件/1000 项）。真实生产浏览器修复前回归：相同 1440×1100 视口，外框浏览态 1240×583.5、编辑态 1240×520；顶部栏高 63.5，裁切原点 y=176.5→113、博文 y=248.5→185、下一条目 y=736.5→673，outer.height 差 63.5 超出 1px 断言而失败，确认根因为顶部栏只在浏览态参与文档流及两态外框高度约束不同。复现命令 LANG=en_US.UTF-8 TZ=UTC E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npx playwright test tests/e2e/blog-drafts.spec.ts --project=authenticated -g 作品浏览与编辑保持相同几何：桌面。前序尝试分别遇到 net::ERR_NETWORK_CHANGED、符号链接依赖副本的 Cannot find module ../../module.compiled（改为独立依赖并清空该副本缓存后消失），另一次测试夹具把样本排在最后而 nextElementSibling 为 null，修正相邻条目日期后得到上述有效失败；没有放宽断言或修改产品规避环境异常。 修复后定向生产浏览器命令（相同环境，-g \"作品浏览与编辑保持相同几何|作品发布时间在框外|作品时间浮层|触屏可点按作品时间|作品时间水合\"）最终 exit 0、10/10 passed（含 setup）。四种窗口两态外框、裁切、内容原点及相邻条目均一致：1240×520、720×310、窄屏 342×192.375、小窗口 160×120；连续进出及刷新不发出几何 PATCH，数据库窗口、版本、首次发布时间与元素不变。时间浮层悬停/移入阅读/离开、键盘/Enter/Escape、触屏开关/外点关闭、窄屏左裁切后右侧及顶部避让、未发布无时间、作者时区/UTC/单篇时间与水合回归通过。首次定向运行 8 passed/2 failed，失败因采样早于首次 SSR 后适配；改为等待真实等比宽度及居中就绪，没有修改尺寸断言或应用逻辑。已查看桌面、390px 和两态/边缘浮层截图；最后仅补齐浏览态外置操作区圆角，交由完整门禁验证。 完整命令 LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run check:full：标准层 exit 0（105 文件/1000 项、生产构建、覆盖率 Statements 54.1%、Branches 48.7%、Functions 57.98%、Lines 55.26%），真实 PostgreSQL 44 文件/193 项通过；浏览器 92 passed/4 failed、11.0 分钟，整体 exit 1。四项原始失败：新增边缘用例期望 popup.y>=297.875、实际38，实际滚动未达顶部；既有300篇草稿深链等待正文5000ms未找到，页面仍为“正在打开作品…”；Agent 404 旅程 Tearing down context exceeded 30000ms；私聊通知的全页 getByRole(tooltip) 同时匹配 Agent 提示与作品时间而 strict mode violation。已用真实后续高作品补足边缘用例滚动空间并断言边框顶端4px前提，将 Agent 提示查询限定在 data-agent-entry 内；两项超时保持原功能与原断言，交由同应用实现全量浏览器补跑复核。 带失败 trace 的同码生产浏览器补跑 LANG=en_US.UTF-8 TZ=UTC E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npx playwright test --trace=retain-on-failure 为 95 passed/1 failed（12.8 分钟）：上述四项均通过，新增唯一失败是日本时区入口首次点击后 tooltip 不存在。trace 显示点击前作品 margin-left=0、点击后完成宿主适配变为136px，按钮在点击过程中移动；已把同一真实布局就绪检查用于该水合用例，保留原始 SSR 文本、时区和水合错误断言。最终 ./scripts/run-node22.sh npm run typecheck 与定向 eslint 两份 E2E 文件均 exit 0；应用实现未改，接下来按最终文件补跑全量生产浏览器。 最终验收：LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run test:e2e:production exit 0，96/96 passed（11.1 分钟、无跳过或重试）。全部新增布局/浮层回归、两种时区水合、既有300篇深链、404回退、私聊提示及其余原有旅程通过。最终491份应用/测试/配置与验证副本逐字节一致；最终测试适配后的 typecheck 与两份 E2E 定向 eslint 均 exit 0。应用实现自完整命令的标准层及193项数据库通过后未变化，后续仅修正测试的就绪/场景准备与提示查询范围；不把首次 check:full 的 exit 1 写成单次全绿。已查看最终桌面、390px、两态及视口边缘截图。未运行 npm run test:compose-smoke 或 npm run dev，因未改 schema、依赖、启动或部署路径，已由启动基线与隔离生产服务验证；未 commit、推送或部署。 收尾：本轮隔离副本、构建、覆盖率、截图/视频/trace、临时日志已删除，临时 PostgreSQL 和 Ryuk 已退出，Docker 仅保留既有 xoxo-meridian-postgres。用户参考图片及并行登记的 feat-104/105 保留；根 featuresNumber=11，按阈值跳过归档。 最终结构核验 python3 内联脚本 exit 0：根11项/全局105个唯一ID、状态与依赖、交接链接有效，原验收/依赖字段保持不变，其他条目逐字段SHA-256及归档SHA-256与收尾基线一致；临时目录不存在，git diff --check exit 0，git status --short 已核对。"
     },
     {
       "id": "feat-103",
@@ -180,6 +180,43 @@
         "实施时运行 ./scripts/run-node22.sh ./init.sh 与风险匹配的 npm run check:full，记录标准门禁、真实 PostgreSQL 既有行为及生产浏览器回归的实际结果；失败或未运行须写明原始命令与原因。满足本项验收、状态记录和工件清理后才可标记 done；本轮登记使用纯文档/状态门禁例外，不构成应用验证通过。"
       ],
       "evidence": "2026-10-01 用户明确确认“采用统一展示组件，使用：图二＋摘要＋虚线。登记feature”，据此新增本项，尚未实施。参考图一 6f568937-3ade-48b8-bd55-ba86e33a9fec.png 为 draft 内博文，图二 314494e3-ed52-496a-8bde-e3e23196ae8b.png 为普通 Post 卡片，图三 82da4257-78c4-4b61-894c-00314aa32f72.png 显示框内实线与普通画布虚线差异；原图仅保留工作区，不加入提交。只读代码确认：components/blog/PostCard.tsx 使用 metadata-mono、text-lg/600 和 MarkdownContent preview；components/blog-work/WorkCanvas.tsx 单独拼装卡片，app/globals.css 的 work-post 样式为元数据 13px、标题 20px/650、正文 16px，并默认全文。MarkdownContent 的现有摘要规则为 300 字符与 4.875rem 最大高度。components/home/HomeConnectionLayer.tsx 使用 2px、6 4 虚线、下垂曲线和图钉；WorkCanvas 与 components/blog-work/WorkPageConnections.tsx 分别使用 1.5px 实线、三次曲线和实心圆点。差异已获源码佐证，本轮未运行浏览器测量或产品回归。登记前核对根列表与两份归档最大编号 102，依赖 feat-091、feat-096、feat-098 均 done；登记开始时 feat-101 为唯一 in-progress，本轮保留其余任务与既有工作区改动。本轮仅修改 feature_list.json 与 session-handoff.md；未运行 ./init.sh、npm run check、npm run check:full、npm run test:compose-smoke 或 npm run dev，原因是仅登记文档/状态且未改代码、依赖或运行配置，不代表应用门禁通过。 登记核验：首次 python3 内联账本/路径校验 exit 0，根 9 项、归档 94 项、全局 103 个唯一 ID，8 个既有条目及归档与登记前一致。收尾两次复核 exit 1：第一次原始输出 AssertionError（第 17 行固定断言 in-progress 数量为 1），第二次原始输出 AssertionError: 既有条目发生变动: feat-100；原因是另一会话依次将 feat-101 更新为 blocked，再按用户授权将 feat-100 更新为 in-progress 并追加证据。本轮保留这些合法更新，核实两项仅状态与证据追加发生变化，原验收及其他字段均未改变。最终复核采用至多一个 in-progress 的真实约束并核实最新并发记录，python3 内联账本/路径与修改范围校验 exit 0：JSON、计数、全局唯一 ID、状态/依赖、引用路径及用户方案有效，其他 6 个既有条目逐字段不变，feat-100/feat-101 的最新状态和完整证据保留，归档 SHA-256 与参考图片不变；本次写入前后对照确认仅修改 feat-103。featuresNumber=9，按阈值跳过归档；git diff --check exit 0，git status --short 已核对。本轮未创建临时测试工件、容器或日志。"
+    },
+    {
+      "id": "feat-104",
+      "name": "本地开发双地址的 WebSocket 与页面水合修复",
+      "description": "按用户确认，在 next.config.mjs 显式配置 allowedDevOrigins 为 localhost 和 127.0.0.1，修复当前 npm run dev 以 0.0.0.0 监听时通过 127.0.0.1 访问导致开发 WebSocket 被拒绝、页面水合停滞的问题。以两个本机地址的真实浏览器加载和交互作为验收。本项与 feat-105 独立，用户确认的实施顺序为先本项、后用户数据边界修复；顺序不伪装为技术依赖。",
+      "priority": "P2",
+      "priorityReason": "已有真实浏览器与 Origin 对照证据：127.0.0.1 上页面可显示但水合等待超过 60 秒，影响本地开发交互。用户确认先处理本项，支持范围限 localhost 和 127.0.0.1。",
+      "status": "not-started",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "在 next.config.mjs 显式设置 allowedDevOrigins: [\"localhost\", \"127.0.0.1\"]，沿用当前 package.json 的 next dev --webpack --hostname 0.0.0.0 启动方式；不把监听地址改成 127.0.0.1 来绕过问题，不显式增加通配符、局域网地址或任意域名。",
+        "使用隔离数据库和测试账号启动真实开发服务，服务绑定 0.0.0.0；分别通过 localhost 和 127.0.0.1 登录，验证 New Post 直接访问、从 Blog 点击进入、刷新后继续操作均成功，开发 WebSocket 握手成功且不再出现来源拒绝导致的持续重连或水合停滞。",
+        "水合完成必须用真实可观察交互验证：标题/正文输入、客户端按钮响应与站内导航正常；仅断言输入框存在、document readyState 或原生输入能填写不足以证明完成。记录修复前失败、修复后成功的浏览器与 WebSocket 证据，不使用固定 sleep、放宽超时或跳过测试掩盖失败。",
+        "回归必须覆盖日常开发的 0.0.0.0 监听方式与两个访问主机的组合，不能只沿用 tests/e2e/start-test-app.ts 绑定 127.0.0.1 的既有测试启动路径。测试身份和 Cookie 按各主机建立，保持认证、CSRF、生产访问策略与其他用户数据隔离语义。",
+        "实施时运行 ./scripts/run-node22.sh ./init.sh、npm run check:full，并额外执行上述真实开发模式双地址回归与健康端点验证；标准/生产门禁不能替代开发 WebSocket 验收。记录实际命令、结果、失败与未运行原因，清理本项隔离工件后才可标记 done。",
+        "本项只处理已确认的开发来源配置和加载正确性；首次路由编译优化、Turbopack 对比、loading.tsx/导航反馈、3D 入口优化与用户数据边界由各自范围承载，不以本项完成声称已消除约 13.4 秒的冷编译等待。"
+      ],
+      "evidence": "2026-10-01 用户先要求只排查 New Post 加载慢，随后要求先讨论两个明确缺陷、方案确定后登记 feature；用户选择只支持 localhost 和 127.0.0.1，并回复“认可”确认两项方案。只读诊断基于本机 Next.js 16.3.3 与 Node.js 22.23.2：./scripts/run-node22.sh node --input-type=module 的 Playwright 探针在 http://127.0.0.1:3000/posts/new 收到页面后，水合观察报 TimeoutError: locator.waitFor: Timeout 60000ms exceeded；浏览器反复出现 WebSocket connection to ws://127.0.0.1:3000/_next/hmr... failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE。同一服务改用 localhost 后水合约 1976ms 完成，后续可正常站内导航。使用 next/dist/compiled/ws、相同 ws://127.0.0.1:3000/_next/hmr 地址，仅切换 Origin 的独立 Node 对照：Origin=http://127.0.0.1:3000 返回 Parse Error: Expected HTTP/, RTSP/ or ICE/；Origin=http://localhost:3000 为 connected。源码确认 package.json 监听 0.0.0.0，next.config.mjs 未配置 allowedDevOrigins；本地 Next block-cross-site-dev.js 的默认允许主机为 localhost 系列及监听 hostname，现有 E2E 启动器则绑定 127.0.0.1。另一次首次请求 TTFB 16187ms、.next/dev/trace 编译 13421ms，紧接刷新 TTFB 66ms；并行构建/浏览器负载使绝对值不可视为固定基准，此编译问题不并入本项。登记前核对根列表和两份归档共 103 个唯一 ID，最大编号 103；本项无未完成技术前置。本轮只登记状态与交接，尚未实现。未运行 ./init.sh、npm run check、npm run check:full、npm run test:compose-smoke 或重新启动 npm run dev，原因是本轮仅修改文档/状态，适用 AGENTS.md 门禁例外；前述诊断不构成修复后验收。 登记核验：python3 内联 JSON/计数/全局 ID/依赖图/引用路径与基线校验 exit 0，根 11 项、归档 94 项、全局 105 个唯一 ID；两个新增项均 not-started 且无技术依赖。两份归档与用户参考图片 SHA-256 不变；既有 8 项逐字段不变，feat-102 的并行状态/证据更新保留，原验收及其他字段不变。git diff --check exit 0，git status --short 已核对；featuresNumber=11，按阈值跳过归档。首次全量基线采集的 Python exit 0，但输出被工具截断，后续 JSON.parse 报 SyntaxError: Unexpected token 'W'；当时尚未写文件，改为只返回摘要后采集和校验均成功。登记阶段未遗留临时文件，也未创建测试数据、容器或日志；既有应用、测试、计划改动与参考图片均保留。"
+    },
+    {
+      "id": "feat-105",
+      "name": "共享导航与博文编辑器的用户数据客户端边界收紧",
+      "description": "按用户确认，将 SiteNav 的输入收窄到实际使用的 displayName 字符串，更新全部调用处，删除 PostEditor 未使用的 currentUser 参数及新建/编辑入口传参；覆盖 Blog 首页、普通文章详情、新建、编辑及其他共享导航入口。修复完整 ORM 用户对象经 RSC/HTML 传入客户端而包含 passwordHash 等非必要数据的问题。服务端鉴权和业务继续在服务端使用所需用户信息。本项仅登记，按用户顺序在 feat-104 后实施，二者无技术依赖。",
+      "priority": "P1",
+      "priorityReason": "真实 RSC 响应已确认包含当前用户 passwordHash、email 和完整 profile，属于已证实的数据边界缺陷；多个页面共享同一传递模式。用户确认一次覆盖全部共享入口，执行顺序仍按约定先 feat-104、后本项。",
+      "status": "not-started",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "components/blog/SiteNav.tsx 只接收 displayName: string，各调用处显式传入昵称字符串；全量核对并更新 app/home/page.tsx、app/posts/new/page.tsx、app/posts/[slug]/page.tsx、app/posts/edit/[slug]/page.tsx、app/study/page.tsx 及实施时发现的其他既有调用点，保持导航与昵称显示行为。不得仅缩窄 TypeScript 对象类型却继续传入完整 ORM 用户对象。",
+        "components/blog/PostEditor.tsx 删除完全未使用的 currentUser prop，同步删除 New Post、Edit Post 及相关测试夹具传参；新建、编辑、删除、取消、提交状态和错误反馈保持原有行为与可访问性，不让编辑器接收其不需要的用户数据。",
+        "服务端仍通过 lib/auth.ts 执行页面认证及写操作身份核验，文章所有权与发布约束继续由服务端判断；服务端发文快照等业务继续取得其所需用户信息。此次边界收紧不引入客户端身份授权、不改变 Session/Cookie 规则，也不因导航改造移除设置或聊天等功能合法需要的数据。",
+        "用真实生产浏览器和隔离 PostgreSQL 测试用户检查受影响 Blog 页面首次 HTML 及站内导航实际 RSC/Flight 响应，确认 SiteNav/PostEditor 传递的数据不再包含该测试用户的密码哈希或其不需要的邮箱、完整私密 profile 等字段/标记值。断言真实响应和测试用户数据，不能以源码字符串扫描、窄 props 类型或 jsdom mock 替代；测试不得读取真实用户凭据或保存敏感响应载荷。",
+        "覆盖全部共享导航入口的昵称与链接可用性，以及普通博文新建、编辑、取消、作者操作和非作者权限保护。补齐必要的组件回归，并通过真实浏览器与数据库验证字段收紧后认证、写入及所有权行为正确；留存修复前泄露、修复后收紧的非敏感证据。",
+        "实施时运行 ./scripts/run-node22.sh ./init.sh 与 npm run check:full，记录标准层、真实 PostgreSQL 和生产浏览器的实际结果；未运行或失败写明原始命令与原因，完成本项验收与工件清理后才可标记 done。",
+        "本项以跨服务端/客户端边界的数据最小化为验收，不引入通用数据转换框架、整体重写鉴权层或编辑器；开发来源配置属于 feat-104，冷编译性能、导航加载反馈与 3D 调度不并入本项，也不承诺此变更能消除秒级加载等待。"
+      ],
+      "evidence": "2026-10-01 用户认可“全部共享入口一起收口”的方案，授权方案确定后登记两个独立 feature，尚未授权本轮开始实现。只读源码与真实响应相互印证：lib/auth.ts 的 getCurrentUser 通过 include 查询完整 user/profile 并返回 dbSession.user；app/posts/new/page.tsx、app/home/page.tsx、app/posts/[slug]/page.tsx、app/posts/edit/[slug]/page.tsx 把该对象原样传给客户端 SiteNav，新建/编辑页还传给 PostEditor。SiteNav 只读取 displayName，PostEditor 未使用 currentUser；app/study/page.tsx 也调用 SiteNav，须同步收紧接口。./scripts/run-node22.sh node --input-type=module 的本地认证 GET /posts/new（RSC: 1）诊断返回 200、8834 bytes，字段存在性检查 passwordHash=true、email=true、profile=true；证据只记录字段存在性，不保存真实字段值。/api/auth/me 已显式构造响应，设置/聊天入口亦有独立所需字段，不把它们合法使用的字段一概删除。诊断中认证热查询约 2.5–3.2ms，数据边界缺陷不能解释首次编译的秒级等待。登记前核对全局最大编号 103，按连续编号分配 feat-104/feat-105，二者依赖为空，实施先后只作为用户顺序记录。本轮仅写 feature_list.json 与 session-handoff.md，未改代码、依赖或运行配置，未运行 ./init.sh、npm run check、npm run check:full、npm run test:compose-smoke 或重新启动 npm run dev；适用纯文档/状态门禁例外，既有诊断不代表修复或应用门禁通过。 登记核验：python3 内联 JSON/计数/全局 ID/依赖图/引用路径与基线校验 exit 0，根 11 项、归档 94 项、全局 105 个唯一 ID；两个新增项均 not-started 且无技术依赖。两份归档与用户参考图片 SHA-256 不变；既有 8 项逐字段不变，feat-102 的并行状态/证据更新保留，原验收及其他字段不变。git diff --check exit 0，git status --short 已核对；featuresNumber=11，按阈值跳过归档。首次全量基线采集的 Python exit 0，但输出被工具截断，后续 JSON.parse 报 SyntaxError: Unexpected token 'W'；当时尚未写文件，改为只返回摘要后采集和校验均成功。登记阶段未遗留临时文件，也未创建测试数据、容器或日志；既有应用、测试、计划改动与参考图片均保留。"
     }
   ]
 }

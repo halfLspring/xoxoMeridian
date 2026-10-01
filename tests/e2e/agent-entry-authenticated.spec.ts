@@ -178,7 +178,7 @@ test("欢迎动作中键盘激活由点击动作接管，真实 Canvas 连续播
       if (e2eAgentEntryTheme() === "default") {
         expect(Math.abs(welcomeLast.center - baseline.center)).toBeGreaterThan(0.75);
         expect(clickedAt - welcomeLast.at).toBeLessThan(250);
-        await expect(page.getByRole("tooltip")).toContainText("在呢，我们聊聊。");
+        await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("在呢，我们聊聊。");
       }
       await expectModelSettled(page);
       const measured = await modelMeasurements(page);
@@ -214,7 +214,7 @@ test("默认模型长时间静止后点击仍有可见位移，autofocus 后完�
   const clickedAt = await page.evaluate(() => performance.now());
   await openDialog(page);
   const focusedAt = await page.evaluate(() => performance.now());
-  if (e2eAgentEntryTheme() === "default") await expect(page.getByRole("tooltip")).toContainText("在呢，我们聊聊。");
+  if (e2eAgentEntryTheme() === "default") await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("在呢，我们聊聊。");
   await page.mouse.move(0, 0);
   await expectModelSettled(page);
   const measured = await modelMeasurements(page);
@@ -421,7 +421,7 @@ if (e2eAgentEntryTheme() === "default") {
 
       const draggingAt = await page.evaluate(() => performance.now());
       await page.mouse.move(center.x - 150, center.y - 100, { steps: 10 });
-      await expect(page.getByRole("tooltip")).toContainText("诶，要带我去哪？");
+      await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("诶，要带我去哪？");
       await expectEntryAt(page, { x: initial.x - 150, y: initial.y - 100 });
       await expect.poll(async () => {
         const frames = (await modelMeasurements(page)).frames.filter((frame) => frame.at >= draggingAt);
@@ -434,7 +434,7 @@ if (e2eAgentEntryTheme() === "default") {
     } finally {
       await page.mouse.up();
     }
-    await expect(page.getByRole("tooltip")).toContainText("好，就待在这里。");
+    await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("好，就待在这里。");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     const dropped = { x: initial.x - 210, y: initial.y - 120 };
     await page.mouse.move(0, 0);
@@ -521,7 +521,7 @@ if (e2eAgentEntryTheme() === "default") {
       const dropped = { x: initial.x - 70, y: initial.y - 170 };
       await expectEntryAt(page, dropped);
       await expect(page.getByRole("dialog")).toHaveCount(0);
-      await expect(page.getByRole("tooltip")).toContainText("好，就待在这里。");
+      await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("好，就待在这里。");
       const saved = await savedEntryPosition(page);
       expect(saved).not.toBeNull();
       const scroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
@@ -562,7 +562,7 @@ if (e2eAgentEntryTheme() === "default") {
     await moveEntryWithMouse(page, { x: -initial.width / 2 + 1, y: -initial.height / 2 + 1 });
     await expectEntryAt(page, { x: 12, y: 12 });
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    const bubble = (await page.getByRole("tooltip").boundingBox())!;
+    const bubble = (await page.locator("[data-agent-entry]").getByRole("tooltip").boundingBox())!;
     expect(bubble.x).toBeGreaterThanOrEqual(0);
     expect(bubble.y).toBeGreaterThanOrEqual(0);
     await moveEntryWithMouse(page, { x: 1279 - initial.width / 2, y: 843 - initial.height / 2 });
@@ -818,14 +818,14 @@ test("两位用户的私聊持久隔离，关闭后任务完成、重新打开�
     await openDialog(page);
     const sentA = await sendPrivateMessage(page, `备忘录：${markerA}`);
     createdRooms.push(sentA.roomId);
-    await expect(page.getByRole("tooltip")).toContainText("小助手正在思考…");
+    await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("小助手正在思考…");
     await closeDialog(page);
-    await expect(page.getByRole("tooltip")).toContainText("小助手正在思考…");
+    await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("小助手正在思考…");
     await runPrivateTask(sentA.task.id, databaseUrl);
     const completedA = await db.agentTask.findUniqueOrThrow({ where: { id: sentA.task.id } });
     expect(completedA.status).toBe("completed");
     const replyA = await db.message.findUniqueOrThrow({ where: { id: completedA.finalMessageId! } });
-    await expect(page.getByRole("tooltip")).toContainText("回复准备好啦。");
+    await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("回复准备好啦。");
     await openDialog(page);
     await expect(page.getByRole("dialog").getByText(replyA.content, { exact: true })).toBeVisible();
     const memo = await db.memo.findFirstOrThrow({ where: { roomId: sentA.roomId } });

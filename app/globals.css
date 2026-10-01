@@ -462,18 +462,21 @@ body:has(.home-linen-page) {
 .blog-work { position: relative; min-width: 0; color: #383f36; }
 .blog-work:not(.blog-work-editing) { outline: 1px solid #dbe4d7; border-radius: 10px; background: rgb(255 255 255 / .24); }
 /* 蒙版、裁切框和操作区共用同一个原点与尺寸，控件不参与窗口尺寸计算。 */
-.blog-work-editing > .work-header,
-.blog-work-editing > .work-footer,
-.blog-work-editing > .work-notices { position: absolute; left: var(--work-controls-left); width: var(--work-controls-width); }
-.blog-work-editing > .work-header { top: 0; }
+.blog-work > .work-header,
+.blog-work > .work-footer,
+.blog-work > .work-notices { position: absolute; left: var(--work-controls-left); width: var(--work-controls-width); }
+.blog-work > .work-header { top: 0; }
 .blog-work-editing > .work-footer { bottom: 8px; padding: 0 12px; }
-.blog-work-editing.work-controls-outside > .work-header { top: calc(100% + 12px); border-radius: 12px 12px 0 0; background: rgb(255 255 255 / .96); }
+.blog-work.work-controls-outside > .work-header { top: calc(100% + 12px); border-radius: 12px 12px 0 0; background: rgb(255 255 255 / .96); }
+.blog-work:not(.blog-work-editing).work-controls-outside > .work-header { border-radius: 12px; }
 .blog-work-editing.work-controls-outside > .work-footer { top: calc(100% + 12px + var(--work-header-height)); bottom: auto; border-radius: 0 0 12px 12px; background: rgb(255 255 255 / .96); }
-.blog-work-editing > .work-notices { top: var(--work-notices-top); z-index: 10; }
-.work-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 18px; position: relative; z-index: 4; }
-.work-badge { display: inline-flex; align-items: center; gap: 12px; background: rgb(255 255 255 / .9); padding: 8px 14px; border-radius: 9px; font-size: 13px; color: #71767c; }
+.blog-work > .work-notices { top: var(--work-notices-top); z-index: 10; }
+.work-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: flex-end; padding: 14px 18px; position: relative; z-index: 4; pointer-events: none; }
+.work-header > * { pointer-events: auto; }
+.work-badge { display: inline-flex; align-items: center; gap: 12px; margin-right: auto; background: rgb(255 255 255 / .9); padding: 8px 14px; border-radius: 9px; font-size: 13px; color: #71767c; }
 .work-badge strong { color: #527943; font-size: 15px; }
 .work-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; }
+.work-published-time { position: fixed; z-index: 60; width: max-content; max-width: calc(100vw - 16px); overflow: auto; overflow-wrap: anywhere; padding: 9px 14px; border: 1px solid #dbe4d7; border-radius: 9px; background: #fff; box-shadow: 0 4px 16px rgb(39 66 30 / .1); color: #71767c; font-size: 13px; }
 .work-save-status { display: inline-flex; align-items: center; padding: 7px 10px; border-radius: 8px; }
 .work-save-status-saved { color: #36542a; background: #d5e4ca; }
 .work-danger { color: #9b3434; }
