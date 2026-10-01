@@ -43,6 +43,10 @@ export function useWorkMutations(initial: WorkSnapshot, actorId: string) {
         if (!mounted.current) return;
         if (response.status === 401) { changeState("auth-invalid"); setError("登录已失效，请重新登录"); queue.current.forEach(t => t.resolve(null)); queue.current = []; return; }
         const data = await response.json();
+        // 删除期间另一标签页可能已完成同一目标；确认资源不存在即可关闭旧作品。
+        if (task.command.operation === "delete" && response.status === 404 && data.code === "NOT_FOUND") {
+          queue.current.shift(); task.resolve(current.current); continue;
+        }
         if (!response.ok) {
           setError(data.error || "保存失败，请重试");
           if (data.code === "REVISION_CONFLICT" && !task.upload) {

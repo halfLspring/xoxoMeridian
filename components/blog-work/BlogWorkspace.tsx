@@ -9,12 +9,12 @@ import type { AnchorRegistrar } from "@/components/blog-work/WorkCanvas";
 import type { WorkSnapshot } from "@/lib/blog-work/types";
 import type { CreateWorkInput } from "@/lib/blog-work/schemas";
 
-type BlogWorkspaceProps = { actorId: string; registerAnchor?: AnchorRegistrar; onDraftChange?: (work: WorkSnapshot | null) => void; onPublished?: (work: WorkSnapshot) => void };
+type BlogWorkspaceProps = { actorId: string; registerAnchor?: AnchorRegistrar; onDraftChange?: (work: WorkSnapshot | null) => void; onPublished?: (work: WorkSnapshot) => void; onDeleted?: (id: string) => void };
 export function BlogWorkspace(props: BlogWorkspaceProps) {
   // 账号变化时一并销毁私密草稿、离开守卫及在途请求，不能沿用上个账号的状态。
   return <ActorWorkspace key={props.actorId} {...props} />;
 }
-function ActorWorkspace({ actorId, registerAnchor, onDraftChange, onPublished }: BlogWorkspaceProps) {
+function ActorWorkspace({ actorId, registerAnchor, onDraftChange, onPublished, onDeleted }: BlogWorkspaceProps) {
   const [mode, setMode] = useState<"new" | "list" | null>(null), [draft, setDraft] = useState<WorkSnapshot | null>(null), [error, setError] = useState(""), [pending, setPending] = useState(false);
   const guard = useRef<LeaveHandler | null>(null), requestSequence = useRef(0), router = useRouter(), params = useSearchParams();
   const invalidate = useCallback(() => { setPending(false); return ++requestSequence.current; }, []);
@@ -85,6 +85,6 @@ function ActorWorkspace({ actorId, registerAnchor, onDraftChange, onPublished }:
       finally { if (sequence === requestSequence.current) setPending(false); }
     }} />}
     {mode === "list" && <DraftListDialog actorId={actorId} onClose={() => { invalidate(); setMode(null); setError(""); }} onOpen={id => request(sequence => void open(id, sequence))} />}
-    {draft && <div className="active-draft" data-private-draft={draft.status === "draft" ? "" : undefined} style={draft.status === "draft" ? { top: 0, left: 0 } : { top: 40, left: 24 }}><WorkEditor key={`${actorId}:${draft.id}`} initial={draft} actorId={actorId} editable focusPostId={params.get("post") ?? undefined} leaveRef={guard} onClose={close} onPublished={result => { onPublished?.(result); close(); requestAnimationFrame(() => document.querySelector(`[data-work-id="${result.id}"]`)?.scrollIntoView({ block: "center" })); }} registerAnchor={registerAnchor} onChanged={onDraftChange} /></div>}
+    {draft && <div className="active-draft" data-private-draft={draft.status === "draft" ? "" : undefined} style={draft.status === "draft" ? { top: 0, left: 0 } : { top: 40, left: 24 }}><WorkEditor key={`${actorId}:${draft.id}`} initial={draft} actorId={actorId} editable focusPostId={params.get("post") ?? undefined} leaveRef={guard} onClose={close} onDeleted={id => onDeleted?.(id)} onPublished={result => { onPublished?.(result); close(); requestAnimationFrame(() => document.querySelector(`[data-work-id="${result.id}"]`)?.scrollIntoView({ block: "center" })); }} registerAnchor={registerAnchor} onChanged={onDraftChange} /></div>}
   </>;
 }

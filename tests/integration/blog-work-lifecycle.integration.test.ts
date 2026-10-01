@@ -91,6 +91,45 @@ describe("空间草稿真实数据库生命周期", () => {
     const before = await readWork(owner, a.workId); await command(b.workId, { operation: "delete" }); const after = await readWork(owner, a.workId); expect(after.connections).toHaveLength(0); expect(after.revision).toBeGreaterThan(before.revision); expect(after.elements).toHaveLength(1);
   });
   it("另一私密草稿不能作为外部端点", async () => { const a = await draft(), b = await draft(), pa = await photo(a.workId), pb = await photo(b.workId); await expect(command(a.workId, { operation: "connection.create", data: { fromId: pa.resourceId!, toId: pb.resourceId!, color: "#72975a" } })).rejects.toMatchObject({ status: 400 }); });
+  it("已发布整组删除原子清理图文及双向跨组连线，保留外部内容且可幂等重试", async () => {
+    const local = await draft(), external = await draft();
+    for (const work of [local, external]) {
+      for (let i = 0; i < 2; i++) await command(work.workId, { operation: "post.create", data: { title: `${work.workId} 第 ${i} 篇`, content: "整组删除回归" } });
+      await photo(work.workId); await photo(work.workId, 500);
+      await command(work.workId, { operation: "publish" });
+    }
+    const a = await readWork(owner, local.workId), b = await readWork(owner, external.workId);
+    const ap = a.elements.filter(e => e.type === "photo"), bp = b.elements.filter(e => e.type === "photo");
+    const connect = (id: string, fromId: string, toId: string) => command(id, { operation: "connection.create", data: { fromId, toId, color: "#72975a" } });
+    await connect(a.id, ap[0].id, a.posts[0].elementId);
+    await connect(a.id, ap[1].id, bp[0].id);
+    await connect(b.id, bp[1].id, ap[0].id);
+    const keepLine = await connect(b.id, bp[0].id, b.posts[0].elementId);
+    const current = await readWork(owner, a.id), externalBefore = await readWork(owner, b.id);
+    const input: MutationInput = { mutationId: randomUUID(), baseRevision: current.revision, expectedStatus: "published" };
+    const localAssets = await prisma.blogMediaAsset.findMany({ where: { workId: a.id } });
+    const externalAssets = await prisma.blogMediaAsset.findMany({ where: { workId: b.id } });
+    await expect(mutateWork(other, a.id, input, { operation: "delete" })).rejects.toMatchObject({ status: 403 });
+    await expect(mutateWork(owner, a.id, { ...input, baseRevision: current.revision - 1 }, { operation: "delete" })).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    expect(await readWork(owner, a.id)).toEqual(current);
+    const deleted = await mutateWork(owner, a.id, input, { operation: "delete" });
+    expect(deleted.deleted).toBe(true);
+    expect(await mutateWork(owner, a.id, input, { operation: "delete" })).toEqual(deleted);
+    await expect(readWork(owner, a.id)).rejects.toMatchObject({ status: 404 });
+    expect(await prisma.post.count({ where: { workId: a.id } })).toBe(0);
+    expect(await prisma.atlasElement.count({ where: { workId: a.id } })).toBe(0);
+    expect(await prisma.atlasConnection.count({ where: { OR: [{ workId: a.id }, { fromId: { in: a.elements.map(e => e.id) } }, { toId: { in: a.elements.map(e => e.id) } }] } })).toBe(0);
+    const externalAfter = await readWork(owner, b.id);
+    expect(externalAfter.posts).toEqual(externalBefore.posts);
+    expect(externalAfter.elements).toEqual(externalBefore.elements);
+    expect(externalAfter.connections.map(c => c.id)).toEqual([keepLine.resourceId]);
+    expect(externalAfter.revision).toBeGreaterThan(externalBefore.revision);
+    for (const asset of localAssets) await expect(assertAssetRead(asset.storageKey, owner)).rejects.toMatchObject({ status: 404 });
+    for (const asset of externalAssets) await expect(assertAssetRead(asset.storageKey, other)).resolves.toBeUndefined();
+    expect(await cleanupBlogAssets()).toMatchObject({ deleted: 2, failed: 0 });
+    expect(storage.delete.mock.calls.map(([key]) => key).sort()).toEqual(localAssets.map(asset => asset.storageKey).sort());
+    expect((await queryBlogFeed(owner, {})).entries.filter(e => e.kind === "work").map(e => e.work.id)).toEqual([b.id]);
+  });
   it("上传失败留清理账本、删除失败可重试，GC 不删仍被引用资源", async () => {
     const w = await draft(); storage.save.mockRejectedValueOnce(new Error("storage unavailable")); storage.delete.mockRejectedValueOnce(new Error("delete unavailable"));
     await expect(photo(w.workId)).rejects.toThrow("storage unavailable"); const broken = await prisma.blogMediaAsset.findFirstOrThrow(); expect(broken.status).toBe("cleanup");

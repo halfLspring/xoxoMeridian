@@ -35,6 +35,14 @@ export function HomeTimelineBoard({
     setPublishedWorks(previous => [...previous.filter(w => w.id !== work.id), work]);
   }, []);
   const [editedWorks, setEditedWorks] = useState<Record<string, WorkSnapshot>>({});
+  const [deletedWorkIds, setDeletedWorkIds] = useState(() => new Set<string>());
+  const workDeleted = useCallback((id: string) => {
+    // 同步移除所有入口中的作品；迟到的搜索或分页响应也不能让它重新出现。
+    setDeletedWorkIds(previous => new Set(previous).add(id));
+    setActiveWork(previous => previous?.id === id ? null : previous);
+    setPublishedWorks(previous => previous.filter(work => work.id !== id));
+    setEditedWorks(previous => { const next = { ...previous }; delete next[id]; return next; });
+  }, []);
   const registerWorkAnchor = useCallback((id: string, point: () => Point | null) => {
     setWorkAnchors(previous => new Map(previous).set(id, point));
     return () => setWorkAnchors(previous => { const next = new Map(previous); next.delete(id); return next; });
@@ -116,7 +124,7 @@ export function HomeTimelineBoard({
   const searchError = q ? currentSearch?.error : null;
   const additional = extraPage?.query === q ? extraPage.entries : [];
   const displayPosts = [...new Map([...(q ? (searchState?.posts ?? posts) : posts), ...additional.flatMap(entry => entry.kind === "post" ? [entry.post] : [])].map(post => [post.id, post])).values()];
-  const displayWorks = [...new Map([...(q ? [] : publishedWorks), ...((q ? searchState?.works : undefined) ?? feed?.entries.flatMap(entry => entry.kind === "work" ? [entry.work] : []) ?? []), ...additional.flatMap(entry => entry.kind === "work" ? [entry.work] : [])].map(work => [work.id, work])).values()];
+  const displayWorks = [...new Map([...(q ? [] : publishedWorks), ...((q ? searchState?.works : undefined) ?? feed?.entries.flatMap(entry => entry.kind === "work" ? [entry.work] : []) ?? []), ...additional.flatMap(entry => entry.kind === "work" ? [entry.work] : [])].map(work => [work.id, work])).values()].filter(work => !deletedWorkIds.has(work.id));
   const nextCursor = extraPage?.query === q ? extraPage.cursor : q ? currentSearch?.nextCursor : feed?.nextCursor;
   const externalConnections = [...new Map([...displayWorks.map(w => editedWorks[w.id] ?? w), ...(activeWork ? [activeWork] : [])].flatMap(w => w.connections.filter(c => !w.elements.some(e => e.id === c.fromId) || !w.elements.some(e => e.id === c.toId))).map(c => [c.id, c])).values()];
   const emptyMessage = q && currentSearch && !currentSearch.error && currentSearch.posts?.length === 0 && displayWorks.length === 0
@@ -342,7 +350,7 @@ export function HomeTimelineBoard({
           <Timeline
             posts={displayPosts}
             works={displayWorks.filter(work => work.id !== activeWork?.id)}
-            renderWork={work => <WorkEditor key={work.id} initial={work} actorId={currentUserId} onClose={() => {}} onPublished={() => {}} registerAnchor={registerWorkAnchor} onChanged={updatePublicWork} />}
+            renderWork={work => <WorkEditor key={work.id} initial={work} actorId={currentUserId} onClose={() => {}} onPublished={() => {}} onDeleted={workDeleted} registerAnchor={registerWorkAnchor} onChanged={updatePublicWork} />}
             currentUserId={currentUserId}
             postElementByPostId={postElementByPostId}
             connectFromId={connectFromId}
@@ -363,7 +371,7 @@ export function HomeTimelineBoard({
         }}>{paging ? "正在加载…" : "加载更早的作品"}</button>}
       </main>
 
-      <BlogWorkspace actorId={currentUserId} registerAnchor={registerWorkAnchor} onDraftChange={setActiveWork} onPublished={workPublished} />
+      <BlogWorkspace actorId={currentUserId} registerAnchor={registerWorkAnchor} onDraftChange={setActiveWork} onPublished={workPublished} onDeleted={workDeleted} />
       <WorkPageConnections connections={externalConnections} anchors={workAnchors} legacy={anchors} />
 
       <HomeUploadModal

@@ -692,6 +692,7 @@ test("草稿自动保存、恢复、私密字节与整组发布协作", async ({
       await expect(partnerWork).toBeVisible();
       await expect(partnerPage.locator("[data-external-connection] path")).toHaveCount(1);
       await partnerWork.getByRole("button", { name: "编辑作品", exact: true }).click();
+      await expect(partnerWork.getByRole("button", { name: "删除作品", exact: true })).toHaveCount(0);
       await expect(partnerWork.getByRole("button", { name: "调整边框", exact: true })).toHaveCount(0);
       await expect(partnerWork.getByRole("button", { name: "博文", exact: true })).toHaveCount(0);
       await partnerWork.getByRole("button", { name: "伙伴的标注", exact: true }).click();
@@ -708,9 +709,18 @@ test("草稿自动保存、恢复、私密字节与整组发布协作", async ({
       await page.getByRole("button", { name: "关闭阅读博文" }).click();
       await publicWork.getByRole("button", { name: "编辑作品", exact: true }).click();
       await expect(publicWork.getByRole("toolbar", { name: "草稿工具栏" }).getByRole("button")).toHaveText(["博文", "图片", "连线"]);
-      // 整组删除 API 的生命周期仍保留，已删除的边框设置弹窗不再提供入口。
-      const latest = (await (await page.request.get(`/api/blog/works/${workId}`)).json()).work;
-      expect((await page.request.patch(`/api/blog/works/${workId}`, { headers: { "X-Blog-Viewer-Id": userId, origin: new URL(testInfo.project.use.baseURL!).origin }, data: { mutationId: randomUUID(), baseRevision: latest.revision, expectedStatus: "published", command: { operation: "delete" } } })).status()).toBe(200);
+      const deleteButton = publicWork.getByRole("button", { name: "删除作品", exact: true });
+      await deleteButton.scrollIntoViewIfNeeded();
+      const deleteBox = (await deleteButton.boundingBox())!;
+      expect(deleteBox.x).toBeGreaterThanOrEqual(0); expect(deleteBox.x + deleteBox.width).toBeLessThanOrEqual(390);
+      await expect(publicWork.getByText("已自动保存", { exact: true })).toHaveCSS("background-color", "rgb(213, 228, 202)");
+      await page.screenshot({ path: testInfo.outputPath("published-delete-mobile.png") });
+      page.once("dialog", dialog => { expect(dialog.message()).toContain("全部博文、图片和相关连线"); void dialog.accept(); });
+      const deleted = page.waitForResponse(r => r.request().method() === "PATCH" && r.url().endsWith(`/works/${workId}`));
+      await deleteButton.focus(); await page.keyboard.press("Enter");
+      expect((await deleted).status()).toBe(200);
+      await expect(publicWork).toHaveCount(0);
+      await expect(page.locator("[data-external-connection] path")).toHaveCount(0);
       await page.reload();
       await expect(publicWork).toHaveCount(0);
       expect(await db.blogWork.count({ where: { id: workId } })).toBe(0);
@@ -721,6 +731,50 @@ test("草稿自动保存、恢复、私密字节与整组发布协作", async ({
     } finally { await partner.close(); await db.user.deleteMany({ where: { id: otherId } }); }
   });
 });
+
+for (const entry of ["发布后原页", "作品深链"]) {
+  test(`整组删除从${entry}即时移除，取消不写入且刷新不恢复`, async ({ context }, testInfo) => {
+    await withStudyUser(context, async ({ page, db, userId }) => {
+      const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, viewportWidth: 960, viewportHeight: 540 } });
+      const post = await db.post.create({ data: { workId: work.id, authorId: userId, workOrder: 0, title: "待删除整组作品", content: "删除后正文和图片一起移除", slug: randomUUID() } });
+      await db.atlasElement.create({ data: { workId: work.id, boardId: "home-board", postId: post.id, type: "note", x: 0, y: 0, width: 352, height: 180 } });
+      const headers = { "X-Blog-Viewer-Id": userId, origin: new URL(testInfo.project.use.baseURL!).origin };
+      const upload = await page.request.post(`/api/blog/works/${work.id}/uploads`, {
+        headers, multipart: { file: { name: "delete.png", mimeType: "image/png", buffer: png }, metadata: JSON.stringify({ mutationId: randomUUID(), baseRevision: 0, expectedStatus: "draft", data: { x: 540, y: 180, width: 240, height: 180, caption: "待删除图片" } }) },
+      });
+      expect(upload.status()).toBe(200);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.goto(`/home?draft=${work.id}`);
+      const draft = page.getByRole("region", { name: "空间草稿" });
+      await waitForWorkLayout(page, draft);
+      const saved = draft.getByText("已自动保存", { exact: true });
+      await expect(saved).toHaveCSS("border-radius", "8px");
+      await expect(saved).toHaveCSS("background-color", "rgb(213, 228, 202)");
+      await draft.getByRole("button", { name: "发布", exact: true }).click();
+      await expect(draft).toHaveCount(0);
+      const published = page.locator(`[data-work-id="${work.id}"]`);
+      if (entry === "作品深链") await page.goto(`/home?work=${work.id}`);
+      else await published.getByRole("button", { name: "编辑作品", exact: true }).click();
+      const button = published.getByRole("button", { name: "删除作品", exact: true });
+      await expect(button).toBeEnabled();
+      await expect(published.getByRole("button", { name: "退出编辑" })).toBeVisible();
+      const before = await db.blogWork.findUniqueOrThrow({ where: { id: work.id } });
+      page.once("dialog", dialog => { expect(dialog.message()).toContain("外部相连作品会保留"); void dialog.dismiss(); });
+      await button.click();
+      await expect(published.getByRole("heading", { name: post.title })).toBeVisible();
+      expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toEqual(before);
+      await page.screenshot({ path: testInfo.outputPath("published-delete-desktop.png") });
+      page.once("dialog", dialog => void dialog.accept());
+      await button.click();
+      await expect(published).toHaveCount(0);
+      expect(await db.post.count({ where: { workId: work.id } })).toBe(0);
+      expect(await db.atlasElement.count({ where: { workId: work.id } })).toBe(0);
+      expect((await page.request.get(`/api/blog/works/${work.id}`)).status()).toBe(404);
+      await page.reload();
+      await expect(published).toHaveCount(0);
+    });
+  });
+}
 
 test("窄屏缩放下图片鼠标和触摸位移逆变换，Escape 与 pointercancel 不写入", async ({ context, browser }, testInfo) => {
   await withStudyUser(context, async ({ page, db, userId }) => {
@@ -898,25 +952,81 @@ test("最大窗口的边框手柄不能越界，裁切外的图片数据仍保�
   });
 });
 
-test("双标签页同字段冲突保留本地输入，明确选择后重提", async ({ context }) => {
+test("双标签页同字段冲突保留本地输入，明确选择后重提", async ({ context }, testInfo) => {
   await withStudyUser(context, async ({ page, db, userId }) => {
     const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } } } });
     const other = await context.newPage();
-    try {
-      await page.goto(`/home?draft=${work.id}`); await other.goto(`/home?draft=${work.id}`);
-      for (const tab of [page, other]) await expect(tab.getByRole("region", { name: "空间草稿" })).toBeVisible();
-      // 两页已拿到同一版本后，故意阻止第二页的后台回读，确保测试实际竞争。
-      await other.route(`**/api/blog/works/${work.id}`, async route => {
-        if (route.request().method() === "GET") await route.fulfill({ status: 503, json: { error: "离线回读" } }); else await route.continue();
+    const startedAt = Date.now(), loadingEvents: Array<Record<string, unknown>> = [];
+    for (const [label, tab] of [["first", page], ["second", other]] as const) {
+      tab.on("request", request => {
+        if (request.url().endsWith(`/api/blog/works/${work.id}`)) loadingEvents.push({ tab: label, event: "request", method: request.method(), at: Date.now() - startedAt });
       });
+      tab.on("response", async response => {
+        if (!response.url().endsWith(`/api/blog/works/${work.id}`)) return;
+        loadingEvents.push({ tab: label, event: "response", method: response.request().method(), status: response.status(), at: Date.now() - startedAt, timing: response.request().timing() });
+        await response.finished();
+        loadingEvents.push({ tab: label, event: "body-finished", at: Date.now() - startedAt });
+      });
+      tab.on("requestfailed", request => {
+        if (request.url().endsWith(`/api/blog/works/${work.id}`)) loadingEvents.push({ tab: label, event: "request-failed", failure: request.failure(), at: Date.now() - startedAt });
+      });
+      tab.on("pageerror", error => loadingEvents.push({ tab: label, event: "page-error", message: error.message, at: Date.now() - startedAt }));
+    }
+    const responseFor = (tab: Page, method: "GET" | "PATCH", status?: number) => tab.waitForResponse(response =>
+      response.request().method() === method && response.url().endsWith(`/api/blog/works/${work.id}`) && (status === undefined || response.status() === status));
+    try {
+      const revisions: number[] = [];
+      for (const [label, tab] of [["first", page], ["second", other]] as const) {
+        // document load 不表示水合后的作品 GET 已完成；先确认真实响应，再开始 UI 断言。
+        const [response] = await Promise.all([responseFor(tab, "GET"), tab.goto(`/home?draft=${work.id}`)]);
+        expect(response.status()).toBe(200);
+        const { work: opened } = await response.json();
+        revisions.push(opened.revision);
+        await expect(tab.getByRole("region", { name: "空间草稿" })).toBeVisible();
+        loadingEvents.push({ tab: label, event: "editor-ready", revision: opened.revision, at: Date.now() - startedAt, ...await tab.evaluate(() => ({ ready: document.readyState, visibility: document.visibilityState })) });
+      }
+      expect(revisions).toEqual([work.revision, work.revision]);
+      // 一直冻结第二页回读到旧版本 PATCH 真正发出，随后允许冲突处理读取最新状态。
+      let stalePatchSent = false;
+      await other.route(`**/api/blog/works/${work.id}`, async route => {
+        if (route.request().method() === "PATCH") stalePatchSent = true;
+        if (route.request().method() === "GET" && !stalePatchSent) await route.fulfill({ status: 503, json: { error: "离线回读" } });
+        else await route.continue();
+      });
+      const firstSaved = responseFor(page, "PATCH");
       await page.getByRole("button", { name: "调整草稿右边界", exact: true }).focus(); await page.keyboard.press("Shift+ArrowLeft");
+      const firstResponse = await firstSaved;
+      expect(firstResponse.status()).toBe(200);
+      expect(firstResponse.request().postDataJSON().baseRevision).toBe(work.revision);
+      const { work: firstResult } = await firstResponse.json();
+      expect(firstResult.viewportWidth).toBe(950);
       await expect(page.getByText("已自动保存", { exact: true })).toBeVisible();
-      await other.unroute(`**/api/blog/works/${work.id}`);
+      const conflictResult = Promise.all([
+        responseFor(other, "PATCH").then(async response => {
+          expect(response.status()).toBe(409);
+          expect(response.request().postDataJSON().baseRevision).toBe(work.revision);
+          expect(await response.json()).toMatchObject({ code: "REVISION_CONFLICT" });
+        }),
+        responseFor(other, "GET", 200).then(async response => {
+          const { work: latest } = await response.json();
+          expect(latest).toMatchObject({ revision: firstResult.revision, viewportWidth: 950 });
+        }),
+      ]);
       await other.getByRole("button", { name: "调整草稿右边界", exact: true }).focus(); await other.keyboard.press("ArrowLeft");
+      await conflictResult;
       await expect(other.getByText("修改冲突", { exact: true })).toBeVisible();
       expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).viewportWidth).toBe(950);
-      await other.getByRole("button", { name: "重新提交我的修改" }).click(); await expect(other.getByText("已自动保存", { exact: true })).toBeVisible();
+      const resubmitted = responseFor(other, "PATCH");
+      await other.getByRole("button", { name: "重新提交我的修改" }).click();
+      const resubmittedResponse = await resubmitted;
+      expect(resubmittedResponse.status()).toBe(200);
+      expect(resubmittedResponse.request().postDataJSON().baseRevision).toBe(firstResult.revision);
+      expect((await resubmittedResponse.json()).work.viewportWidth).toBe(959);
+      await expect(other.getByText("已自动保存", { exact: true })).toBeVisible();
       expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).viewportWidth).toBe(959);
-    } finally { await other.close(); }
+    } finally {
+      await testInfo.attach("draft-loading-events", { contentType: "application/json", body: JSON.stringify(loadingEvents, null, 2) });
+      await other.close();
+    }
   });
 });

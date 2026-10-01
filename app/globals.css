@@ -474,6 +474,9 @@ body:has(.home-linen-page) {
 .work-badge { display: inline-flex; align-items: center; gap: 12px; background: rgb(255 255 255 / .9); padding: 8px 14px; border-radius: 9px; font-size: 13px; color: #71767c; }
 .work-badge strong { color: #527943; font-size: 15px; }
 .work-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; }
+.work-save-status { display: inline-flex; align-items: center; padding: 7px 10px; border-radius: 8px; }
+.work-save-status-saved { color: #36542a; background: #d5e4ca; }
+.work-danger { color: #9b3434; }
 .blog-work button, .work-dialog button, .draft-selection button, .work-nav-button { border-radius: 8px; padding: 7px 10px; font-size: 13px; }
 .blog-work button:hover, .work-dialog button:hover { background-color: rgb(229 239 223 / .8); }
 .blog-work button:focus-visible, .work-dialog :focus-visible, .draft-selection button:focus-visible { outline: 2px solid #557d45; outline-offset: 3px; }
