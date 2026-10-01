@@ -272,7 +272,7 @@ public/models/agent-entry/
 - `.env.example`
 - `package.json` 与 `package-lock.json`
 - `tests/lib/`、`tests/component/` 和 `tests/e2e/` 中的对应行为测试
-- 实施阶段的 `feature_list.json`、`progress.md` 与 `session-handoff.md`
+- 实施阶段的 `feature_list.json` 与 `session-handoff.md`
 
 不会修改数据库、Prisma migration、Agent Runtime、Chat 内部状态或 AgentChatAvatar。
 
@@ -298,4 +298,4 @@ public/models/agent-entry/
 5. 移动原始资产，生成候选 Runtime GLB，并执行自动预算检查。
 6. 启动真实页面预览，在人工确认候选前暂停，不提升或提交正式 Runtime GLB。
 7. 人工确认后完成真实模型装配、Playwright 导航验证和风险匹配门禁。
-8. 更新三份状态文件、清理候选和测试产物，记录唯一推荐下一步。
+8. 更新状态文件、清理候选和测试产物，记录唯一推荐下一步。

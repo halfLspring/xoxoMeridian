@@ -1,5 +1,6 @@
 "use client";
 
+import { useBlogActions } from "@/components/blog-work/BlogActionProvider";
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,13 +9,14 @@ import { SearchInput } from "@/components/blog/SearchInput";
 
 export function SiteNav({ currentUser }: { currentUser: { id: string; displayName: string; avatarLabel: string } }) {
   const pathname = usePathname();
+  const blogActions = useBlogActions();
   const isHome = pathname === "/home";
   const isChat = pathname.startsWith("/chat");
   const isStudy = pathname.startsWith("/study");
 
   return (
     <nav className="sticky top-0 z-40 border-b border-[#e8e8e8] bg-white/95 backdrop-blur-sm">
-      <div className="flex h-16 items-center justify-between px-5">
+      <div className="site-nav-content flex min-h-16 flex-wrap items-center justify-between gap-3 px-5 py-2">
         <div className="flex min-w-0 items-center gap-6">
           <BrandBadge />
           <Link
@@ -43,10 +45,11 @@ export function SiteNav({ currentUser }: { currentUser: { id: string; displayNam
             Study
           </Link>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="site-nav-tools flex min-w-0 flex-wrap items-center gap-3">
           <Suspense fallback={<div className="w-48 h-[30px]" />}>
             <SearchInput />
           </Suspense>
+          {!isStudy && <Link href="/home?draft=list" className="work-nav-button" onClick={event => { if (isHome && blogActions) { event.preventDefault(); blogActions.requestAction("list"); } }}>My Draft</Link>}
           {!isStudy && (
             <Link
               href="/posts/new"

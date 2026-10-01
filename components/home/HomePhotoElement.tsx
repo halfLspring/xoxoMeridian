@@ -7,6 +7,9 @@ import { clampPhotoSize } from "@/lib/home-spatial";
 
 export function HomePhotoElement({
   element,
+  viewScale = 1,
+  readOnly = false,
+  onResizePreview,
   deleting,
   selected,
   onSelect,
@@ -20,6 +23,9 @@ export function HomePhotoElement({
   registerAnchor,
 }: {
   element: HomePhotoElementData;
+  viewScale?: number;
+  readOnly?: boolean;
+  onResizePreview?: (id: string, width: number, height: number) => void;
   deleting: boolean;
   selected: boolean;
   onSelect: (id: string) => void;
@@ -62,7 +68,7 @@ export function HomePhotoElement({
   };
 
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (deleting) return;
+    if (deleting || readOnly || event.button !== 0) return;
     const target = event.target as HTMLElement;
     if (target.closest("[data-caption-area], [data-rotation-control]") || target.closest("button")) return;
 
@@ -78,7 +84,7 @@ export function HomePhotoElement({
       startY: element.y,
       downTime: Date.now(),
     };
-  }, [deleting, element.x, element.y]);
+  }, [deleting, readOnly, element.x, element.y]);
 
   const onResizePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     if (deleting) return;
@@ -99,16 +105,16 @@ export function HomePhotoElement({
 
   const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (deleting || !dragRef.current.active || dragRef.current.resizing) return;
-    const dx = event.clientX - dragRef.current.startClientX;
-    const dy = event.clientY - dragRef.current.startClientY;
+    const dx = (event.clientX - dragRef.current.startClientX) / viewScale;
+    const dy = (event.clientY - dragRef.current.startClientY) / viewScale;
     onMove(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
-  }, [deleting, element.id, onMove]);
+  }, [deleting, element.id, onMove, viewScale]);
 
   const onPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (deleting || !dragRef.current.active || dragRef.current.resizing) return;
     dragRef.current.active = false;
-    const dx = event.clientX - dragRef.current.startClientX;
-    const dy = event.clientY - dragRef.current.startClientY;
+    const dx = (event.clientX - dragRef.current.startClientX) / viewScale;
+    const dy = (event.clientY - dragRef.current.startClientY) / viewScale;
     const dist = Math.hypot(dx, dy);
     const duration = Date.now() - dragRef.current.downTime;
 
@@ -118,25 +124,26 @@ export function HomePhotoElement({
     }
 
     onMoveEnd(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
-  }, [deleting, element.id, onMoveEnd, onSelect]);
+  }, [deleting, element.id, onMoveEnd, onSelect, viewScale]);
 
   const getResizeSize = useCallback((clientX: number, clientY: number) => {
     const drag = dragRef.current;
     const radians = drag.startRotation * Math.PI / 180;
-    const dx = clientX - drag.startClientX;
-    const dy = clientY - drag.startClientY;
+    const dx = (clientX - drag.startClientX) / viewScale;
+    const dy = (clientY - drag.startClientY) / viewScale;
     return clampPhotoSize({
       width: drag.startWidth + dx * Math.cos(radians) + dy * Math.sin(radians),
       aspectRatio: drag.aspectRatio,
     });
-  }, []);
+  }, [viewScale]);
 
   const onResizePointerMove = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     if (deleting || !dragRef.current.active || !dragRef.current.resizing) return;
     const size = getResizeSize(event.clientX, event.clientY);
     rootRef.current?.style.setProperty("--home-photo-width", `${size.width}px`);
     rootRef.current?.style.setProperty("--home-photo-height", `${size.height}px`);
-  }, [deleting, getResizeSize]);
+    onResizePreview?.(element.id, size.width, size.height);
+  }, [deleting, getResizeSize, element.id, onResizePreview]);
 
   const onResizePointerUp = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     if (deleting || !dragRef.current.active || !dragRef.current.resizing) return;
@@ -146,10 +153,28 @@ export function HomePhotoElement({
     onResizeEnd(element.id, size.width, size.height);
   }, [deleting, element.id, getResizeSize, onResizeEnd]);
 
+  const cancelGesture = useCallback(() => {
+    const drag = dragRef.current;
+    if (!drag.active) return;
+    if (drag.resizing) {
+      rootRef.current?.style.setProperty("--home-photo-width", `${drag.startWidth}px`);
+      rootRef.current?.style.setProperty("--home-photo-height", `${drag.startWidth / drag.aspectRatio}px`);
+      onResizePreview?.(element.id, drag.startWidth, drag.startWidth / drag.aspectRatio);
+    } else onMove(element.id, drag.startX, drag.startY);
+    drag.active = false;
+    drag.resizing = false;
+  }, [element.id, onMove, onResizePreview]);
+  useEffect(() => {
+    const cancel = (event: KeyboardEvent) => { if (event.key === "Escape") cancelGesture(); };
+    window.addEventListener("keydown", cancel);
+    return () => window.removeEventListener("keydown", cancel);
+  }, [cancelGesture]);
+
   return (
     <div
       ref={rootRef}
       data-home-photo
+      data-element-id={element.id}
       aria-busy={deleting}
       className={`home-photo-element absolute select-none ${selected ? "is-selected" : ""}`}
       style={{
@@ -160,7 +185,11 @@ export function HomePhotoElement({
         ["--home-photo-width" as string]: `${element.width}px`,
         ["--home-photo-height" as string]: `${element.height}px`,
         transform: `rotate(${element.rotation}deg)`,
+        transformOrigin: "center center",
+        touchAction: readOnly ? undefined : "none",
       }}
+      onPointerCancel={cancelGesture}
+      onLostPointerCapture={cancelGesture}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -176,7 +205,7 @@ export function HomePhotoElement({
         />
 
         <div className="home-photo-caption" data-caption-area>
-          {editingCaption ? (
+          {readOnly ? <span>{element.caption}</span> : editingCaption ? (
             <>
               <label htmlFor={captionInputId} className="sr-only">照片标注</label>
               <input
@@ -211,6 +240,7 @@ export function HomePhotoElement({
           )}
         </div>
 
+        {!readOnly && <>
         <button
           type="button"
           className="home-photo-delete"
@@ -252,6 +282,7 @@ export function HomePhotoElement({
           onPointerUp={onResizePointerUp}
           title="调整大小"
         />
+        </>}
       </div>
     </div>
   );

@@ -60,7 +60,7 @@ function MessageBubble({
       >
         <header className={cn("mb-1 flex flex-wrap items-center gap-2 text-xs", isMine ? "text-white/70" : "text-black/50")}>
           <span className="font-semibold">{senderName}</span>
-          <span>{formatTime(message.createdAt)}</span>
+          <span>{formatTime(message.createdAt, currentUser.profile?.timezone)}</span>
           {isAgent ? <span className="rounded-full bg-[#3a5b22]/10 px-2 py-0.5 text-[#3a5b22]">由 {MENTION_AGENT} 处理</span> : null}
           {message.sourceTask ? <span className="rounded-full bg-sage-100 px-2 py-0.5 text-sage-700">已派发</span> : null}
         </header>
@@ -102,8 +102,9 @@ function MessageBubble({
 
 const MemoMessageBubble = memo(MessageBubble);
 
-function formatTime(value: string) {
+function formatTime(value: string, timezone?: string | null) {
   return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: timezone || "UTC",
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));

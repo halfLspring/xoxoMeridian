@@ -57,7 +57,7 @@ export default defineConfig({
     },
     {
       name: "authenticated",
-      testMatch: /(?:^|\/)(?:authenticated|agent-entry-authenticated|agent-answer-quality)\.spec\.ts$/,
+      testMatch: /(?:^|\/)(?:authenticated|agent-entry-authenticated|agent-answer-quality|blog-drafts)\.spec\.ts$/,
       dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],

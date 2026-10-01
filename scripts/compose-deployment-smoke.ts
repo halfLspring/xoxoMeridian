@@ -642,7 +642,44 @@ async function exerciseWorkerThroughWeb(context: SmokeContext) {
   const sharedMessages = asRecord(sharedOnly.payload, "共享消息响应无效。").messages;
   assert(Array.isArray(sharedMessages), "共享 messages 缺失。");
   assert(!sharedMessages.some((message) => asRecord(message, "共享消息无效。").id === privateFinal.id), "私聊回复混入共享 Chat。");
+  await exerciseBlogAssetCleanup(context, cookie, viewerId);
   console.log(`[compose-smoke] private task=${privateTaskId} 由 worker=${privateWorkerId} 完成，专属快照、双角色、禁缓存与共享隔离均已验证。`);
+}
+
+async function exerciseBlogAssetCleanup(context: SmokeContext, cookie: string, viewerId: string) {
+  const headers = { cookie, origin: context.baseUrl, "content-type": "application/json", "X-Blog-Viewer-Id": viewerId };
+  const created = await jsonRequest(`${context.baseUrl}/api/blog/works`, {
+    method: "POST", headers, body: JSON.stringify({ mutationId: randomUUID(), viewportX: 0, viewportY: 0, viewportWidth: 960, viewportHeight: 540, draftX: 0, draftY: 0 }),
+  }, 200);
+  const work = asRecord(asRecord(created.payload, "草稿创建结果无效").work, "草稿缺失");
+  const workId = asString(work.id, "缺少作品 ID");
+  const form = new FormData();
+  form.set("file", new Blob([Buffer.from("89504e470d0a1a0a49454e44", "hex")], { type: "image/png" }), "smoke.png");
+  form.set("metadata", JSON.stringify({ mutationId: randomUUID(), baseRevision: work.revision, expectedStatus: "draft", data: { x: 10, y: 10, width: 320, height: 240, caption: "隔离清理测试" } }));
+  const upload = await jsonRequest(`${context.baseUrl}/api/blog/works/${workId}/uploads`, { method: "POST", headers: { cookie, origin: context.baseUrl, "X-Blog-Viewer-Id": viewerId }, body: form }, 200);
+  const uploaded = asRecord(upload.payload, "图片上传无效");
+  const uploadedWork = asRecord(uploaded.work, "上传后作品无效");
+  assert(Array.isArray(uploadedWork.elements));
+  const photo = asRecord(uploadedWork.elements[0], "图片缺失");
+  const imageUrl = asString(photo.imageUrl, "图片地址缺失");
+  const before = await fetch(`${context.baseUrl}${imageUrl}`, { headers: { cookie } });
+  assert.equal(before.status, 200); assert.match(before.headers.get("cache-control") ?? "", /no-store/u);
+  await jsonRequest(`${context.baseUrl}/api/blog/works/${workId}`, { method: "DELETE", headers, body: JSON.stringify({ mutationId: randomUUID(), baseRevision: uploadedWork.revision, expectedStatus: "draft" }) }, 200);
+  const key = decodeURIComponent(imageUrl.slice("/api/atlas/uploads/".length));
+  // 在本次隔离账本上模拟晚到的对象写入，验证镜像内 CLI 的实际回收能力。
+  const script = `import { prisma } from "./lib/prisma.ts"; import { getAtlasStorage } from "./lib/storage/atlas-storage.ts";
+    const key = ${JSON.stringify(key)}; const asset = await prisma.blogMediaAsset.findUniqueOrThrow({where:{storageKey:key}});
+    if (asset.status !== "cleanup") throw new Error("cleanup ledger missing");
+    await getAtlasStorage().save({key,body:Buffer.from("late smoke write"),contentType:"image/png"});
+    await prisma.blogMediaAsset.update({where:{id:asset.id},data:{nextRetryAt:null}}); await prisma.$disconnect();`;
+  await captureCompose(context, ["exec", "-T", "agent-worker", "node", "--import", "tsx", "--input-type=module", "-e", script]);
+  const dry = await captureCompose(context, ["exec", "-T", "agent-worker", "npm", "run", "blog:assets:cleanup", "--", "--dry-run", "--limit=100"]);
+  assert.match(dry, /"inspected":1/u); assert.match(dry, /"deleted":0/u);
+  const cleaned = await captureCompose(context, ["exec", "-T", "agent-worker", "npm", "run", "blog:assets:cleanup", "--", "--limit=100"]);
+  assert.match(cleaned, /"deleted":1/u); assert.match(cleaned, /"failed":0/u);
+  assert.equal((await fetch(`${context.baseUrl}${imageUrl}`, { headers: { cookie } })).status, 404);
+  await captureCompose(context, ["exec", "-T", "agent-worker", "node", "--import", "tsx", "--input-type=module", "-e", `import { getAtlasStorage,isAtlasStorageNotFoundError } from "./lib/storage/atlas-storage.ts"; let missing=false; try { await getAtlasStorage().read(${JSON.stringify(key)}); } catch(e) { missing=isAtlasStorageNotFoundError(e); } if(!missing) throw new Error("blob still exists");`]);
+  console.log("[compose-smoke] 草稿迁移、私密上传、删除授权及 worker 镜像内回收 CLI/dry-run 已验证。");
 }
 
 async function readTemporaryInviteCode(envFile: string) {
@@ -699,6 +736,12 @@ async function preserveFailureLogs(context: SmokeContext, failure: unknown) {
 }
 
 async function cleanupCompose(context: SmokeContext) {
+  // init/worker 用容器 UID 创建的嵌套上传目录须先交还宿主用户，才能完整删除隔离 bind mount。
+  const workerImage = `${context.projectName}-worker:smoke`;
+  const builtImage = await captureDocker(["image", "ls", "--quiet", workerImage]);
+  if (builtImage.trim() && process.getuid && process.getgid) {
+    await captureCompose(context, ["run", "--rm", "--no-deps", "--user", "0:0", "agent-worker", "chown", "-R", `${process.getuid()}:${process.getgid()}`, "/app/data/chat-logs", "/app/data/atlas-uploads"]);
+  }
   await runCompose(context, [
     "down",
     "--volumes",

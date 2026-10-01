@@ -73,7 +73,7 @@
         "测试专题文档、功能状态、进度和交接文件可导航",
         "init.sh 可建立快速验证基线"
       ],
-      "evidence": "AGENTS.md、docs/testing-standards.md、feature_list.json、progress.md、session-handoff.md、init.sh"
+      "evidence": "AGENTS.md、docs/testing-standards.md、feature_list.json、session-handoff.md、init.sh"
     },
     {
       "id": "feat-006",
@@ -619,7 +619,7 @@
         "真实模型首帧 ready 前入口不可见且不可交互，ready 后 DOM button 支持键盘/触摸、Tooltip、reduced-motion 和去重导航到 /chat，失败与资源生命周期不影响宿主页面",
         "生产 CSP 与本地 decoder 兼容，无外部 HDR/decoder 请求，定向行为测试、资产检查、两主题生产 Playwright、check:full、Compose smoke 与最终 init.sh 通过并记录证据"
       ],
-      "evidence": "2026-09-11 完成：用户选择两主题 5%，正式 default 1829016 bytes/94703 面、birthday 2046212 bytes/97721 面，均三张 2048 JPEG、validator 0 error/0 warning，源 hash 不变且两次独立生成产物一致。轻量 Gate、Registry/server-only resolver、真实首帧、DOM 交互/导航、缓存/故障隔离及窄屏底部控件留白完成；Next 配置与 Docker 构建主题冻结、WASM/blob CSP 均由真实生产浏览器验证。default production 16/16；E2E_APP_MODE=production NEXT_PUBLIC_AGENT_ENTRY_THEME=birthday-2026 的 check:full 各阶段通过（64/409、构建、覆盖率、PostgreSQL 18/48、落盘生产报告 26/26 且 errors=[]），新增真实 Next 配置 3/3 后最终 init 在正常权限边界 exit 0、65/412。Compose smoke exit 0，Web 镜像 140131614 bytes、init/Web/Worker 与资产检查通过。源/正式 GLB、recipes、8 份候选报告和文字评审结论保留；测试报告/凭据、候选、预览、Buildx、临时镜像、docs/spec 评审 PNG/JSON、旧 .next 与 tsconfig.tsbuildinfo 均清理，Docker 仅既有健康 PostgreSQL，diff 检查通过。用户当前 VS Code 中运行的 npm run dev 重建了 .next/dev，作为活动服务缓存保留。详见 progress 2026-09-11 与 docs/spec/agent-entry-review/README.md；沙箱/早期失败原始结果已记录。软件浏览器结果不代替实体移动性能/软键盘/非零安全区实测；既有生产审计 2 high 留独立 feat-041。"
+      "evidence": "2026-09-11 完成：用户选择两主题 5%，正式 default 1829016 bytes/94703 面、birthday 2046212 bytes/97721 面，均三张 2048 JPEG、validator 0 error/0 warning，源 hash 不变且两次独立生成产物一致。轻量 Gate、Registry/server-only resolver、真实首帧、DOM 交互/导航、缓存/故障隔离及窄屏底部控件留白完成；Next 配置与 Docker 构建主题冻结、WASM/blob CSP 均由真实生产浏览器验证。default production 16/16；E2E_APP_MODE=production NEXT_PUBLIC_AGENT_ENTRY_THEME=birthday-2026 的 check:full 各阶段通过（64/409、构建、覆盖率、PostgreSQL 18/48、落盘生产报告 26/26 且 errors=[]），新增真实 Next 配置 3/3 后最终 init 在正常权限边界 exit 0、65/412。Compose smoke exit 0，Web 镜像 140131614 bytes、init/Web/Worker 与资产检查通过。源/正式 GLB、recipes、8 份候选报告和文字评审结论保留；测试报告/凭据、候选、预览、Buildx、临时镜像、docs/spec 评审 PNG/JSON、旧 .next 与 tsconfig.tsbuildinfo 均清理，Docker 仅既有健康 PostgreSQL，diff 检查通过。用户当前 VS Code 中运行的 npm run dev 重建了 .next/dev，作为活动服务缓存保留。详见 docs/harness/archive/progress-through-2026-09-12.md 的 2026-09-11 记录 与 docs/spec/agent-entry-review/README.md；沙箱/早期失败原始结果已记录。软件浏览器结果不代替实体移动性能/软键盘/非零安全区实测；既有生产审计 2 high 留独立 feat-041。"
     },
     {
       "id": "feat-041",
@@ -634,7 +634,7 @@
         "验证邮件适配与构建兼容性，相关回归及风险匹配门禁通过",
         "记录剩余低中风险项目、原因与后续计划"
       ],
-      "evidence": "2026-09-11 完成：Nodemailer 升至同主版本已修复下限 ^9.1.1，锁文件将 Browserslist 更新至 4.28.9、js-yaml 4.3.2，并同步收敛 qs 6.16.0、postcss-selector-parser 6.1.4、tsx 4.23.13/esbuild 0.28.2。npm 官方 registry 的生产及全量 audit 均 exit 0、0 vulnerabilities，剩余 low/moderate/high/critical 均为 0。新增 SMTP 公共发送路径行为回归，定向邮件测试 2 文件/7 项通过；check:full 的 quick 66/413、production build、覆盖率与 PostgreSQL 18/48 通过，随后仅因用户已有 PID 24031 占用项目开发服务锁而在 Playwright WebServer 启动前 exit 1。未中断该用户进程；同一工作树隔离副本的完整 Playwright 26/26 exit 0。清理测试产物与隔离副本后，最终 ./init.sh exit 0、66/413；详见 progress 与 session-handoff。"
+      "evidence": "2026-09-11 完成：Nodemailer 升至同主版本已修复下限 ^9.1.1，锁文件将 Browserslist 更新至 4.28.9、js-yaml 4.3.2，并同步收敛 qs 6.16.0、postcss-selector-parser 6.1.4、tsx 4.23.13/esbuild 0.28.2。npm 官方 registry 的生产及全量 audit 均 exit 0、0 vulnerabilities，剩余 low/moderate/high/critical 均为 0。新增 SMTP 公共发送路径行为回归，定向邮件测试 2 文件/7 项通过；check:full 的 quick 66/413、production build、覆盖率与 PostgreSQL 18/48 通过，随后仅因用户已有 PID 24031 占用项目开发服务锁而在 Playwright WebServer 启动前 exit 1。未中断该用户进程；同一工作树隔离副本的完整 Playwright 26/26 exit 0。清理测试产物与隔离副本后，最终 ./init.sh exit 0、66/413；详见 docs/harness/archive/progress-through-2026-09-12.md。"
     },
     {
       "id": "feat-042",
@@ -729,7 +729,7 @@
       "acceptanceCriteria": [
         "QAM-01～QAM-09 各由一个独立子 Agent 显式使用对应 xoxo-qam 审查 Skill，按当前源码、测试和历史证据复审，保留稳定问题 ID 并分别更新九份质量报告",
         "由独立子 Agent 依据代码的责任、状态、接口、依赖、变化驱动和风险面判断 3D Agent Entry 是否达到当前 QAM 粒度；若是则建立同等模块视图与审查 Skill，并再由独立子 Agent完成质量报告，若否则明确归属和复审触发条件",
-        "PROJECT_VIEW.md、module-quality-overview.md、feature_list.json、progress.md 与 session-handoff.md 对模块数量、评分、问题状态和边界结论保持一致",
+        "PROJECT_VIEW.md、module-quality-overview.md、feature_list.json 与 session-handoff.md 对模块数量、评分、问题状态和边界结论保持一致",
         "不修改业务实现或顺带修复审查发现；文档结构、链接、JSON、harness、git diff 和风险匹配门禁完成并记录证据"
       ],
       "evidence": "2026-09-12 完成：QAM-01～QAM-09 各由一个独立子 Agent 显式使用对应审查 Skill，分别只维护自己的持续质量报告；QAM-01/02/04/05/07 保持 87/L3、90/L4、87/L3、73/L2、85/L2，QAM-03 因新增无 offset fireAt、跨入口 contract 与 a11y 问题由 92/L4 调整为 85/L2，QAM-06 因 Home board 未继承 room-scoped Post anchor 授权由 71/L2 调整为 65/L1，QAM-08 因 Planner/Memory 缺稳定请求者身份由 74/L2 调整为 70/L1，QAM-09 仅按直接交付证据由 78/L2 调整为 82/L2。独立边界 Agent 依据责任、资产/状态、接口、变化驱动和风险面判定 3D Agent Entry 应升格为 QAM-10；PROJECT_VIEW 新增完整模块规范与 BU-11～14，统一标准扩至 QAM-10，skill-creator 建立并验证 xoxo-qam-10-agent-entry-review，随后由第十个独立子 Agent完成初审：84/L2、P2×5。总览为十模块均分 80.8，Final L1×2/L2×5/L3×2/L4×1，开放 P1×3/P2×38。开始与收尾 ./init.sh 均 exit 0、72/472；各模块定向验证与可复现实验详见报告；npm run check exit 0，含资产检查、TypeScript、ESLint、72 文件/472 项 Vitest、Next.js 16.3.3 production build与覆盖率 48.27/43.21/53.42/49.15。结构/算术/524 个相对链接/JSON/skill 校验通过，harness 100/100，coverage 已移入回收站，next-env.d.ts 已恢复；本轮未改业务实现，也未运行 check:full/Compose smoke，不把三个新 P1 或 QAM-10 当前 production E3 缺口写成已修复。"
@@ -749,7 +749,7 @@
         "Playwright 验证非成员 Home 浏览器载荷不含隐藏 anchor 标识，并通过真实 HTTP mutation 证明跨房间写入被拒绝",
         "不处理 QAM-06 其余 P2、QAM-03-004 或 QAM-08-006；风险匹配完整门禁、QAM-06 复审、总览与会话记录完成"
       ],
-      "evidence": "2026-09-12 完成：lib/home-board.ts 新增单一 Home spatial access contract，固定 home board 下只允许共享 photo、全局 user_post anchor 和当前用户通过 RoomParticipant 可见的 agent_log anchor，connection 必须两端都可见；Home page snapshot、element PATCH/DELETE、connection POST/DELETE 全部复用该谓词，实际 update/deleteMany/nested connect 也携带授权条件，失配稳定返回 404。真实 PostgreSQL 双 Room 负向对照在旧实现上 0/1：A snapshot 实际含 B 隐藏 anchor/connection，PATCH/POST/DELETE 为 200/201/200，隐藏 x 写成 999、原连接被删除并新增未授权连接；修复后同场景 1/1，A 载荷过滤且数据库不变，B、全局 user_post 与共享照片仍可操作。真实 Playwright 从 /home 响应验证隐藏 Post/anchor/connection ID 均缺席，并通过真实 HTTP 重证三个 404 与数据库终态。定向 Route/helper 2 文件/10 项、相关 PostgreSQL 4 文件/5 项、定向浏览器 2/2 均通过；npm run check:quick exit 0（72/472），最终 sudo -n -g docker -u dadalv ./scripts/run-node22.sh npm run check:full 单次 exit 0：72/472 Vitest、Next.js production build、覆盖率 48.21/42.92/53.41/49.09、20/61 PostgreSQL、30/30 Playwright。QAM-06-009 resolved，QAM-06 更新为 74 分、Score/Gate/Final L2；组合均分 81.7、开放 P1×2/P2×38。未修改 schema/migration、依赖、共享照片语义、QAM-06 其余 P2、QAM-03-004 或 QAM-08-006；测试工件清理、最终 init、Harness 与 diff/status 证据见 progress/session-handoff。"
+      "evidence": "2026-09-12 完成：lib/home-board.ts 新增单一 Home spatial access contract，固定 home board 下只允许共享 photo、全局 user_post anchor 和当前用户通过 RoomParticipant 可见的 agent_log anchor，connection 必须两端都可见；Home page snapshot、element PATCH/DELETE、connection POST/DELETE 全部复用该谓词，实际 update/deleteMany/nested connect 也携带授权条件，失配稳定返回 404。真实 PostgreSQL 双 Room 负向对照在旧实现上 0/1：A snapshot 实际含 B 隐藏 anchor/connection，PATCH/POST/DELETE 为 200/201/200，隐藏 x 写成 999、原连接被删除并新增未授权连接；修复后同场景 1/1，A 载荷过滤且数据库不变，B、全局 user_post 与共享照片仍可操作。真实 Playwright 从 /home 响应验证隐藏 Post/anchor/connection ID 均缺席，并通过真实 HTTP 重证三个 404 与数据库终态。定向 Route/helper 2 文件/10 项、相关 PostgreSQL 4 文件/5 项、定向浏览器 2/2 均通过；npm run check:quick exit 0（72/472），最终 sudo -n -g docker -u dadalv ./scripts/run-node22.sh npm run check:full 单次 exit 0：72/472 Vitest、Next.js production build、覆盖率 48.21/42.92/53.41/49.09、20/61 PostgreSQL、30/30 Playwright。QAM-06-009 resolved，QAM-06 更新为 74 分、Score/Gate/Final L2；组合均分 81.7、开放 P1×2/P2×38。未修改 schema/migration、依赖、共享照片语义、QAM-06 其余 P2、QAM-03-004 或 QAM-08-006；测试工件清理、最终 init、Harness 与 diff/status 证据见 docs/harness/archive/progress-through-2026-09-12.md。"
     },
     {
       "id": "feat-049",
@@ -766,7 +766,7 @@
         "真实 PostgreSQL Route/Agent parity 回归回读 nextRunAt、cron 与 runOnce，并覆盖 create/update 两条 Agent 入口",
         "不处理 QAM-03-005/006、QAM-08-006 或其他 QAM；风险匹配完整门禁、QAM-03 复审和会话状态记录完整"
       ],
-      "evidence": "2026-09-12 完成：lib/scheduled-job-one-shot.ts 导出并拥有带 offset 的 ISO datetime schema、create 恰一 trigger 与 update 至多一项 trigger 谓词；lib/validation.ts 与 agent/tool-contracts.ts 共同复用，resolver 在 new Date 前保留防御校验。Tool Registry 因而在 execute 和 ScheduledJob 写入前稳定拒绝 schedule.create/update 的无 offset fireAt 与 fireAt+cron；合法 offset、五分钟宽限、cron 合成及 QAM-04 CAS/missed-window 策略未改。修复前新增定向套件 2 文件/50 项中 6 failed：resolver 在 Asia/Shanghai 与 America/Los_Angeles 进程下将同一无 offset 字符串解释为不同绝对时刻，四组非法 Agent trigger 越过 Registry validation；修复后 50/50，合法 2030-05-09T20:40:00+01:00 在两个进程均为 19:40Z，无 offset 均抛 ScheduledJobFireAtError，四组 Registry 输入均为 ToolValidationError、execute 未调用且无 ScheduledJob 写入。真实 PostgreSQL 定向 11/11，回读 Agent create/update 与 Route POST/PATCH 的 nextRunAt、cron、payload.runOnce 一致，并确认非法输入不改变 Job、无 ToolCall。typecheck、lint、check:quick 72/480 均通过；最终 sudo -n -g docker -u dadalv ./scripts/run-node22.sh npm run check:full 单次 exit 0，含 Next.js production build、覆盖率 48.26/42.98/53.55/49.14、20/63 PostgreSQL 与 30/30 Playwright（7.2 分钟）。QAM-03-004 resolved，QAM-03 更新为 90 分、Score/Gate/Final L4；组合均分 82.2，开放 P1×1/P2×38。QAM-03-005/006、QAM-08-006 及其他 QAM 未处理；测试工件、最终 init、Harness 与 diff/status 证据见 progress/session-handoff。"
+      "evidence": "2026-09-12 完成：lib/scheduled-job-one-shot.ts 导出并拥有带 offset 的 ISO datetime schema、create 恰一 trigger 与 update 至多一项 trigger 谓词；lib/validation.ts 与 agent/tool-contracts.ts 共同复用，resolver 在 new Date 前保留防御校验。Tool Registry 因而在 execute 和 ScheduledJob 写入前稳定拒绝 schedule.create/update 的无 offset fireAt 与 fireAt+cron；合法 offset、五分钟宽限、cron 合成及 QAM-04 CAS/missed-window 策略未改。修复前新增定向套件 2 文件/50 项中 6 failed：resolver 在 Asia/Shanghai 与 America/Los_Angeles 进程下将同一无 offset 字符串解释为不同绝对时刻，四组非法 Agent trigger 越过 Registry validation；修复后 50/50，合法 2030-05-09T20:40:00+01:00 在两个进程均为 19:40Z，无 offset 均抛 ScheduledJobFireAtError，四组 Registry 输入均为 ToolValidationError、execute 未调用且无 ScheduledJob 写入。真实 PostgreSQL 定向 11/11，回读 Agent create/update 与 Route POST/PATCH 的 nextRunAt、cron、payload.runOnce 一致，并确认非法输入不改变 Job、无 ToolCall。typecheck、lint、check:quick 72/480 均通过；最终 sudo -n -g docker -u dadalv ./scripts/run-node22.sh npm run check:full 单次 exit 0，含 Next.js production build、覆盖率 48.26/42.98/53.55/49.14、20/63 PostgreSQL 与 30/30 Playwright（7.2 分钟）。QAM-03-004 resolved，QAM-03 更新为 90 分、Score/Gate/Final L4；组合均分 82.2，开放 P1×1/P2×38。QAM-03-005/006、QAM-08-006 及其他 QAM 未处理；测试工件、最终 init、Harness 与 diff/status 证据见 docs/harness/archive/progress-through-2026-09-12.md。"
     },
     {
       "id": "feat-050",
@@ -783,7 +783,7 @@
         "真实 PostgreSQL 双成员回归证明同名及相似个人 key 互不覆盖或删除，切换请求者后 aboutMe/aboutHer 与 recall 始终对应绝对 owner；Runtime 回归覆盖第二位请求者 Planner 到 Tool 全链路及 requestedById=null 中性行为",
         "不处理 QAM-08-001～005、QAM-03-005/006 或其他 QAM；风险匹配完整门禁、QAM-08 持续复审、总览与会话状态记录完整"
       ],
-      "evidence": "2026-09-12 完成：buildAgentContext 由 AgentTask.requestedById 派生显式 userId/self/partner，Runtime、mock/真实 Planner 与 Tool 共用 requester-aware contract；空或非成员请求者保持中性，不按 participant 顺序猜测。新增 agent/memory-identity.ts，将个人 me/her 写入规范化为 user:<id> owner + person.* key，shared/_system 使用 room scope；schema 改为 (roomId,ownerKey,key) 唯一，upsert、相似值去重、recall、context 投影与 extractor 均按 owner 隔离。时间戳迁移对已知 owner 无损规范化；规范化冲突、owner 歧义和未知 key 的旧行全部保留为带 ownerMigration 原因的 legacy:<id>，并增加 owner/user/key check。修复前 agent-runtime Node 回归 2 failed/13 passed，第二请求者错误使用第一成员且 null 请求者被猜测；真实 PostgreSQL requester-memory 回归 3/3 failed，复现跨成员覆盖/删除、错投影和 null 个人写入。修复后定向 Node 3 文件/20 项、requester-memory PostgreSQL 4/4、独立旧迁移临时库 1/1 均通过；迁移测试证明 8/8 旧行保留且复合唯一/check 拒绝非法写，Runtime 第二请求者 Bob/London→Alice/Shanghai 与 null Tool input={} 正确。npm run check:quick 为 72/482；最终 sudo -n -g docker -u dadalv ./scripts/run-node22.sh npm run check:full exit 0，含 production build、覆盖率 47.73/42.56/52.71/48.54、22 文件/68 项真实 PostgreSQL、30/30 Playwright。首轮 check:full 在无关 home-board-routes coverage 用例发生一次 5 秒超时；同文件立即 8/8、完整 coverage 72/482、第二轮全门禁通过，未修改该用例。QAM-08-006 resolved，QAM-08 更新为 80 分、Score L3、Gate/Final L2；组合均分 83.2，开放 P0×0/P1×0/P2×38。未处理 QAM-08-001～005、QAM-03-005/006、部署或依赖；清理、最终 init、Harness 与 diff/status 证据见 progress/session-handoff。"
+      "evidence": "2026-09-12 完成：buildAgentContext 由 AgentTask.requestedById 派生显式 userId/self/partner，Runtime、mock/真实 Planner 与 Tool 共用 requester-aware contract；空或非成员请求者保持中性，不按 participant 顺序猜测。新增 agent/memory-identity.ts，将个人 me/her 写入规范化为 user:<id> owner + person.* key，shared/_system 使用 room scope；schema 改为 (roomId,ownerKey,key) 唯一，upsert、相似值去重、recall、context 投影与 extractor 均按 owner 隔离。时间戳迁移对已知 owner 无损规范化；规范化冲突、owner 歧义和未知 key 的旧行全部保留为带 ownerMigration 原因的 legacy:<id>，并增加 owner/user/key check。修复前 agent-runtime Node 回归 2 failed/13 passed，第二请求者错误使用第一成员且 null 请求者被猜测；真实 PostgreSQL requester-memory 回归 3/3 failed，复现跨成员覆盖/删除、错投影和 null 个人写入。修复后定向 Node 3 文件/20 项、requester-memory PostgreSQL 4/4、独立旧迁移临时库 1/1 均通过；迁移测试证明 8/8 旧行保留且复合唯一/check 拒绝非法写，Runtime 第二请求者 Bob/London→Alice/Shanghai 与 null Tool input={} 正确。npm run check:quick 为 72/482；最终 sudo -n -g docker -u dadalv ./scripts/run-node22.sh npm run check:full exit 0，含 production build、覆盖率 47.73/42.56/52.71/48.54、22 文件/68 项真实 PostgreSQL、30/30 Playwright。首轮 check:full 在无关 home-board-routes coverage 用例发生一次 5 秒超时；同文件立即 8/8、完整 coverage 72/482、第二轮全门禁通过，未修改该用例。QAM-08-006 resolved，QAM-08 更新为 80 分、Score L3、Gate/Final L2；组合均分 83.2，开放 P0×0/P1×0/P2×38。未处理 QAM-08-001～005、QAM-03-005/006、部署或依赖；清理、最终 init、Harness 与 diff/status 证据见 docs/harness/archive/progress-through-2026-09-12.md。"
     },
     {
       "id": "feat-051",
@@ -803,9 +803,9 @@
         "消息 GET、SSR 初始 snapshot 与 SSE 复用同一查询和字段 allow-list，均取最新 80 条、按稳定时间和 ID 顺序升序输出，消息与任务摘要满足现有 ChatMessage contract",
         "消息列表响应不包含完整 prompt、Tool input/output 或 LLM request/response；现有消息任务状态仍可呈现，专门 Trace 入口保持成员授权",
         "真实 PostgreSQL 植入超过 80 条消息、相同时间消息和含敏感字段的 Trace，验证三个入口的消息 ID、顺序与摘要一致；Playwright 覆盖长对话的新消息、刷新与 SSE 重连后仍显示最新窗口",
-        "npm run check:full 通过，按稳定问题 ID 更新 QAM-02 报告及三份状态记录；仅处理消息 read model，不合并 QAM-02-006 SSE 调度或 QAM-08 Trace 存储治理"
+        "npm run check:full 通过，按稳定问题 ID 更新 QAM-02 报告及状态记录；仅处理消息 read model，不合并 QAM-02-006 SSE 调度或 QAM-08 Trace 存储治理"
       ],
-      "evidence": "2026-09-12 完成：lib/chat-messages.ts 以显式 Message/Task/Tool/LLM select 和 createdAt/id 稳定排序统一 GET、SSR/SSE 的最新 80 条升序窗口，排除完整 Task/Tool/LLM 与 metadata.toolResults；真实 PostgreSQL 新增 3 项旧实现全失败→修复后全通过，覆盖 100 条、同时间边界、空/短窗口、三个实际入口及 Trace/消息成员授权。Playwright 旧实现初始载荷缺少消息 099→修复后发送、刷新、SSE 请求连接重置后的重连、伙伴新消息与下一周期窗口/摘要一致。./init.sh 与 check:quick exit 0、72/482；./scripts/run-node22.sh npm run check:full 单次 exit 0：72/482 Vitest、production build、覆盖率 47.72/42.56/52.56/48.54、23/71 PostgreSQL、31/31 Playwright（3.8m）。QAM-02-002 resolved，QAM-02 94/L4、组合均分 83.6/P2×37；报告、三份状态与清理证据见 progress 最新节。"
+      "evidence": "2026-09-12 完成：lib/chat-messages.ts 以显式 Message/Task/Tool/LLM select 和 createdAt/id 稳定排序统一 GET、SSR/SSE 的最新 80 条升序窗口，排除完整 Task/Tool/LLM 与 metadata.toolResults；真实 PostgreSQL 新增 3 项旧实现全失败→修复后全通过，覆盖 100 条、同时间边界、空/短窗口、三个实际入口及 Trace/消息成员授权。Playwright 旧实现初始载荷缺少消息 099→修复后发送、刷新、SSE 请求连接重置后的重连、伙伴新消息与下一周期窗口/摘要一致。./init.sh 与 check:quick exit 0、72/482；./scripts/run-node22.sh npm run check:full 单次 exit 0：72/482 Vitest、production build、覆盖率 47.72/42.56/52.56/48.54、23/71 PostgreSQL、31/31 Playwright（3.8m）。QAM-02-002 resolved，QAM-02 94/L4、组合均分 83.6/P2×37；报告、状态记录与清理证据见 docs/harness/archive/progress-through-2026-09-12.md。"
     },
     {
       "id": "feat-052",
@@ -825,9 +825,9 @@
         "照片缩放、caption、照片 DELETE 与 connection DELETE 同时识别非 2xx 和网络拒绝，提供可访问的 pending/error 反馈；失败后回滚到可确认的服务端值或保留可重试状态",
         "照片删除失败时可恢复照片及关联连线；连续编辑或迟到的失败响应不会覆盖更新的已保存结果，现有拖动持久化与授权边界保持",
         "组件行为测试覆盖各操作的 500、网络拒绝、恢复及成功；真实 PostgreSQL 与 Playwright 验证编辑/删除重试后刷新页面与持久化记录一致，失败时不误报成功",
-        "npm run check:full 通过，更新 QAM-06 报告及三份状态记录；不扩展 Home 协作协议或处理旧 Atlas SSE"
+        "npm run check:full 通过，更新 QAM-06 报告及状态记录；不扩展 Home 协作协议或处理旧 Atlas SSE"
       ],
-      "evidence": "2026-09-12 完成：useHomeBoardMutations 将照片位置/大小/标注 PATCH 与照片 DELETE 按元素串行，失败字段合并保留且新的同名字段优先；仅 2xx 清除保存状态或移除照片/连线，失败提供可访问反馈和键盘重试，迟到连接失败不会复活已删除照片的提示。旧组件回归 12/12 failed，最终新增 14/14，含既有拖动/搜索的定向 3 文件/18 项通过。真实 PostgreSQL 新增 4/4，trigger 故障保持原记录、重试后 snapshot/尺寸/trim caption/级联一致；Chromium 四操作 500/connectionreset→真实 HTTP 重试→逐次 reload 与 DB 一致，2/2。启动 ./init.sh exit 0、72/482；最终 ./scripts/run-node22.sh npm run check:full 单次 exit 0：73/496 Vitest、production build、覆盖率 47.76/42.59/52.56/48.54、24/75 PostgreSQL、32/32 Playwright（4.3m）。QAM-06-007 resolved，QAM-06 79/L2，组合均分 84.1、开放 P2×36；未改 Route/schema/依赖/Home 协作或旧 Atlas SSE。完整命令、开发期失败修正和清理见 progress 最新节。"
+      "evidence": "2026-09-12 完成：useHomeBoardMutations 将照片位置/大小/标注 PATCH 与照片 DELETE 按元素串行，失败字段合并保留且新的同名字段优先；仅 2xx 清除保存状态或移除照片/连线，失败提供可访问反馈和键盘重试，迟到连接失败不会复活已删除照片的提示。旧组件回归 12/12 failed，最终新增 14/14，含既有拖动/搜索的定向 3 文件/18 项通过。真实 PostgreSQL 新增 4/4，trigger 故障保持原记录、重试后 snapshot/尺寸/trim caption/级联一致；Chromium 四操作 500/connectionreset→真实 HTTP 重试→逐次 reload 与 DB 一致，2/2。启动 ./init.sh exit 0、72/482；最终 ./scripts/run-node22.sh npm run check:full 单次 exit 0：73/496 Vitest、production build、覆盖率 47.76/42.59/52.56/48.54、24/75 PostgreSQL、32/32 Playwright（4.3m）。QAM-06-007 resolved，QAM-06 79/L2，组合均分 84.1、开放 P2×36；未改 Route/schema/依赖/Home 协作或旧 Atlas SSE。完整命令、开发期失败修正和清理见 docs/harness/archive/progress-through-2026-09-12.md。"
     },
     {
       "id": "feat-053",
@@ -848,9 +848,9 @@
         "Planner 输出与 persisted plan 使用同一校验边界，验证结构、confidence 范围、当前 Registry Tool 名称、必需输入及当前 trigger 的允许集合",
         "未知 Tool、缺失或无效输入及恢复后的契约漂移进入可观察的 validation/clarify 结果，不静默丢弃动作并使用原模型文本声称已完成；错误摘要受限且保留可追踪原因",
         "Node 行为回归覆盖非法输出与合法零 Tool 计划；真实 PostgreSQL 验证持久化恢复时的 Registry/trigger 漂移及最终 Message/Task/Trace，非法计划不执行 Tool，合法 Durable Step 与请求者身份回归继续通过",
-        "npm run check:full 通过，更新 QAM-08 报告及三份状态记录；不增加 Tool，也不合并 post-task、LLM transport 或 Trace 生命周期问题"
+        "npm run check:full 通过，更新 QAM-08 报告及状态记录；不增加 Tool，也不合并 post-task、LLM transport 或 Trace 生命周期问题"
       ],
-      "evidence": "2026-09-12 完成：新增 agent/plan-contract.ts，同源校验外部字段映射后的计划、Task.plan、权威 completed Plan checkpoint 和 repair 结果；验证结构、有限 confidence 0..1、当前 Registry/schema、trigger 允许集合、全部批次及输入/动作对应，拒绝未知/重复 Tool、缺失输入、空调用数组和孤立输入。非法恢复不重新规划，任何非法动作均在本次 Tool 执行前失败；Task/Message 与活动 Step 明确标为 validation 失败，固定错误码/位置最多 8 项、错误摘要最多 512 字符，不沿用原模型完成文案。旧 Node 回归 25 failed/4 passed；旧 PostgreSQL 10 项缺陷场景失败，另 1 项合法恢复预期文案错误已修正测试。最终新增 Node 45/45、含既有 Runtime/claim/repair 共 5 文件/79 项；新增 PostgreSQL 12/12、含 Durable Step/请求者/预算共 4 文件/21 项。Chromium 专项 2/2，真实 API 入队、独立进程执行 Runtime、SSE/刷新显示失败并核对 DB/Trace；前两轮测试准备问题见 progress。启动 ./init.sh exit 0、73/496；最终 ./scripts/run-node22.sh npm run check:full 单次 exit 0：74/541 Vitest、production build、覆盖率 49.00/43.61/53.54/49.68、25/87 PostgreSQL、33/33 Playwright（4.0m）。QAM-08-005 resolved，QAM-08 82/L2、组合均分 84.3；另以 E2 独立登记 QAM-08-007/feat-061，开放 P2 仍为 36且不改变原前十项顺序。未增加 Tool或修改 schema/依赖/部署/后处理；报告、三份状态和清理记录已更新。"
+      "evidence": "2026-09-12 完成：新增 agent/plan-contract.ts，同源校验外部字段映射后的计划、Task.plan、权威 completed Plan checkpoint 和 repair 结果；验证结构、有限 confidence 0..1、当前 Registry/schema、trigger 允许集合、全部批次及输入/动作对应，拒绝未知/重复 Tool、缺失输入、空调用数组和孤立输入。非法恢复不重新规划，任何非法动作均在本次 Tool 执行前失败；Task/Message 与活动 Step 明确标为 validation 失败，固定错误码/位置最多 8 项、错误摘要最多 512 字符，不沿用原模型完成文案。旧 Node 回归 25 failed/4 passed；旧 PostgreSQL 10 项缺陷场景失败，另 1 项合法恢复预期文案错误已修正测试。最终新增 Node 45/45、含既有 Runtime/claim/repair 共 5 文件/79 项；新增 PostgreSQL 12/12、含 Durable Step/请求者/预算共 4 文件/21 项。Chromium 专项 2/2，真实 API 入队、独立进程执行 Runtime、SSE/刷新显示失败并核对 DB/Trace；前两轮测试准备问题见 docs/harness/archive/progress-through-2026-09-12.md。启动 ./init.sh exit 0、73/496；最终 ./scripts/run-node22.sh npm run check:full 单次 exit 0：74/541 Vitest、production build、覆盖率 49.00/43.61/53.54/49.68、25/87 PostgreSQL、33/33 Playwright（4.0m）。QAM-08-005 resolved，QAM-08 82/L2、组合均分 84.3；另以 E2 独立登记 QAM-08-007/feat-061，开放 P2 仍为 36且不改变原前十项顺序。未增加 Tool或修改 schema/依赖/部署/后处理；报告、状态记录和清理记录已更新。"
     }
   ]
 }

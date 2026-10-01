@@ -1,5 +1,6 @@
 "use client";
 
+import type { WorkSnapshot } from "@/lib/blog-work/types";
 import { useMemo } from "react";
 import { PostCard } from "@/components/blog/PostCard";
 import { AgentLogCard } from "@/components/blog/AgentLogCard";
@@ -44,7 +45,8 @@ export type TimelinePost = {
 };
 
 type TimelineEntry =
-  | { kind: "post"; id: string; sortAt: number; post: TimelinePost };
+  | { kind: "post"; id: string; sortAt: number; post: TimelinePost }
+  | { kind: "work"; id: string; sortAt: number; work: WorkSnapshot };
 
 function TimelineItem({
   children,
@@ -56,7 +58,7 @@ function TimelineItem({
   const { ref, visible } = useScrollReveal();
 
   return (
-    <div className="relative">
+    <div className="relative mx-auto w-full max-w-3xl">
       <div
         className={cn("timeline-dot", visible && "revealed")}
         style={{ top: "28px" }}
@@ -92,10 +94,14 @@ export function Timeline({
   onSpatialElementClick,
   registerSpatialAnchor,
   emptyMessage,
+  works = [],
+  renderWork,
 }: {
   posts: TimelinePost[];
   currentUserId: string;
   emptyMessage?: string;
+  works?: WorkSnapshot[];
+  renderWork?: (work: WorkSnapshot) => React.ReactNode;
 } & TimelineSpatialProps) {
   const sorted = useMemo(
     () => [...posts].sort(compareTimelinePosts),
@@ -103,13 +109,13 @@ export function Timeline({
   );
   const entries = useMemo<TimelineEntry[]>(
     () =>
-      sorted.map((post) => ({
+      [...sorted.map((post) => ({
         kind: "post" as const,
         id: post.id,
         sortAt: new Date(post.publishedAt).getTime(),
         post,
-      })),
-    [sorted]
+      })), ...works.map(work => ({ kind: "work" as const, id: work.id, sortAt: new Date(work.publishedAt!).getTime(), work }))].sort((a, b) => a.sortAt - b.sortAt || (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : a.id < b.id ? -1 : 1)),
+    [sorted, works]
   );
 
   const humanAuthors = useMemo(() => {
@@ -144,6 +150,7 @@ export function Timeline({
 
       <div className="flex flex-col gap-10">
         {entries.map((entry) => {
+          if (entry.kind === "work") return <div key={entry.id} className="work-timeline-row">{renderWork?.(entry.work)}</div>;
           const post = entry.post;
 
           if (post.type === "agent_log") {

@@ -3,11 +3,11 @@
 ## 1. 状态与目标
 
 - 日期：2026-09-22。
-- 关联任务：`feat-080`，实现状态为 `done`；已按本计划完成实现与门禁，执行证据见 [进度记录](../../progress.md#feat-080)。
+- 关联任务：`feat-080`，实现状态为 `done`；已按本计划完成实现与门禁，执行证据见 [feat-080 验收证据](../../feature_list.json)。
 - 用户已确认反馈形式：**3D 弹跳／前倾＋头顶表情符号＋HTML 台词气泡**，脸部资产以后再补。
 - 目标：点击页面小人时，就地打开只有当前用户与 Agent 的专属对话弹窗；页面 URL 保持不变，小人保持显示，点击动作和台词完整呈现。
 - `/chat` 与 `/chat/[roomId]` 继续承载现有双人共享聊天。私聊拥有独立消息、任务上下文与记忆，不通过隐藏另一位成员来伪装隔离。
-- 本文是实施设计；第 9–10 节列出验证要求，实际执行证据以 `progress.md#feat-080` 为准。第 12 节记录本轮计划复核。
+- 本文是实施设计；第 9–10 节列出验证要求，实际执行证据以 `feature_list.json` 的 feat-080 条目 为准。第 12 节记录本轮计划复核。
 
 ## 2. 实施范围与边界
 
@@ -213,7 +213,7 @@ AgentEntryGate（路由／当前用户 ID）
 | 入口与弹窗 | `components/agent-entry/AgentEntry*.tsx`、新增 `AgentEntryShell.tsx`／`AgentConversationDialog.tsx`／请求 hook | 按用户隔离状态，稳定 Portal 与动态视觉边界，统一请求调度 |
 | 动作与样式 | 新增行为控制模块、`agent-entry.types.ts`、registry、CSS module | 默认主题反馈、稳定帧控制、响应式布局 |
 | 测试 | Node／组件／integration；既有 `tests/e2e/agent-entry-{public,authenticated}.spec.ts`、`tests/e2e/support/agent-entry.ts`、`scripts/compose-deployment-smoke.ts` | 使用已被门禁发现的入口 spec，更新动态资源定位 helper，补私聊 Worker smoke |
-| 文档与状态 | `PROJECT_VIEW.md`、本计划、feature／progress／handoff | 实现完成后更新当前模块边界与实际证据 |
+| 文档与状态 | `PROJECT_VIEW.md`、本计划、feature／handoff | 实现完成后更新当前模块边界与实际证据 |
 
 原 [3D 入口设计](2026-09-09-agent-entry-design.md) 作为历史保留；本计划在实施后替代其中“点击跳转 Chat”“出错隐藏入口”“不提供持续入口反馈”的相关行为。现阶段不修改质量评分或声称历史门禁覆盖新功能。
 
@@ -228,7 +228,7 @@ AgentEntryGate（路由／当前用户 ID）
 3. **API 与 Runtime**：接入私聊读写、AgentTask 原子派生、审批、单用户上下文及私聊投影跳过；验证 Worker 和显式 inline 两条配置路径。
 4. **对话弹窗**：实现同页开关、消息往返、串行轮询、错误重试、焦点管理及窄屏布局，确认双人 Chat 数据不混入。
 5. **点击反馈与降级**：接入默认模型短动作、情绪符号和台词；确保开窗不重建 Canvas、不截断动作，增加 DOM 降级入口。
-6. **完整验证与记录**：运行风险匹配门禁；更新模块边界、feature 验收证据和 progress，重写交接；仅全部验收完成才标 done。
+6. **完整验证与记录**：运行风险匹配门禁；更新模块边界、feature 验收证据，重写交接；仅全部验收完成才标 done。
 
 所有数据库测试使用隔离的 PostgreSQL/Testcontainers。迁移命令必须显式指定目标 `DATABASE_URL`，不得隐式读取开发库连接执行探针。本计划阶段不执行迁移、启动服务或部署。
 
@@ -285,7 +285,7 @@ git status --short
 - 另一人无法读取或写入该会话；共享 Chat、默认房间和现有 Agent 工具治理保持其原有边界。
 - 消息、任务、审批和错误可完成闭环，关闭面板后的任务仍可恢复观察。
 - 入口和网络生命周期稳定，符合键盘、减少动态效果和窄屏可用性要求。
-- 风险匹配门禁有真实证据，三份状态记录同步；清理本轮测试资源，不删除用户已有工件。
+- 风险匹配门禁有真实证据，状态记录同步；清理本轮测试资源，不删除用户已有工件。
 - 计划阶段结论只验收文档；实施完成依据进度中的实际门禁与补充浏览器证据。
 
 ## 12. 计划复核记录（2026-09-22）

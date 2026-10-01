@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const user = await requireCurrentUser();
     const board = await getOrCreateHomeBoard();
 
-    const count = await prisma.atlasElement.count({ where: { boardId: board.id } });
+    const count = await prisma.atlasElement.count({ where: { boardId: board.id, workId: null } });
     if (count >= 300) {
       return jsonError("Home board element limit reached (300)", 400);
     }

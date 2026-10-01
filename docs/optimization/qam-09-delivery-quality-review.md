@@ -13,7 +13,7 @@
 | 工作区说明 | 本轮开始前已有 feat-044～046 与其他 QAM 报告的未提交用户改动；QAM-09 的 Docker/Compose/config/asset/smoke 文件相对 `HEAD` 无未提交实现改动，本报告未恢复、覆盖或纳入其他文件。`agent/agent-worker.ts` 的共享生命周期入口按当前工作树复核，但领域 Scheduler 改动仍归 QAM-04。 |
 | 当前基线命令 | 根任务共享基线 `./init.sh`：退出 0，Prisma Client、正式资产、TypeScript、ESLint 与 72 文件/472 项 Vitest 通过；本子审查执行 `./scripts/run-node22.sh node --version && npm --version`：v22.23.2 / 10.9.8；`npm ls --depth=0 --package-lock-only`、`npm run check:agent-entry-assets`、`npm run check:compose-config` 均退出 0；构建主题/CSP/资产定向 Node 测试 3 文件/26 项通过；`npx prisma seed --help` 退出 1 并输出 `Unknown command "seed"`。其中只以真实 Next 构建主题 3/3 和 Compose config 作为 QAM-09 直接评分证据；资产语义与 CSP 结果供 QAM-10/Cross-cutting 复用。 |
 | 本轮未运行 | 未重复运行 `npm run check`、`npm run check:full`、镜像 build、`npm run test:compose-smoke`、真实重启/信号、权限失败或 seed 二次运行实验；不把 Compose config、Node 测试或历史容器证据写成本轮完整部署行为通过。 |
-| 历史交接证据 | [`progress.md`](../../progress.md#L159) 记录 2026-09-11 feat-040 的完整 Compose smoke：Web 镜像 140131614 bytes，只打包 QAM-10 声明的两份正式 GLB且不含源/候选，init/Web health/DB/独立 Worker 消费与隔离清理通过；同轮两主题 production 浏览器/CSP/模型行为归 QAM-10/Cross-cutting，不作为本报告加分依据。[`progress.md`](../../progress.md#L1) 记录 2026-09-12 feat-046 当前工作树 `check:full` 通过 production build、72/472 Vitest、19 文件/60 项 PostgreSQL 与 29/29 Playwright，但该轮明确未重跑 Compose smoke。均标为历史 E3，并按对应快照边界使用。 |
+| 历史交接证据 | [feat-040 历史验收证据](../harness/archive/features-001-053.json) 记录 2026-09-11 feat-040 的完整 Compose smoke：Web 镜像 140131614 bytes，只打包 QAM-10 声明的两份正式 GLB且不含源/候选，init/Web health/DB/独立 Worker 消费与隔离清理通过；同轮两主题 production 浏览器/CSP/模型行为归 QAM-10/Cross-cutting，不作为本报告加分依据。[feat-046 历史验收证据](../harness/archive/features-001-053.json) 记录 2026-09-12 feat-046 当前工作树 `check:full` 通过 production build、72/472 Vitest、19 文件/60 项 PostgreSQL 与 29/29 Playwright，但该轮明确未重跑 Compose smoke。均标为历史 E3，并按对应快照边界使用。 |
 
 ## Overall
 
@@ -146,7 +146,7 @@ Compose `x-app-env` 将数据库、认证、LLM、天气、邮件、Agent budget
 - QAM-10 提供合法主题/fallback；QAM-09 通过 `.env.example`、Compose Web build arg、Docker ARG 与 Next 内联配置表达“只在 build 冻结”。本轮三组 config 与真实 Next loadConfig 3/3 覆盖缺省/default/birthday、显式环境优先和运行时不传播（[`.env.example`](../../.env.example#L15-L18)、[`docker-compose.yml`](../../docker-compose.yml#L130-L145)、[`next.config.mjs`](../../next.config.mjs#L1-L10)、当前 E3；BU-12）。
 - QAM-10 提供正式 GLB 集合与质量语义；QAM-09 的 `.dockerignore` 排除原始源/候选，Compose smoke 从真实 Web 容器核对只打包声明集合、未携带 `3d-source`/候选并报告总镜像体积（[`.dockerignore`](../../.dockerignore#L1-L29)、[`scripts/compose-deployment-smoke.ts`](../../scripts/compose-deployment-smoke.ts#L433-L472)，E2/历史 E3；BU-12）。
 - Compose 依赖顺序、资源限制、日志轮转、named/bind volumes 与 Web DB healthcheck 集中可读；本轮 `npm run check:compose-config` 验证缺省及两个显式主题的 4 服务、隔离端口/卷、production runner target、build-only theme 和 inline=false（当前 E3）。
-- 2026-09-11 历史 Compose smoke 真实构建并运行 PostgreSQL、init、Web 与独立 Worker，量得 Web 镜像 140131614 bytes 并排除源/候选资产；通过 Web API 观察到 Worker durable plan/final 和房间可见消息，结束时清理 project 容器、网络、卷与测试镜像（[`progress.md`](../../progress.md#L159)，历史 E3）。
+- 2026-09-11 历史 Compose smoke 真实构建并运行 PostgreSQL、init、Web 与独立 Worker，量得 Web 镜像 140131614 bytes 并排除源/候选资产；通过 Web API 观察到 Worker durable plan/final 和房间可见消息，结束时清理 project 容器、网络、卷与测试镜像（[feat-040 历史验收证据](../harness/archive/features-001-053.json)，历史 E3）。
 - `/api/health` 对数据库失败返回 503 并在 production 隐藏内部错误；init 成功条件通过 Compose `service_completed_successfully` 传播给 Web/Worker（[`app/api/health/route.ts`](../../app/api/health/route.ts#L8-L35)、[`docker-compose.yml`](../../docker-compose.yml#L105-L142)，E2）。
 
 ## Recommended Improvements

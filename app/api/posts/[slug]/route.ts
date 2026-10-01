@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import type { Prisma } from "@prisma/client";
 
 import { assertPostOwnership } from "@/lib/api-posts";
 import { applyNoStoreHeaders, errorToResponse, jsonOk } from "@/lib/api";
 import { requireCurrentUser } from "@/lib/auth";
 import { getPostVisibilityWhere } from "@/lib/post-visibility";
 import { prisma } from "@/lib/prisma";
-import { generateSlug, writePostWithUniqueSlug } from "@/lib/posts";
+import { updatePublishedPost, deletePublishedPost } from "@/lib/blog-work/legacy-posts";
 import { postUpdateSchema, readJsonBody } from "@/lib/validation";
 
 export async function GET(
@@ -35,14 +34,18 @@ export async function GET(
       },
     });
     if (!post) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      const response = NextResponse.json({ error: "Not found" }, { status: 404 });
+      applyNoStoreHeaders(response.headers);
+      return response;
     }
 
     const response = jsonOk({ post });
     applyNoStoreHeaders(response.headers);
     return response;
   } catch (error) {
-    return errorToResponse(error);
+    const response = errorToResponse(error);
+    applyNoStoreHeaders(response.headers);
+    return response;
   }
 }
 
@@ -52,26 +55,10 @@ export async function PUT(
 ) {
   try {
     const { slug } = await params;
-    const { post } = await assertPostOwnership(slug);
+    const { user, post } = await assertPostOwnership(slug);
     const { title, content } = await readJsonBody(request, postUpdateSchema);
 
-    const updateData: Prisma.PostUpdateInput = {
-      ...(title !== undefined ? { title } : {}),
-      ...(content !== undefined ? { content } : {}),
-    };
-
-    // 未提供标题即不重新分配 slug，与发布契约的字段语义保持一致。
-    const updated = await (title !== undefined
-      ? writePostWithUniqueSlug(generateSlug(title), (nextSlug) =>
-          prisma.post.update({
-            where: { id: post.id },
-            data: { ...updateData, slug: nextSlug },
-          })
-        )
-      : prisma.post.update({
-          where: { id: post.id },
-          data: updateData,
-        }));
+    const updated = await updatePublishedPost(post.id, user.id, { ...(title !== undefined ? { title } : {}), ...(content !== undefined ? { content } : {}) });
 
     revalidatePath("/home");
 
@@ -79,7 +66,9 @@ export async function PUT(
     applyNoStoreHeaders(response.headers);
     return response;
   } catch (error) {
-    return errorToResponse(error);
+    const response = errorToResponse(error);
+    applyNoStoreHeaders(response.headers);
+    return response;
   }
 }
 
@@ -89,9 +78,9 @@ export async function DELETE(
 ) {
   try {
     const { slug } = await params;
-    const { post } = await assertPostOwnership(slug);
+    const { user, post } = await assertPostOwnership(slug);
 
-    await prisma.post.delete({ where: { id: post.id } });
+    await deletePublishedPost(post.id, user.id);
 
     revalidatePath("/home");
 
@@ -99,6 +88,8 @@ export async function DELETE(
     applyNoStoreHeaders(response.headers);
     return response;
   } catch (error) {
-    return errorToResponse(error);
+    const response = errorToResponse(error);
+    applyNoStoreHeaders(response.headers);
+    return response;
   }
 }

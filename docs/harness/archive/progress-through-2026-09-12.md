@@ -6,7 +6,7 @@
 - 新增 [`agent/plan-contract.ts`](../../../agent/plan-contract.ts)：外部 snake_case 仅映射字段名，不过滤动作或补默认值；与 Task.plan、completed Plan checkpoint、语义 repair 结果共用 Zod 结构及实际 Registry input schema。校验有限 confidence 0..1、Tool 名称/当前 trigger 允许集合、必需参数、全部批次、输入/动作对应；拒绝重复 Tool、空调用数组和孤立输入。
 - Provider 与 Runtime 共用同一 Registry 实例；权威 completed checkpoint 在 Step 恢复冲突检查前重验，以便 Registry/trigger 漂移留下明确 validation 原因。已存在的非法计划不会被当成无计划重新调用 LLM；整份计划通过后才开始任何新 Tool Step，避免合法前缀先写入。合法零 Tool、批次、已完成 Tool 重放和请求者身份保持。
 - 类型化 `AgentPlanValidationError` 只记录固定错误码、顶层/调用位置及 schema code，最多 8 项，错误字符串最多 512 字符，不复制任意 Tool 名称、输入值或 Zod 错误正文。Task/Message 明确 failed，活动 Step 的 errorCategory 为 validation，记录 `agent.plan.validation.failed`；最终正文告知“任务未完成”，不复用原模型的完成声明。旧 completed Step 保留原证据，不回滚历史 attempt 已提交的合法副作用。
-- 改动共 14 个文件：4 个 Agent 实现文件；新增 Node/集成测试和 E2E 子进程入口、更新既有 Runtime 与 authenticated 测试共 5 个测试文件；QAM-08 报告/总览和三份状态文件。未新增 Tool、修改 Route、Prisma schema/migration、依赖、部署、后处理或 LLM transport；QAM-08-001～004 保持独立。
+- 改动共 14 个文件：4 个 Agent 实现文件；新增 Node/集成测试和 E2E 子进程入口、更新既有 Runtime 与 authenticated 测试共 5 个测试文件；QAM-08 报告/总览和状态文件。未新增 Tool、修改 Route、Prisma schema/migration、依赖、部署、后处理或 LLM transport；QAM-08-001～004 保持独立。
 
 ### 负向对照与专项验证
 
@@ -28,8 +28,8 @@
 ### 清理与恢复
 
 - 本轮 coverage、playwright-report、test-results（含临时认证状态）与 `/tmp/xoxo-feat053-*` 日志已清理；开发期失败原始命令、结果和原因保留在本节，不保留失败诊断工件。隔离数据库/容器/测试服务已退出，仅剩会话前既有健康 `xoxo-meridian-postgres`；`.next` 缓存保留，`next-env.d.ts` 无差异。
-- 三份状态写回后，共 61 个 feature：done×53、not-started×8，无 in-progress/blocked。Harness validator exit 0、100/100，五个子系统均 5/5；JSON/连续 ID/单 feature 状态/依赖/原排名、前 50 项与 HEAD 一致、QAM 十维与总览算术、报告链接及工件清理断言全部通过。`git diff --check` exit 0，`git status --short` 已复核；未提交 Git commit 或部署，既有用户源码、测试和其他 QAM 报告未覆盖。
-- clean restart：依次读取 AGENTS.md、feature_list.json、progress.md、本交接；用 `./scripts/run-node22.sh` 校验 Node 22.23.2/npm 10.9.8。确认 feat-053 done、feat-054 的 feat-044 依赖和验收标准，只将 feat-054 标为 in-progress，再运行 `./init.sh`。
+- 状态记录写回后，共 61 个 feature：done×53、not-started×8，无 in-progress/blocked。Harness validator exit 0、100/100，五个子系统均 5/5；JSON/连续 ID/单 feature 状态/依赖/原排名、前 50 项与 HEAD 一致、QAM 十维与总览算术、报告链接及工件清理断言全部通过。`git diff --check` exit 0，`git status --short` 已复核；未提交 Git commit 或部署，既有用户源码、测试和其他 QAM 报告未覆盖。
+- clean restart：依次读取 AGENTS.md、feature_list.json、本交接；用 `./scripts/run-node22.sh` 校验 Node 22.23.2/npm 10.9.8。确认 feat-053 done、feat-054 的 feat-044 依赖和验收标准，只将 feat-054 标为 in-progress，再运行 `./init.sh`。
 - 唯一推荐下一步：开始已登记排名第 4 的 **feat-054（QAM-03-006，计划小时、分钟与时区控件缺少可访问名称）**；feat-061 保持独立登记，不自动插队。
 
 ## 2026-09-12 — feat-052 完成（QAM-06-007 resolved）
@@ -40,7 +40,7 @@
 - 新增 [`useHomeBoardMutations`](../../../components/home/useHomeBoardMutations.ts)：照片位置、大小、标注共用 per-photo 串行 PATCH，后续同名字段取最新值，失败字段与后续不同字段合并保留；仅 2xx 清除待保存状态，失败明确显示 alert 和重试。成功响应不重放整个 element，以免覆盖后续编辑或在途拖动；caption 显示与提交同时沿用服务端 trim 语义。
 - 照片 DELETE 等待在途 PATCH，删除确认前保留照片及关联连线；删除失败后可重试，未确认的编辑仍保留。连线 DELETE 同样只在 2xx 后移除；照片成功删除会清除对应连线操作，迟到的连接失败不能复活错误提示。删除进行中阻止同一照片的后续交互，卸载后不继续派发排队操作。
 - `HomeTimelineBoard` 负责装配和反馈，`HomeSpatialLayer` 传递删除状态；`HomePhotoElement` 增加唯一 label、删除/缩放可访问名称、键盘方向键缩放和重新进入编辑时的当前标注；`HomeConnectionLayer` 支持具名键盘删除，`app/globals.css` 让缩放焦点可见。
-- 改动范围共 14 个文件：上述 6 个实现文件，新增组件/真实 PostgreSQL 测试、扩展 `tests/e2e/authenticated.spec.ts`，QAM-06 报告与总览、三份状态记录。未修改服务端 Route、Prisma schema/migration、依赖、存储适配层、Home 协作协议或旧 Atlas SSE。会话前 feat-051 的代码、测试、报告和已登记 P2 内容均保留。
+- 改动范围共 14 个文件：上述 6 个实现文件，新增组件/真实 PostgreSQL 测试、扩展 `tests/e2e/authenticated.spec.ts`，QAM-06 报告与总览、状态记录。未修改服务端 Route、Prisma schema/migration、依赖、存储适配层、Home 协作协议或旧 Atlas SSE。会话前 feat-051 的代码、测试、报告和已登记 P2 内容均保留。
 
 ### 负向对照与专项验证
 
@@ -69,10 +69,10 @@
 
 ### 交付与范围
 
-- 按顺序读取 `AGENTS.md`、`feature_list.json`、`progress.md` 和 `session-handoff.md`，确认 feat-036/037 均 done 后，只将优先级第 1 的 feat-051 标为 in-progress。沿用已登记的修复/验收方案，用 `superpowers:brainstorming` 核对有界范围，用 `xoxo-qam-02-room-message-review` 维护问题 ID、责任边界与 E3 证据；原有前 50 项及其 done 状态、其余九项 P2 的排序/验收均保留。
+- 按顺序读取 `AGENTS.md`、`feature_list.json` 和 `session-handoff.md`，确认 feat-036/037 均 done 后，只将优先级第 1 的 feat-051 标为 in-progress。沿用已登记的修复/验收方案，用 `superpowers:brainstorming` 核对有界范围，用 `xoxo-qam-02-room-message-review` 维护问题 ID、责任边界与 E3 证据；原有前 50 项及其 done 状态、其余九项 P2 的排序/验收均保留。
 - 新增 [`lib/chat-messages.ts`](../../../lib/chat-messages.ts)：GET 与 [`getRoomSnapshot()`](../../../lib/room-snapshot.ts)（SSR/SSE/Study）共用显式消息和 Task/Tool/LLM select，以 `(createdAt desc,id desc)` 取最新 80 条，再反转升序并统一日期序列化；Tool/LLM 摘要也有稳定第二排序键。完整 AgentTask input/plan/result、Tool input/output、LLM prompt/request/response 和未被列表消费的 Message metadata（包括 toolResults）不随消息列表返回。
 - [`消息 GET`](../../../app/api/rooms/%5BroomId%5D/messages/route.ts) 保留认证、成员资格与 no-store；ChatMessage contract、既有任务/调用摘要呈现和专门 Trace 授权入口保持。没有修改 Prisma schema/migration、依赖、客户端 merge、SSE interval、Agent 写入/Trace 存储或启动/部署配置；QAM-02-006 继续作为独立 P2。
-- 改动文件：上述 3 个业务文件、新增 [`tests/integration/chat-message-read-model.integration.test.ts`](../../../tests/integration/chat-message-read-model.integration.test.ts)、扩展 [`tests/e2e/authenticated.spec.ts`](../../../tests/e2e/authenticated.spec.ts)、QAM-02 报告/共享总览与三份状态记录，共 10 个文件。没有新增 Node mock 测试来替代真实查询/浏览器语义。
+- 改动文件：上述 3 个业务文件、新增 [`tests/integration/chat-message-read-model.integration.test.ts`](../../../tests/integration/chat-message-read-model.integration.test.ts)、扩展 [`tests/e2e/authenticated.spec.ts`](../../../tests/e2e/authenticated.spec.ts)、QAM-02 报告/共享总览与状态记录，共 10 个文件。没有新增 Node mock 测试来替代真实查询/浏览器语义。
 
 ### 负向对照与回归
 
@@ -129,14 +129,14 @@
 
 ### 改动、清理与唯一下一步
 
-- 仅保留 `feature_list.json`、`progress.md`、`session-handoff.md` 的登记改动；开始时工作树干净，未创建服务、容器或测试数据。已清理本轮新生成的 `coverage/`，将构建自动改写的 `next-env.d.ts` 导入路径还原为会话开始内容，既有 `.next` 缓存保留；没有保留失败日志或测试凭据。登记无阻塞，十项实现均尚未开始。
+- 仅保留 `feature_list.json`、`session-handoff.md` 的登记改动；开始时工作树干净，未创建服务、容器或测试数据。已清理本轮新生成的 `coverage/`，将构建自动改写的 `next-env.d.ts` 导入路径还原为会话开始内容，既有 `.next` 缓存保留；没有保留失败日志或测试凭据。登记无阻塞，十项实现均尚未开始。
 - 唯一推荐下一步：开始 `feat-051`（QAM-02-002），确认已完成依赖后仅将其标为 `in-progress`，运行 `./init.sh`，先建立超过 80 条消息与 Trace 摘要的真实 PostgreSQL/浏览器回归，再统一 ChatMessage 读取窗口和投影。
 
 ## 2026-09-12 — feat-050 完成（QAM-08-006 resolved）
 
 ### 交付与范围
 
-- 按启动顺序完整读取 `AGENTS.md`、`feature_list.json`、`progress.md` 与 `session-handoff.md`；确认 feat-049 完成后，只登记 feat-050 为 `in-progress`，再运行 `./init.sh` 建立 72 文件/480 项基线。`xoxo-qam-08-agent-runtime-review` 用于保持稳定问题 ID、QAM-08/QAM-01/02/03 责任边界、E3 纪律与只重算受影响评分；`harness-creator` 用于维护单一 feature、门禁、清理和三份状态记录闭环。
+- 按启动顺序完整读取 `AGENTS.md`、`feature_list.json` 与 `session-handoff.md`；确认 feat-049 完成后，只登记 feat-050 为 `in-progress`，再运行 `./init.sh` 建立 72 文件/480 项基线。`xoxo-qam-08-agent-runtime-review` 用于保持稳定问题 ID、QAM-08/QAM-01/02/03 责任边界、E3 纪律与只重算受影响评分；`harness-creator` 用于维护单一 feature、门禁、清理和状态记录闭环。
 - [`agent/context-builder.ts`](../../../agent/context-builder.ts) 现在接收 `requestedById`，复用 [`lib/participant-resolution.ts`](../../../lib/participant-resolution.ts) 以稳定 userId 派生显式 `requestedById/self/partner`；[`agent/agent-runtime.ts`](../../../agent/agent-runtime.ts) 从 Task 传入请求者，把有效请求者写入 Durable Plan input，并把同一有效身份交给 Tool。[`agent/types.ts`](../../../agent/types.ts) 为参与者保留 userId；[`agent/llm-provider.ts`](../../../agent/llm-provider.ts) 的 mock 和真实提示都只认 self/partner，空或非成员请求者不按数组位置猜城市、时区、姓名或个人 Memory。
 - 新增 [`agent/memory-identity.ts`](../../../agent/memory-identity.ts) 作为 Memory identity 单一事实源：`me.*`/`her.*` 在写入时解析为 `user:<id>` owner 与 `person.*` canonical key，`shared.*`/`_system.*` 分别使用 `scope:shared`/`scope:system`；相对 me/her 只在 recall/context 输出时按当前请求者投影。Memory set、owner 内相似值去重、recall、context builder 与 extractor 都复用该协议；空请求者可读写 shared，但个人写入稳定拒绝且个人读取为空。
 - [`prisma/schema.prisma`](../../../prisma/schema.prisma) 新增必填 `ownerKey` 与 `(roomId,ownerKey,key)` 唯一键；时间戳迁移 [`20260912175500_add_memory_owner_key`](../../../prisma/migrations/20260912175500_add_memory_owner_key/migration.sql) 在锁定 Memory 表的事务中规范化已知 owner。不同 owner 可保留同一 canonical key；同 owner 规范化冲突、缺 owner 的个人行及未知 key 均不删除、不猜归属，而是保留为带 `ownerMigration` 原因的 `legacy:<id>`；新增 check 约束保护 shared/system/user/legacy 形态并保持 `migrate deploy` 兼容。
@@ -166,7 +166,7 @@
 
 ### 交付与范围
 
-- 按启动顺序完整读取 `AGENTS.md`、`feature_list.json`、`progress.md` 与 `session-handoff.md`；确认 feat-048 完成后，只登记 feat-049 为 `in-progress`，再以 `./init.sh` 建立 72 文件/472 项基线。`xoxo-qam-03-life-plan-review` 用于保持稳定问题 ID、QAM-03/QAM-04/QAM-08 责任边界、E3 纪律与只重算受影响维度；`harness-creator` 用于维护单一 feature、门禁、清理和三份状态记录闭环。
+- 按启动顺序完整读取 `AGENTS.md`、`feature_list.json` 与 `session-handoff.md`；确认 feat-048 完成后，只登记 feat-049 为 `in-progress`，再以 `./init.sh` 建立 72 文件/472 项基线。`xoxo-qam-03-life-plan-review` 用于保持稳定问题 ID、QAM-03/QAM-04/QAM-08 责任边界、E3 纪律与只重算受影响维度；`harness-creator` 用于维护单一 feature、门禁、清理和状态记录闭环。
 - [`lib/scheduled-job-one-shot.ts`](../../../lib/scheduled-job-one-shot.ts) 现在导出带 offset 的 ISO datetime Zod schema、create “`fireAt`/`cron` 恰一”与 update “至多一项”谓词；resolver 在构造 `Date` 前再次校验 offset，不能再按 Worker `TZ` 猜测业务时刻。[`lib/validation.ts`](../../../lib/validation.ts) 与 [`agent/tool-contracts.ts`](../../../agent/tool-contracts.ts) 共同引用这一领域 contract，HTTP 和 Agent `schedule.create/update` 不再平行解释 trigger。
 - Tool Registry 会在 Tool execute 与 `ScheduledJob` 写入之前拒绝无 offset `fireAt` 和 `fireAt+cron`。合法 offset、五分钟宽限、cron 合成、active cap、QAM-04 的 CAS/run-once missed-window 及 Tool 通用事务/trace 策略均保持；没有修改 schema/migration、依赖或部署配置。
 - 只修改上述三个实现文件及 one-shot、schedule Tool、真实 PostgreSQL parity 回归；没有处理 QAM-03-005 字段上限、QAM-03-006 表单可访问名称、QAM-08-006 Memory 身份或其他 QAM。工作树中 feat-044～048、QAM-10 文件、既有 `docs/optimization/agent-runtime-review.md` 删除状态和其他用户改动均保留。
@@ -194,7 +194,7 @@
 
 ### 交付与范围
 
-- 按启动顺序完整读取 `AGENTS.md`、`feature_list.json`、`progress.md` 与 `session-handoff.md`，确认 feat-047 已完成后登记 feat-048 为唯一 `in-progress`，再运行 `./init.sh` 建立 72 文件/472 项基线。`xoxo-qam-06-spatial-media-review` 用于保持稳定问题 ID、模块边界、E3 纪律与只重算受影响评分；`harness-creator` 用于维护单一 feature、门禁和三份状态记录闭环。
+- 按启动顺序完整读取 `AGENTS.md`、`feature_list.json` 与 `session-handoff.md`，确认 feat-047 已完成后登记 feat-048 为唯一 `in-progress`，再运行 `./init.sh` 建立 72 文件/472 项基线。`xoxo-qam-06-spatial-media-review` 用于保持稳定问题 ID、模块边界、E3 纪律与只重算受影响评分；`harness-creator` 用于维护单一 feature、门禁和状态记录闭环。
 - [`lib/home-board.ts`](../../../lib/home-board.ts) 新增单一 Home spatial access contract：固定 `home-board` 下，element 只允许共享 `photo`（`postId=null`）或满足 `getPostVisibilityWhere(userId)` 的 Post anchor；connection access 从两端 element access 派生，任一端不可见即不可读写。`/home` 的 `initialSnapshot` 现在携带当前用户 ID，在数据库查询阶段过滤 element 与 connection。
 - Home element PATCH/DELETE 和 connection POST/DELETE 全部复用同一 access predicate；授权不只停留在预读：element 使用带条件的扩展 unique update/delete，connection DELETE 使用带两端可见性的 `deleteMany`，connection POST 使用条件 nested connect，竞争窗口中的成员资格/资源变化映射为 404。固定 board、共享照片、全局 `user_post`、Post-to-Post 禁连与现有连接类型均保持。
 - 只修改 Home snapshot/access、对应 Route 与回归；没有修改 Prisma schema/migration、依赖、上传、Atlas SSE、QAM-06 其余 P2、QAM-03-004 或 QAM-08-006。现有 feat-044～047 与其他用户未提交改动均保留。
@@ -263,7 +263,7 @@
 
 - 完成最后一个开放 P1 `QAM-04-002`。`agent/scheduler-tick.ts` 的共享 `claimAndDispatchScheduledJob()` 事务现在对所有 `runOnce` Job 写入 `enabled=false`：超过一小时 missed window 时成功 claim 后返回 `skipped`，不创建 AgentTask 或 `scheduler.job.fired` Event；周期 Job 仍保持 enabled 并按 `computeNextRun()` 推进 `nextRunAt`。
 - 窗口内 run-once 仍先执行同一原子 claim/Task/Event 路径；若 Task 或 Event 写入失败，整个 transaction 回滚，Job 保持 enabled，既有外部 stale-failure CAS 与 failCount/retry 语义不变。没有增加补发策略、外部调度能力或第二个状态分支。
-- 没有修改 QAM-03 的 fireAt/cron authoring 契约、Prisma schema/migration、`QAM-04-003` Worker shutdown、QAM-08 Task 执行或 Docker/Compose。`xoxo-qam-04-scheduler-review` 用于按稳定问题 ID 与 E3 证据复评；`harness-creator` 用于维持单一活动 feature、验证门禁和三份状态记录闭环。
+- 没有修改 QAM-03 的 fireAt/cron authoring 契约、Prisma schema/migration、`QAM-04-003` Worker shutdown、QAM-08 Task 执行或 Docker/Compose。`xoxo-qam-04-scheduler-review` 用于按稳定问题 ID 与 E3 证据复评；`harness-creator` 用于维持单一活动 feature、验证门禁和状态记录闭环。
 
 ### 负向对照与回归证据
 
@@ -385,7 +385,7 @@
 - 最终 `sudo -n -g docker -u dadalv ./scripts/run-node22.sh npm run check:full` 单次 `EXIT=0`：TypeScript、ESLint、70 文件/457 项 Vitest、Next.js 16.3.3 production build、覆盖率（All files 46.52/41.77/51.75/47.32）、19 文件/57 项真实 PostgreSQL 与 **26/26 Playwright** 全部通过。E2E 为默认（dev 模式）`playwright test`，5.0 分钟，0 failed/flaky/skipped。
 - 更正一处记录：本轮初稿曾把当前基线的 Playwright 数写成 `11/11`，那是 feat-039 时期**默认套件**的历史值；feat-040 加入 agent-entry spec 后默认套件已增至 26 项。历史行保留其当时的真实数字，当前基线改为 26/26（依据本轮原始输出 `26 passed (5.0m)`）。
 - 状态归一：上述 `70/457` 与本 feature 前 `67/414` 是 feat-042 验收时的原始输出，其中各包含后来按用户要求回退的 1 个无关 logo 测试；回退后本次 `./init.sh` 与 `npm run check` 均 exit 0，当前 quick/coverage 均为 `69/456`，production build 通过，覆盖率为 46.52/41.77/51.75/47.32；不改写历史门禁证据。
-- Harness 复核：feature 共 42 个、ID 连续至 feat-042、全部 `done` 且无活动/阻塞项；`harness-creator` validator 为 100/100，跨文件语义断言全部通过。`coverage/` 已移入系统回收站，`git diff --check` exit 0；本次只修正三份状态文件，保留现有 `logo.png` 与其他用户改动。
+- Harness 复核：feature 共 42 个、ID 连续至 feat-042、全部 `done` 且无活动/阻塞项；`harness-creator` validator 为 100/100，跨文件语义断言全部通过。`coverage/` 已移入系统回收站，`git diff --check` exit 0；本次只修正状态文件，保留现有 `logo.png` 与其他用户改动。
 
 ### 清理、边界与下一步
 
@@ -896,7 +896,7 @@ Last Updated：2026-09-11。共登记 42 个 feature，feat-001 至 feat-042 均
 
 - 本轮只新增项目级 Skill、质量标准、总览、九份报告并维护 Harness 状态；没有修改应用源码、依赖、锁文件、Prisma schema/migration、认证行为或部署实现，因此按风险不要求本轮重新通过 `check:full` / Compose smoke。
 - `npm run check` 自动改写的 `next-env.d.ts` 已恢复到会话前内容；本轮生成的 `playwright-report/` 与 `coverage/` 已从工作区和临时隔离目录清理，没有删除既有 `.next`、依赖或用户改动。
-- 会话开始时 `AGENTS.md`、`feature_list.json`、`progress.md`、`session-handoff.md` 和未跟踪的 `PROJECT_VIEW.md` 已有前序改动；本轮保留并在状态文件上增量维护 feat-025。
+- 会话开始时 `AGENTS.md`、`feature_list.json`、`session-handoff.md` 和未跟踪的 `PROJECT_VIEW.md` 已有前序改动；本轮保留并在状态文件上增量维护 feat-025。
 - 唯一推荐下一步：另行登记 QAM-06 board mutation 边界修复 feature，只处理 `QAM-06-001`——让 Atlas element/connection mutation 限定 `atlas-global-board`，并以真实 PostgreSQL 回归证明 Home anchor/connection 不可被跨 board 删除；不要同时重构拖动、上传或 SSE。
 
 ## 2026-09-06 — feat-024 项目质量责任模块视图
@@ -922,7 +922,7 @@ Last Updated：2026-09-11。共登记 42 个 feature，feat-001 至 feat-042 均
 ### 范围、风险与下一步
 
 - 本轮只新增 `PROJECT_VIEW.md` 并维护 Harness 状态，没有修改应用源码、依赖、锁文件、Prisma schema/migration、认证行为或部署路径，因此未运行 `check:full` 或 Compose smoke。
-- 会话开始时 `AGENTS.md`、`feature_list.json`、`progress.md`、`session-handoff.md` 已有前序未提交修改；本轮保留这些内容，只在后三个状态文件追加 feat-024 记录。
+- 会话开始时 `AGENTS.md`、`feature_list.json`、`session-handoff.md` 已有前序未提交修改；本轮保留这些内容，只在状态文件追加 feat-024 记录。
 - 本文明确记录边界不确定性，不把共享文件直接判断为缺陷，也不包含模块质量评分。
 - 唯一推荐下一步：另行登记 QAM-08 模块质量基线 feature，使用 `PROJECT_VIEW.md` 的范围生成独立追踪文档，先审查 Agent Task/Tool/Trace 边界，不在同一 feature 中实施重构。
 

@@ -1,18 +1,24 @@
 # 会话交接
 
-## 当前进展
+## 当前状态
 
-- [feat-090](feature_list.json) 用户验收后的复核修正已完成，状态 `done`。最终交互为 **±25°、单个角落旋转手柄**：拖动连续预览、松手保存，取消恢复原角度；方向键微调，单击可输入角度或恢复水平。旧滑杆已删除，角度读数不再改变输入几何；倾斜缩放按照片自身横轴计算，切换照片时关闭旧输入框。
-- 原滑杆的抖动已在真实浏览器复现：连续移动 60 次产生 15 次反向跳动。根因、设计依据、前后截图及代码审查见 [审查记录](docs/reviews/feat-090/README.md)，长期验证记录见 [进度](progress.md#feat-090)。右键菜单定位与去除黑线的改动保留，用户根目录 JPG 原样保留；未改依赖、迁移或部署配置。
+2026-10-01：用户要求将工作区现有改动归集为一次本地 commit。本次提交包含 Blog 空间草稿、权限与媒体生命周期、New Post/草稿入口和深链修复、时间水合修复、回归测试及状态/质量/归档文档。feat-094、feat-098、feat-099 为 done；feat-092、feat-097、feat-100 为 not-started。根 featuresNumber=6，不触发归档。长期验收和失败证据位于 feature_list.json 及其引用归档。
 
-## 验证与边界
+本轮仅整理 Git、更新状态与交接，未改应用实现。提交标识以 `git log -1 --oneline` 为准，未推送或部署。按 AGENTS.md 第 8 条，根目录 `ChatGPT 图像 2026年9月30日 12_12_21.png` 含用户名与博文内容，保留本地，不纳入提交，也不删除。
 
-- `./scripts/run-node22.sh ./init.sh` exit 0（96 文件/923 项）。旋转组件回归 6/6，完整旋转旅程连续复跑 3 次通过（含 setup 4/4）。最终 `./scripts/run-node22.sh env E2E_SOFTWARE_WEBGL=true npm run check:full` **exit 0**：typecheck、lint、96 文件/928 项常规测试、生产构建、覆盖率 56.92/52.34/61.80/57.44、真实 PostgreSQL 39 文件/166 项、生产 Playwright **64/64**。
-- 前两轮完整门禁各有 1 项触摸精度失败；原生事件确认测试取坐标时，延迟挂载的入场动画尚未结束。现明确等待动画挂载及完成后读取几何，没有禁用动画或放宽角度断言。修正后的连续复验及最终完整套件通过，原始失败命令和原因已保留在进度中。
-- `next-env.d.ts` 已恢复原开发引用，恢复后 typecheck exit 0。测试报告目录和本轮临时日志/探针已清理，审查截图保留；Docker 仅保留原有健康开发 PostgreSQL。未运行 Compose smoke、Compose 构建、实体手机或 Safari 测试；触摸覆盖来自 Chromium 原生触摸事件模拟。
-- 状态与结构核验通过：根 37 项、归档 53 项、全局 90 个唯一 ID，依赖、进度索引及 264 个本地链接有效。`featuresNumber=37`，跳过归档；`git diff --check` exit 0，status 已核对，生成文件无残留差异。
+feat-098 已将作品时间统一为 en-US、24 小时、显式作者快照时区，缺失回退 UTC。用户已确认只读兼容字段 authorTimezone；单篇使用自身快照，作品日期/草稿列表使用 workOrder 首篇快照。聊天、计划和学习记录也使用显式用户/任务时区，未变更持久化、写入请求、权限与发布语义。
 
-## 恢复路径与唯一下一步
+## 验证与风险
 
-- 依次阅读 AGENTS.md、feature_list.json、所选任务进度及本文件；新会话使用 `./scripts/run-node22.sh ./init.sh` 建立基线，本地预览使用 `./scripts/run-node22.sh npm run dev`。本轮未提交、未推送、未部署，保留当前工作区和用户 JPG。
-- 唯一下一步：在 `/home` 页面验收新版单手柄的 ±25° 旋转体验及右键菜单外观。
+- 前一实现轮根目录 `./scripts/run-node22.sh ./init.sh` exit 0：104 文件/991 项，类型、lint 和快速基线通过。
+- 前一实现轮隔离 `LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run check:full` 的最终标准层通过：104 文件/991 项、生产构建与覆盖率（Statements 54.10%、Branches 48.64%、Functions 57.98%、Lines 55.26%）；真实 PostgreSQL 为 44 文件/191 项通过。
+- 首轮新增 published fixture 漏填 publishedAt，触发 `BlogWork_window_check` / PostgreSQL 23514；补齐后定向数据库 2/2，完整数据库 191/191。第二轮完整命令浏览器 82/83，既有双标签页冲突用例初次读取草稿时 `toBeVisible` 超时 5000ms，页面停在“正在打开作品…”。原始失败、命令和根因待查事项登记 feat-100。
+- 原测试和应用不变，`LANG=en_US.UTF-8 TZ=UTC E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npx playwright test tests/e2e/blog-drafts.spec.ts --project=authenticated -g '双标签页同字段冲突' --repeat-each=3 --trace=on` 为 4/4 passed（含 setup）。最终 `LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run test:e2e:production` exit 0：83/83 passed、8.4 分钟，旧用例在完整序列通过。历史 `check:full` 的 exit 1 不能改写为 exit 0；最终按层验收均通过。
+- 新增 zh-CN/洛杉矶浏览器水合回归旧实现捕获 React #418，修复后定向 3/3（含 setup）及完整序列均通过；Node/组件定向 53/53。完整命令和测试路径在 feat-098.evidence。
+- 本提交整理轮未重跑 `./init.sh`、`npm run check`、`npm run test:integration`、`npm run test:e2e:production`：应用内容未变，沿用同一会话最终证据，仅验证 JSON、ID/依赖、计数、归档引用及 Git diff/status。未运行 `npm run test:compose-smoke`，此轮未改部署路径；此前空间草稿部署验证见归档 feat-091。
+
+## 恢复路径
+
+前一轮隔离副本、测试数据、临时容器、日志、截图/视频/trace 均已清理。本轮没有新增测试工件；参考图片是既有用户文件，继续保留。`progress.md` 的既有删除随本次提交保留，长期证据迁移到 feature_list.json/归档；不要恢复旧进度文件。全局 ID、依赖、状态、根计数和暂存 diff 已核验。
+
+唯一推荐下一步：处理 feat-100 的双标签页首次草稿读取偶发超时。依次阅读 AGENTS.md、该项完整验收和本交接，确认依赖 feat-099 已 done 后仅将 feat-100 标为 in-progress，再运行 `./scripts/run-node22.sh ./init.sh`。生产构建和浏览器测试使用独立副本；先原样复核并记录两页 GET 与前后台时序，未稳定复现前不要预设根因或扩大应用改动。

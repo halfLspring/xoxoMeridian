@@ -641,12 +641,17 @@ for (const width of [320, 390, 1280]) {
       await page.getByRole("link", { name: "返回博客列表" }).click({ trial: true });
       await page.goto(`/posts/edit/${post.slug}`);
       await expectReady(page);
-      await page.getByLabel("Post content", { exact: true }).click();
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.getByRole("button", { name: "Update", exact: true }).click({ trial: true });
-      await page.getByRole("button", { name: "Delete", exact: true }).click({ timeout: 5_000 });
-      await expect(page.getByText("Are you sure you want to delete this post?", { exact: true })).toBeVisible();
-      await page.getByRole("button", { name: "Cancel", exact: true }).last().click();
+      await page.getByLabel("正文（Markdown）", { exact: true }).click();
+      await page.getByRole("button", { name: "保存博文", exact: true }).click({ trial: true });
+      const confirmation = page.waitForEvent("dialog").then(async dialog => {
+        expect(dialog.message()).toBe("删除这篇博文？");
+        await dialog.dismiss();
+      });
+      await page.getByRole("button", { name: "删除博文", exact: true }).click();
+      await confirmation;
+      await expect(page.getByRole("dialog", { name: "编辑博文" })).toBeVisible();
+      await page.getByRole("button", { name: "关闭编辑博文" }).click();
+
     } finally {
       expect(await page.evaluate(async (slug) => (await fetch(`/api/posts/${slug}`, { method: "DELETE" })).ok, post.slug)).toBe(true);
     }

@@ -13,8 +13,9 @@ const { mockRequireCurrentUser } = vi.hoisted(() => ({
   mockRequireCurrentUser: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
+vi.mock("@/lib/prisma", () => {
+  const client = {
+
     post: {
       findMany: mockPostFindMany,
       findFirst: mockPostFindFirst,
@@ -23,8 +24,12 @@ vi.mock("@/lib/prisma", () => ({
       update: mockPostUpdate,
       delete: mockPostDelete,
     },
-  },
-}));
+    atlasBoard: { upsert: vi.fn(async () => ({ id: "home-board" })) },
+    blogWork: { create: vi.fn(async () => ({ id: "work-1" })), update: vi.fn() },
+    atlasElement: { create: vi.fn() },
+  };
+  return { prisma: { ...client, $transaction: vi.fn(async fn => fn(client)) } };
+});
 
 vi.mock("@/lib/auth", () => ({
   requireCurrentUser: mockRequireCurrentUser,
@@ -45,7 +50,7 @@ function expectRoomScopedAgentLogVisibility(where: Record<string, unknown>) {
   expect(where).toEqual(
     expect.objectContaining({
       AND: [
-        {
+        expect.objectContaining({
           OR: [
             { type: "user_post" },
             {
@@ -54,7 +59,8 @@ function expectRoomScopedAgentLogVisibility(where: Record<string, unknown>) {
               room: { participants: { some: { userId: "user-1" } } },
             },
           ],
-        },
+          publishedAt: { not: null },
+        }),
       ],
     }),
   );

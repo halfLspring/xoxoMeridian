@@ -37,7 +37,8 @@
     "agent-entry:assets": "node --import tsx scripts/agent-entry-assets.ts",
     "check:agent-entry-assets": "npm run agent-entry:assets -- check",
     "test:e2e:agent-entry:production:default": "E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default playwright test tests/e2e/agent-entry-public.spec.ts tests/e2e/agent-entry-authenticated.spec.ts",
-    "test:e2e:agent-entry:production:birthday": "E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=birthday-2026 playwright test tests/e2e/agent-entry-public.spec.ts tests/e2e/agent-entry-authenticated.spec.ts"
+    "test:e2e:agent-entry:production:birthday": "E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=birthday-2026 playwright test tests/e2e/agent-entry-public.spec.ts tests/e2e/agent-entry-authenticated.spec.ts",
+    "blog:assets:cleanup": "tsx scripts/cleanup-blog-assets.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

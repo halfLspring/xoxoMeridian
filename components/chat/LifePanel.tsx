@@ -265,7 +265,7 @@ function formatTime(nowMs: number, timezone?: string) {
 
 function formatDateTime(value: string, timezone?: string | null) {
   return new Intl.DateTimeFormat("zh-CN", {
-    timeZone: timezone ?? undefined,
+    timeZone: timezone || "UTC",
     month: "short",
     day: "numeric",
     hour: "2-digit",

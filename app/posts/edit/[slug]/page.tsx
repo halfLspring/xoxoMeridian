@@ -20,8 +20,9 @@ export default async function EditPostPage({
     where: { slug },
   });
 
-  if (!post) notFound();
+  if (!post || !post.publishedAt) notFound();
   if (post.authorId !== user.id) redirect("/home");
+  if (post.workId) redirect(`/home?work=${post.workId}&post=${post.id}`);
 
   return (
     <div className="min-h-screen bg-sage-50">

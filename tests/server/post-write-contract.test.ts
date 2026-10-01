@@ -12,16 +12,21 @@ const { mockRequireCurrentUser, mockGetCurrentUser } = vi.hoisted(() => ({
   mockGetCurrentUser: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
+vi.mock("@/lib/prisma", () => {
+  const client = {
+
     post: {
       findUnique: mockPostFindUnique,
       create: mockPostCreate,
       update: mockPostUpdate,
       delete: mockPostDelete,
     },
-  },
-}));
+    atlasBoard: { upsert: vi.fn(async () => ({ id: "home-board" })) },
+    blogWork: { create: vi.fn(async () => ({ id: "work-1" })), update: vi.fn() },
+    atlasElement: { create: vi.fn() },
+  };
+  return { prisma: { ...client, $transaction: vi.fn(async fn => fn(client)) } };
+});
 
 vi.mock("@/lib/auth", () => ({
   requireCurrentUser: mockRequireCurrentUser,
@@ -44,6 +49,7 @@ const OWNED_POST = {
   content: "既有正文",
   type: "user_post",
   authorId: "user-1",
+  publishedAt: new Date("2026-09-01T00:00:00Z"),
 };
 
 const TITLE_MAX = 200;

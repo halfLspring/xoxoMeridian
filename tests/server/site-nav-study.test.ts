@@ -35,11 +35,12 @@ describe("SiteNav study link", () => {
       })
     );
 
-    expect(html).toContain("flex h-16 items-center justify-between px-5");
+    expect(html).toContain('>My Draft<');
+    expect(html).toContain('>Blog<');
     expect(html).not.toContain("max-w-3xl");
   });
 
-  it("hides New Post on the study page", () => {
+  it("Study 页继续隐藏 New Post 入口", () => {
     mockNavigation.pathname = "/study";
 
     const html = renderToStaticMarkup(
@@ -52,7 +53,7 @@ describe("SiteNav study link", () => {
     expect(html).not.toContain('href="/posts/new"');
   });
 
-  it("keeps New Post available on the blog page", () => {
+  it("Blog 页恢复 New Post 和原发文链接，保留 My Draft", () => {
     mockNavigation.pathname = "/home";
 
     const html = renderToStaticMarkup(
@@ -62,6 +63,9 @@ describe("SiteNav study link", () => {
     );
 
     expect(html).toContain(">New Post<");
+    expect(html).not.toContain(">New Draft<");
     expect(html).toContain('href="/posts/new"');
+    expect(html).toContain('>My Draft<');
+    expect(html).not.toContain('href="/home?draft=new"');
   });
 });

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { HomeBoardSnapshot } from "@/components/home/types";
 import { mockServer } from "@/tests/mocks/server";
 
-vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/blog/Timeline", () => ({ Timeline: () => null }));
 vi.mock("@/components/home/HomeUploadModal", () => ({ HomeUploadModal: () => null }));
 

@@ -2,6 +2,8 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useBlogActions } from "@/components/blog-work/BlogActionProvider";
+import { FilePenLine } from "lucide-react";
 import { CameraIcon } from "@/components/icons";
 import type { HomeContextMenuState } from "@/components/home/types";
 
@@ -12,6 +14,7 @@ export function HomeContextMenu({
   state: HomeContextMenuState;
   onAddPhoto: () => void;
 }) {
+  const blogActions = useBlogActions();
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [position, setPosition] = useState({ left: state.screenX, top: state.screenY });
@@ -44,6 +47,7 @@ export function HomeContextMenu({
         <CameraIcon size={16} />
         添加图片
       </button>
+      <button type="button" className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-black/70 hover:bg-sage-50" onClick={() => blogActions?.requestAction("new")}><FilePenLine size={16} />新增草稿</button>
     </div>,
     document.body,
   );

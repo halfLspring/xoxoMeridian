@@ -90,7 +90,7 @@ near-term timer 携带期望 `nextRunAt`，polling 与 timer 在进入共享 cla
 - **回归证据（先红后绿，未放宽断言、未加 skip、未改断言超时）**：
   1. **timer 任务所有权**——把 `trackTimerTask(fireJobNow(...))` 还原为 `void fireJobNow(...)` 后，`npx vitest run tests/agent/scheduler-tick.test.ts` 为 `4 failed | 18 passed (22)`，其中两条失败点正是 `expect(unhandled).toEqual([])`（分别复现「读取 job 失败」与「claim 失败后失败回写再次拒绝」的未处理拒绝），另两条是 drain 观察不到已开始的任务。修复后同文件 22/22。
   2. **进程级 shutdown**——用 `git show HEAD:agent/agent-worker.ts` 还原旧实现后，`tests/agent/worker-shutdown.test.ts` 失败于 `worker 未在 8000ms 内响应 SIGTERM`（退出码 1）；修复后同用例在约 1 秒内以 code 0 退出并输出 `[worker] stopped`。
-  3. **重启恢复（语义未变）**——真实 PostgreSQL 新增两条 timer 路径用例（claim 回滚后可被下一次 tick 重新扫描、提交后不重复派生）；两条在旧实现下**同样通过**，属于防回归守卫而非红灯证据，已在模块总览与 progress 中如实标注。
+  3. **重启恢复（语义未变）**——真实 PostgreSQL 新增两条 timer 路径用例（claim 回滚后可被下一次 tick 重新扫描、提交后不重复派生）；两条在旧实现下**同样通过**，属于防回归守卫而非红灯证据，已在模块总览与 feature_list.json 中如实标注。
 - **验收结果**：定向 Node 3 文件/27 项、真实 PostgreSQL 6/6、`npm run typecheck` exit 0、`npm run lint` exit 0；`npm run check:full` 单次 exit 0（87 文件/760 项 Vitest、production build、覆盖率 53.48/47.11/58.43/54.16、32 文件/128 项真实 PostgreSQL、44/44 production Playwright）。
 - **影响范围**：QAM-04 timer/shutdown；QAM-09 仍负责 Compose stop/restart 拓扑，QAM-08 仍负责 AgentTask lease/recovery，其执行器生命周期未重复归入本问题。关闭本项不改变 QAM-08 的 lease 语义。
 

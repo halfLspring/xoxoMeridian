@@ -12,7 +12,7 @@
 | 本轮 Delta | `+1`（82→83；QAM-08-007 澄清文案与执行事实一致性已解决） |
 | 历史口径说明 | 旧专项报告 `docs/optimization/agent-runtime-review.md` 的 97/100 属于旧评分口径，不能与统一标准 v1.0.0 计算 Delta；该文件在当前工作树中处于用户既有删除状态，本轮没有恢复或链接到不存在的快照。本报告历史首行 74/100 才是统一十维评分 baseline。 |
 | 当前基线命令 | 启动 `VITEST_MAX_WORKERS=1 ./init.sh` exit 0（79 文件/679 项）；最终 `VITEST_MAX_WORKERS=1 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full` exit 0：79 文件/682 项 Node/组件、生产构建、覆盖率 51.58/45.39/56.06/52.25、29 文件/110 项真实 PostgreSQL、41/41 production Playwright（4.8 分钟）；收尾 `VITEST_MAX_WORKERS=1 ./init.sh` exit 0（79 文件/682 项）。 |
-| 异常与未运行命令 | 修复前 Node 2 failed/11 passed，真实 PostgreSQL 1 failed/12 passed：零 ToolCall、原 Job 整行未变，但最终回复声称已取消。原始命令与证据见 [feat-061 进度](../../progress.md#feat-061)。未另跑默认 worker、开发模式完整门禁、Compose smoke、镜像或实体设备；沿用上轮单 worker/production 配置，feat-063～066 保持独立。 |
+| 异常与未运行命令 | 修复前 Node 2 failed/11 passed，真实 PostgreSQL 1 failed/12 passed：零 ToolCall、原 Job 整行未变，但最终回复声称已取消。原始命令与证据见 [feat-061 验收证据](../../feature_list.json)。未另跑默认 worker、开发模式完整门禁、Compose smoke、镜像或实体设备；沿用上轮单 worker/production 配置，feat-063～066 保持独立。 |
 | 证据纪律 | QAM-08-007 由 Node/真实 PostgreSQL 的修复前失败与修复后回归、Chromium 实时/刷新一致性提升为 E3。结构校验、Durable Step、claim、审批、预算与请求者/Memory 回归在完整门禁中继续通过；QAM-08-001～004 的 crash、后处理、Trace 和 adapter 缺口保持既有证据边界。 |
 
 ## Overall
@@ -85,10 +85,10 @@
 
 ### Resolved — QAM-08-007：语义澄清分支没有执行取消却回复旧任务已取消
 
-- **状态**：`resolved`（2026-09-13）；**优先级**：P2；对应 [`feat-061`](../../progress.md#feat-061)。
+- **状态**：`resolved`（2026-09-13）；**优先级**：P2；对应 [feat-061 验收证据](../../feature_list.json)。
 - **原问题与负向证据**：两次 Planner 都仅要求 `schedule.cancel` 却承诺一次性执行，语义校验/repair 留下 `one_shot_promise_without_create`，Runtime 在 Tool loop 前改用零 Tool 澄清。修复前 Node 2 项和真实 PostgreSQL 1 项失败；后者已断言原 Job 整行不变、ToolCall/Tool Step 为空和 fallback 事件存在，最终 Message 仍写“之前那个已经帮你取消了”（E3）。
 - **最小修正**：[`buildClarifyPlan()`](../../agent/plan-repair.ts#L68) 仅返回“请再确认这次一次性任务的具体日期、时间和时区。”，不引用模型原文或待执行计划确认已完成动作。
-- **验收证据**：Node 定向 22/22，覆盖重复冲突、真实 Runtime 澄清、合法 runOnce 自动修复和普通零 Tool 对话；真实 PostgreSQL 计划校验文件 13/13，旧 Job 整行/数量、零 ToolCall/Step 和单条 Message 一致；Chromium 通过受认证 API 入队、本地 LLM HTTP 与独立 Runtime 进程执行，验证实时/刷新后澄清可见、旧计划仍可停用且没有已取消声明。完整门禁及失败原文摘要见 [任务进度](../../progress.md#feat-061)（E3）。
+- **验收证据**：Node 定向 22/22，覆盖重复冲突、真实 Runtime 澄清、合法 runOnce 自动修复和普通零 Tool 对话；真实 PostgreSQL 计划校验文件 13/13，旧 Job 整行/数量、零 ToolCall/Step 和单条 Message 一致；Chromium 通过受认证 API 入队、本地 LLM HTTP 与独立 Runtime 进程执行，验证实时/刷新后澄清可见、旧计划仍可停用且没有已取消声明。完整门禁及失败原文摘要见 [feat-061 验收证据](../../feature_list.json)（E3）。
 - **影响范围**：只关闭 QAM-08 plan repair/final response 的真实性问题，关联 QAM-03 计划用户预期；QAM-04 Scheduler 触发、Tool 集合与后处理机制未改。
 
 ### P2

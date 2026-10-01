@@ -1,27 +1,20 @@
 import { Suspense } from "react";
 import { requirePageUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { queryBlogFeed } from "@/lib/blog-work/feed";
 import { SiteNav } from "@/components/blog/SiteNav";
+import { BlogActionProvider } from "@/components/blog-work/BlogActionProvider";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { ScrollRestore } from "@/components/layout/ScrollRestore";
 import { HomeTimelineBoard } from "@/components/home/HomeTimelineBoard";
 import { ensureHomePostElements, getHomeBoardSnapshot, getOrCreateHomeBoard } from "@/lib/home-board";
-import { getPostVisibilityWhere } from "@/lib/post-visibility";
-import { postTimelineOrderBy, postTimelineSelect } from "@/lib/post-timeline";
-import { projectTimelinePosts } from "@/lib/post-timeline-projection";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const user = await requirePageUser();
 
-  const posts = await prisma.post.findMany({
-    where: getPostVisibilityWhere(user.id),
-    orderBy: postTimelineOrderBy,
-    take: 50,
-    select: postTimelineSelect,
-  });
-  const timelinePosts = await projectTimelinePosts(posts);
+  const feed = await queryBlogFeed(user.id);
+  const timelinePosts = feed.entries.flatMap(entry => entry.kind === "post" ? [entry.post] : []);
 
   const board = await getOrCreateHomeBoard();
   await ensureHomePostElements({
@@ -51,16 +44,20 @@ export default async function HomePage() {
       />
 
       <ScrollRestore storageKey="home-timeline" />
-      <SiteNav currentUser={user} />
-      <PageTransition>
-        <Suspense fallback={null}>
-          <HomeTimelineBoard
-            posts={JSON.parse(JSON.stringify(timelinePosts))}
-            currentUserId={user.id}
-            initialSnapshot={JSON.parse(JSON.stringify(initialSnapshot))}
-          />
-        </Suspense>
-      </PageTransition>
+      <BlogActionProvider key={user.id}>
+        <SiteNav currentUser={user} />
+        <PageTransition>
+          <Suspense fallback={null}>
+            <HomeTimelineBoard
+              key={user.id}
+              posts={JSON.parse(JSON.stringify(timelinePosts))}
+              feed={JSON.parse(JSON.stringify(feed))}
+              currentUserId={user.id}
+              initialSnapshot={JSON.parse(JSON.stringify(initialSnapshot))}
+            />
+          </Suspense>
+        </PageTransition>
+      </BlogActionProvider>
     </div>
   );
 }

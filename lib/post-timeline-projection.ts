@@ -27,6 +27,7 @@ export async function projectTimelinePosts(posts: TimelineRow[]) {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
 
   return posts.map(({ roomId, agentTaskId, ...post }) => {
+    if (!post.publishedAt) throw new Error("Unpublished post in public projection");
     const taskId = agentTaskId ?? taskIdByPostId.get(post.id);
     const task = taskId ? taskById.get(taskId) : null;
     return {

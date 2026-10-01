@@ -955,7 +955,7 @@ flowchart LR
 | Realtime / Caching | Room/Atlas/Auth SSE；weather cache、login visuals cache、drag cache、客户端 optimistic state | QAM-01、QAM-02、QAM-03、QAM-06、QAM-07；目前不存在统一 cache/SSE abstraction |
 | Shared UI / Accessibility | `app/layout.tsx`、`app/globals.css`、`components/layout/`、`components/icons.tsx`、`lib/utils.ts`、hooks | 所有页面；键盘、label、focus、reduced-motion 和 responsive 行为是共同审查面；QAM-10 拥有入口自身的交互与 overlay 语义 |
 | Public/static presentation | `app/about/`、`app/about/right-now-content.ts`、公共导航和登录视觉 | 无独立状态、资产流水线或服务接口；QAM-10 的版本化 3D 资产不纳入此通用项 |
-| Testing / Quality harness | `tests/`、Vitest/Playwright configs、`docs/testing-standards.md`、`AGENTS.md`、`feature_list.json`、`progress.md`、`session-handoff.md` | 所有 QAM 的验证层级、完成证据、范围控制和跨会话追踪 |
+| Testing / Quality harness | `tests/`、Vitest/Playwright configs、`docs/testing-standards.md`、`AGENTS.md`、`feature_list.json`、`session-handoff.md` | 所有 QAM 的验证层级、完成证据、范围控制和跨会话追踪 |
 
 ## 6. Code Mapping Index
 

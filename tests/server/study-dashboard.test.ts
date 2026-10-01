@@ -264,4 +264,33 @@ describe("StudyDashboard", () => {
     expect(html).toContain("6月30日");
     expect(html).toContain("9 分钟");
   });
+
+  it.each([
+    ["Asia/Tokyo", "10月1日", "08:30", "08:39"],
+    [null, "9月30日", "23:30", "23:39"],
+  ])("学习记录与迷你聊天使用当前用户档案时区 %s，缺失时回退 UTC", (timezone, date, start, end) => {
+    const html = renderToStaticMarkup(React.createElement(StudyDashboard, {
+      initialData: makeStudyData({
+        recentSessions: [{
+          id: "session-zone", userId: "user-1", startedAt: "2026-09-30T23:30:00.000Z",
+          endedAt: "2026-09-30T23:39:00.000Z", actualMinutes: 9,
+        }],
+        chatSnapshot: {
+          room: { id: "room-1", name: "Our Room", participants: [{ user: {
+            id: "user-1", displayName: "Alice", avatarLabel: "A",
+            profile: timezone ? { city: "Tokyo", country: "Japan", timezone } : null,
+          } }] },
+          messages: [{
+            id: "message-zone", roomId: "room-1", senderType: "system", targetType: "all",
+            status: "sent", content: "跨日消息", createdAt: "2026-09-30T23:30:00.000Z",
+          }],
+          memos: [], scheduledJobs: [],
+          agentStatus: { isWorking: false, runningTasks: 0, recentTasks: [], pendingApprovals: [] },
+        },
+      }),
+    }));
+    expect(html).toContain(date);
+    expect(html.split(start)).toHaveLength(3);
+    expect(html).toContain(end);
+  });
 });

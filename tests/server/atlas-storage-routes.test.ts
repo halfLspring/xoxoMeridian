@@ -17,6 +17,7 @@ const mockStorage = {
 };
 
 const mockPrisma = {
+  blogMediaAsset: { findUnique: vi.fn() },
   atlasElement: {
     count: vi.fn(),
     create: vi.fn(),
@@ -56,6 +57,7 @@ vi.mock("@/lib/storage/atlas-storage", async (importOriginal) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockPrisma.blogMediaAsset.findUnique.mockResolvedValue(null);
   mockStorage.save.mockResolvedValue({
     key: "atlas/saved-photo.jpg",
     contentType: "image/jpeg",
@@ -183,6 +185,7 @@ describe("atlas upload storage routes", () => {
       ["x", "-Infinity"],
     ] as const) {
       vi.clearAllMocks();
+  mockPrisma.blogMediaAsset.findUnique.mockResolvedValue(null);
       mockPrisma.atlasElement.count.mockResolvedValue(0);
       const formData = new FormData();
       formData.set("file", makeImageFile(MINIMAL_JPEG, "photo.jpg", "image/jpeg"));
@@ -228,6 +231,7 @@ describe("atlas upload storage routes", () => {
       ["", null],
     ] as const) {
       vi.clearAllMocks();
+  mockPrisma.blogMediaAsset.findUnique.mockResolvedValue(null);
       mockPrisma.atlasElement.count.mockResolvedValue(0);
       mockStorage.save.mockResolvedValue({
         key: "atlas/saved-photo.jpg",
@@ -254,7 +258,8 @@ describe("atlas upload storage routes", () => {
     }
   });
 
-  it("reads uploaded image bytes from storage with private cache headers", async () => {
+  it("reads referenced image bytes with identity-bound no-store headers", async () => {
+    mockPrisma.atlasElement.findFirst.mockResolvedValue({ id: "legacy-photo" });
     const { GET } = await import("@/app/api/atlas/uploads/[filename]/route");
 
     const response = await GET(new Request("http://localhost/api/atlas/uploads/atlas%2Fimage.webp"), {
@@ -264,12 +269,13 @@ describe("atlas upload storage routes", () => {
     expect(response.status).toBe(200);
     expect(mockStorage.read).toHaveBeenCalledWith("atlas/image.webp");
     expect(response.headers.get("Content-Type")).toBe("image/webp");
-    expect(response.headers.get("Cache-Control")).toBe("private, max-age=31536000, immutable");
+    expect(response.headers.get("Cache-Control")).toContain("private, no-store");
     expect(response.headers.get("Content-Length")).toBe("11");
     expect(Buffer.from(await response.arrayBuffer()).toString("utf8")).toBe("image-bytes");
   });
 
   it("returns 404 when storage cannot find an uploaded image", async () => {
+    mockPrisma.atlasElement.findFirst.mockResolvedValue({ id: "legacy-photo" });
     mockStorage.read.mockRejectedValueOnce(Object.assign(new Error("missing"), { code: "ENOENT" }));
     const { GET } = await import("@/app/api/atlas/uploads/[filename]/route");
 

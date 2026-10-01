@@ -45,6 +45,7 @@ export function MiniRoomChat({
 
   function formatTime(iso: string) {
     return new Date(iso).toLocaleTimeString("zh-CN", {
+      timeZone: currentUser.profile?.timezone || "UTC",
       hour: "2-digit",
       minute: "2-digit",
     });

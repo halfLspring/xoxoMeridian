@@ -31,21 +31,25 @@ export function resolveAuthorLocation(post: PostWithLocation) {
   };
 }
 
+/** 与文章时间共用显式 locale；作品没有位置标签时也保持相同的日期与时区约定。 */
+export function formatPostTimestamp(
+  date: Date,
+  opts?: { timezone?: string | null; dateOnly?: boolean } | null
+): string {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    ...(!opts?.dateOnly && { hour: "2-digit", minute: "2-digit", hour12: false } as const),
+    timeZone: opts?.timezone || "UTC",
+  }).format(date);
+}
+
 export function formatPostTime(
   date: Date,
   opts?: { timezone?: string | null; city?: string | null; country?: string | null } | null
 ): string {
-  const tz = opts?.timezone || "UTC";
-  const formatted = new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: tz,
-  }).format(date);
-
+  const formatted = formatPostTimestamp(date, opts);
   const city = opts?.city ? normalizeCityName(opts.city) : null;
   const country = normalizeCountryName(opts?.country);
 

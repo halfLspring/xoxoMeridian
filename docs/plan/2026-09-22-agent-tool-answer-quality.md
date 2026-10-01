@@ -3,7 +3,7 @@
 - 登记日期：2026-09-22。
 - 状态：`done`。2026-09-22 用户已明确要求执行方案并完成 feat-083；采用推荐的一次规划、工具执行、一次结果综合，不纳入可选自动补查。下方调查时的“待讨论/未实施”描述保留为历史证据。
 - 直接责任：QAM-08 的规划、工具结果消费与最终回复；关联责任：QAM-03 的天气数据契约。搜索适配归 QAM-08。
-- 入口：[feature_list.json](../../feature_list.json)、[任务进度](../../progress.md#feat-083)。
+- 入口：[feat-083 验收证据](../../feature_list.json)。
 - 本轮参考 QAM-08/QAM-03 审查技能的证据纪律与责任划分；这是针对用户案例的根因调查，不是全模块重新评分。既有 QAM 分数没有因本次调查而更新。
 
 ## 1. 用户目标与证据边界
@@ -234,4 +234,4 @@ QWeather 沿用当前 v7 host/auth 和 7d 路径，受控 HTTP 覆盖正常、40
 - 构建自动改写的 `next-env.d.ts` 两条类型引用还原为原有 `.next/dev/types/*` 后，`./scripts/run-node22.sh npm run typecheck` exit 0。
 - 本轮没有改 Worker 启动/部署路径，未运行 Compose smoke、Compose 构建或部署重启；没有新增依赖或数据库迁移。QAM 模块未重新评分。真实账户权限和真实模型抽样的未验证范围见上文，不将受控 HTTP 结果写成线上事实核验。
 
-feat-083 已同步为 done；最终结构检查和工件清理记录见 [进度](../../progress.md#feat-083)。
+feat-083 已同步为 done；最终结构检查和工件清理记录见 [feat-083 验收证据](../../feature_list.json)。

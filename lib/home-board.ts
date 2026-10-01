@@ -47,6 +47,7 @@ export function getHomeBoardElementAccessWhere({
 }: HomeBoardAccessScope): Prisma.AtlasElementWhereInput {
   return {
     boardId,
+    workId: null,
     OR: [
       { type: "photo", postId: null },
       {
@@ -66,6 +67,7 @@ export function getHomeBoardConnectionAccessWhere({
 
   return {
     boardId,
+    workId: null,
     fromEl: { is: elementWhere },
     toEl: { is: elementWhere },
   };

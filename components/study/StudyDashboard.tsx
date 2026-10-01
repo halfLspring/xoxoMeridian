@@ -94,13 +94,15 @@ function formatMinutes(minutes: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-function formatSessionDate(iso: string): string {
-  const date = new Date(iso);
-  return `${date.getMonth() + 1}月${date.getDate()}日`;
+function formatSessionDate(iso: string, timezone: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: timezone, month: "short", day: "numeric",
+  }).format(new Date(iso));
 }
 
-function formatSessionTime(iso: string): string {
+function formatSessionTime(iso: string, timezone: string): string {
   return new Date(iso).toLocaleTimeString("zh-CN", {
+    timeZone: timezone,
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -204,6 +206,9 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
   const [goalDraft, setGoalDraft] = useState("");
   const [goals, setGoals] = useState<StudyGoal[]>(initialData.goals);
   const autoStoppedRef = useRef(false);
+  const currentUser = data.currentUser.profile ? data.currentUser
+    : data.chatSnapshot?.room.participants.find(({ user }) => user.id === data.currentUser.id)?.user ?? data.currentUser;
+  const timezone = currentUser.profile?.timezone || "UTC";
 
   const state = data.currentState;
   const isRunning = state.status === "running";
@@ -872,7 +877,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
           <div className="rounded-[10px] border border-sage-100 bg-white/90 shadow-sm overflow-hidden">
             {data.chatSnapshot && data.currentUser ? (
               <MiniRoomChat
-                currentUser={data.currentUser}
+                currentUser={currentUser}
                 initialSnapshot={data.chatSnapshot}
               />
             ) : (
@@ -917,11 +922,11 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
                     {session.actualMinutes} 分钟
                   </p>
                   <p className="text-xs text-black/40">
-                    {formatSessionDate(session.startedAt)}
+                    {formatSessionDate(session.startedAt, timezone)}
                     {" · "}
-                    {formatSessionTime(session.startedAt)}
+                    {formatSessionTime(session.startedAt, timezone)}
                     {" — "}
-                    {formatSessionTime(session.endedAt)}
+                    {formatSessionTime(session.endedAt, timezone)}
                   </p>
                 </div>
               </div>

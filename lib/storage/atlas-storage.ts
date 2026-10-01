@@ -270,8 +270,8 @@ export function createLocalAtlasStorage(
       const { filepath } = filepathForKey(key);
       try {
         await unlink(filepath);
-      } catch {
-        // Missing files are harmless for image cleanup.
+      } catch (error) {
+        if (!isAtlasStorageNotFoundError(error)) throw error;
       }
     },
   };
@@ -304,7 +304,8 @@ export function createAliyunOssAtlasStorage(): AtlasStorage {
         mime: resolved.contentType,
         headers: {
           "Content-Type": resolved.contentType,
-          "Cache-Control": "private, max-age=31536000, immutable",
+          "Cache-Control": "private, no-store",
+          "x-oss-object-acl": "private",
         },
       });
 
@@ -330,8 +331,8 @@ export function createAliyunOssAtlasStorage(): AtlasStorage {
       const safeKey = normalizeAtlasStorageKey(key, env.ALIYUN_OSS_PREFIX);
       try {
         await client.delete(safeKey);
-      } catch {
-        // OSS delete is best-effort because records may already reference missing objects.
+      } catch (error) {
+        if (!isAtlasStorageNotFoundError(error)) throw error;
       }
     },
   };

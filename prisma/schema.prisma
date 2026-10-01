@@ -105,6 +105,8 @@ model User {
   eventLogs             EventLog[]
   memories              Memory[]
   scheduledJobs         ScheduledJob[]
+  blogWorks             BlogWork[]
+  blogMediaAssets       BlogMediaAsset[]
   atlasElements         AtlasElement[]
   sessions              Session[]
   passwordResetTokens   PasswordResetToken[]
@@ -484,6 +486,7 @@ model AtlasBoard {
   id          String            @id @default(cuid())
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+  works       BlogWork[]
   elements    AtlasElement[]
   connections AtlasConnection[]
 }
@@ -501,6 +504,10 @@ model AtlasElement {
   caption         String?
   width           Float             @default(200)
   height          Float             @default(250)
+  workId          String?
+  mediaAssetId    String?           @unique
+  work            BlogWork?         @relation(fields: [workId], references: [id], onDelete: Cascade)
+  mediaAsset      BlogMediaAsset?   @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
   postId          String?           @unique
   createdById     String?
   createdAt       DateTime          @default(now())
@@ -511,11 +518,15 @@ model AtlasElement {
   connectionsFrom AtlasConnection[] @relation("FromElement")
   connectionsTo   AtlasConnection[] @relation("ToElement")
 
+  @@index([workId])
   @@index([boardId, x, y])
   @@index([boardId, zIndex])
 }
 
 model AtlasConnection {
+  workId    String?
+  work      BlogWork?    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  updatedAt DateTime     @updatedAt
   id        String       @id @default(cuid())
   boardId   String
   fromId    String
@@ -526,11 +537,15 @@ model AtlasConnection {
   fromEl    AtlasElement @relation("FromElement", fields: [fromId], references: [id], onDelete: Cascade)
   toEl      AtlasElement @relation("ToElement", fields: [toId], references: [id], onDelete: Cascade)
 
+  @@index([workId])
   @@unique([boardId, fromId, toId])
   @@index([boardId])
 }
 
 model Post {
+  workId         String?
+  workOrder      Int?
+  work           BlogWork?     @relation(fields: [workId], references: [id], onDelete: Cascade)
   id             String        @id @default(cuid())
   slug           String        @unique
   title          String
@@ -541,7 +556,7 @@ model Post {
   authorCity     String?
   authorCountry  String?
   authorTimezone String?
-  publishedAt    DateTime
+  publishedAt    DateTime?
   metadata       Json?
   // Agent 时间线投影的幂等键：一个 AgentTask 至多一条派生 Post。
   agentTaskId    String?       @unique
@@ -552,6 +567,7 @@ model Post {
   agentTask      AgentTask?    @relation(fields: [agentTaskId], references: [id], onDelete: SetNull)
   atlasElement   AtlasElement?
 
+  @@unique([workId, workOrder])
   @@index([type, publishedAt(sort: Desc)])
   @@index([authorId])
   @@index([roomId])
@@ -637,4 +653,80 @@ model StudyGoal {
 
   @@index([userId, localDate, sortOrder])
   @@index([roomId, localDate])
+}
+
+
+enum BlogWorkStatus {
+  draft
+  published
+}
+
+enum BlogMediaStatus {
+  pending
+  ready
+  cleanup
+}
+
+model BlogWork {
+  id             String         @id @default(cuid())
+  boardId        String
+  ownerId        String
+  status         BlogWorkStatus @default(draft)
+  publishedAt    DateTime?
+  revision       Int            @default(0)
+  draftX         Float          @default(0)
+  draftY         Float          @default(0)
+  viewportX      Float          @default(0)
+  viewportY      Float          @default(0)
+  viewportWidth  Float          @default(960)
+  viewportHeight Float          @default(540)
+  layoutWidth    Float          @default(960)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  owner          User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  board          AtlasBoard     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  posts          Post[]
+  elements       AtlasElement[]
+  connections    AtlasConnection[]
+  assets         BlogMediaAsset[]
+
+  @@unique([boardId, id])
+  @@index([ownerId, status, updatedAt(sort: Desc), id(sort: Desc)])
+  @@index([status, publishedAt(sort: Desc), id(sort: Desc)])
+}
+
+model BlogWorkMutation {
+  id          String   @id @default(cuid())
+  actorId     String
+  mutationId  String
+  workId      String
+  operation   String
+  inputHash   String
+  result      Json
+  createdAt   DateTime @default(now())
+
+  @@unique([actorId, mutationId])
+  @@index([createdAt])
+}
+
+model BlogMediaAsset {
+  id               String          @id @default(cuid())
+  storageKey       String          @unique
+  ownerId          String?
+  workId           String?
+  uploadMutationId String
+  contentType      String
+  size             Int
+  status           BlogMediaStatus @default(pending)
+  expiresAt        DateTime
+  cleanupAttempts  Int             @default(0)
+  nextRetryAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  owner            User?           @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  work             BlogWork?       @relation(fields: [workId], references: [id], onDelete: SetNull)
+  element          AtlasElement?
+
+  @@index([status, expiresAt])
+  @@index([workId])
 }

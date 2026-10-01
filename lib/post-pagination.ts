@@ -27,7 +27,8 @@ export const postPaginationSchema = z.object({
   cursor: postCursorSchema.optional(),
 });
 
-export function encodePostCursor(post: { publishedAt: Date; id: string }) {
+export function encodePostCursor(post: { publishedAt: Date | null; id: string }) {
+  if (!post.publishedAt) throw new Error("Unpublished post cursor");
   return Buffer.from(JSON.stringify({ v: 1, publishedAt: post.publishedAt.toISOString(), id: post.id })).toString("base64url");
 }
 

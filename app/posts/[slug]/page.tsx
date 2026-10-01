@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageUser } from "@/lib/auth";
 import { getPostVisibilityWhere } from "@/lib/post-visibility";
@@ -41,6 +42,7 @@ export default async function PostDetailPage({
       <SiteNav currentUser={user} />
       <PageTransition>
         <main className="mx-auto max-w-3xl px-6 py-12">
+          {post.workId && <Link href={`/home?work=${post.workId}`}>返回所属作品</Link>}
           <PostDetail
             post={JSON.parse(JSON.stringify(post))}
             isOwner={post.authorId === user.id}

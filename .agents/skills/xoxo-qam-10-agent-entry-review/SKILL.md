@@ -22,7 +22,7 @@ description: 审查 XOXO Meridian QAM-10 全局 3D Agent 入口与模型资产�
 
 ## 证据纪律
 
-- 本轮真实 asset check、Node/component、两个主题 production browser 和 Compose/image 检查才可作为当前 E3；`progress.md` 中 feat-040 的结果只能标为历史 E3。
+- 本轮真实 asset check、Node/component、两个主题 production browser 和 Compose/image 检查才可作为当前 E3；[feat-040 历史验收证据](../../../docs/harness/archive/features-001-053.json)只能标为历史 E3。
 - jsdom 不证明 WebGL、CSP、首帧或 GPU 释放；普通 dev 浏览器不替代 production 构建主题语义。
 - 软件 Chromium 不得写成实体移动设备性能、系统软键盘或非零 safe-area 已验证。
 - Gate 是显示条件而非静态 GLB 授权；认证事实归 QAM-01，Chat 目标归 QAM-02，构建/镜像传播归 QAM-09。

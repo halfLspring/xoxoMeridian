@@ -1,12 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { Prisma } from "@prisma/client";
 
 import { getCurrentUser } from "@/lib/auth";
 import { INTERNAL_ERROR_MESSAGE, logInternalError } from "@/lib/internal-error";
 import { prisma } from "@/lib/prisma";
-import { generateSlug, snapshotProfileLocation, writePostWithUniqueSlug } from "@/lib/posts";
+import { createStandalonePost, updatePublishedPost, deletePublishedPost } from "@/lib/blog-work/legacy-posts";
 import {
   ValidationError,
   parseBody,
@@ -40,19 +39,7 @@ export async function createPost(
 
     const input = parseBody(postCreateSchema, { title, content });
 
-    const post = await writePostWithUniqueSlug(generateSlug(input.title), (slug) =>
-      prisma.post.create({
-        data: {
-          slug,
-          title: input.title,
-          content: input.content,
-          type: "user_post",
-          authorId: user.id,
-          ...snapshotProfileLocation(user.profile),
-          publishedAt: new Date(),
-        },
-      })
-    );
+    const post = await createStandalonePost(user, input);
 
     revalidatePath("/home");
     return { post: { id: post.id, slug: post.slug, title: post.title } };
@@ -75,26 +62,10 @@ export async function updatePost(
     const { title: nextTitle, content: nextContent } = parseBody(postUpdateSchema, { title, content });
 
     const existing = await prisma.post.findUnique({ where: { slug: postSlug } });
-    if (!existing) return { error: "Not found" };
+    if (!existing || !existing.publishedAt) return { error: "Not found" };
     if (existing.authorId !== user.id) return { error: "Forbidden" };
 
-    const updateData: Prisma.PostUpdateInput = {
-      ...(nextTitle !== undefined ? { title: nextTitle } : {}),
-      ...(nextContent !== undefined ? { content: nextContent } : {}),
-    };
-
-    // 未提供标题即不重新分配 slug，与 HTTP 更新契约的字段语义保持一致。
-    const updated = await (nextTitle !== undefined
-      ? writePostWithUniqueSlug(generateSlug(nextTitle), (nextSlug) =>
-          prisma.post.update({
-            where: { id: existing.id },
-            data: { ...updateData, slug: nextSlug },
-          })
-        )
-      : prisma.post.update({
-          where: { id: existing.id },
-          data: updateData,
-        }));
+    const updated = await updatePublishedPost(existing.id, user.id, { ...(nextTitle !== undefined ? { title: nextTitle } : {}), ...(nextContent !== undefined ? { content: nextContent } : {}) });
 
     revalidatePath("/home");
     return { post: { id: updated.id, slug: updated.slug, title: updated.title } };
@@ -114,10 +85,10 @@ export async function deletePost(
     const postSlug = parseBody(postSlugSchema, slug);
 
     const existing = await prisma.post.findUnique({ where: { slug: postSlug } });
-    if (!existing) return { error: "Not found" };
+    if (!existing || !existing.publishedAt) return { error: "Not found" };
     if (existing.authorId !== user.id) return { error: "Forbidden" };
 
-    await prisma.post.delete({ where: { id: existing.id } });
+    await deletePublishedPost(existing.id, user.id);
 
     revalidatePath("/home");
     return { deleted: true };

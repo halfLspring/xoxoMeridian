@@ -8,7 +8,7 @@ import { postTimelineOrderBy, postTimelineSelect } from "@/lib/post-timeline";
 import { projectTimelinePosts } from "@/lib/post-timeline-projection";
 import { encodePostCursor, getPostCursorWhere, postPaginationSchema } from "@/lib/post-pagination";
 import { prisma } from "@/lib/prisma";
-import { generateSlug, snapshotProfileLocation, writePostWithUniqueSlug } from "@/lib/posts";
+import { createPublishedPost } from "@/lib/blog-work/legacy-posts";
 import { parseBody, postCreateSchema, readJsonBody } from "@/lib/validation";
 
 export async function GET(request: Request) {
@@ -49,7 +49,9 @@ export async function GET(request: Request) {
     applyNoStoreHeaders(response.headers);
     return response;
   } catch (error) {
-    return errorToResponse(error);
+    const response = errorToResponse(error);
+    applyNoStoreHeaders(response.headers);
+    return response;
   }
 }
 
@@ -58,19 +60,7 @@ export async function POST(request: Request) {
     const user = await requireCurrentUser();
     const { title, content } = await readJsonBody(request, postCreateSchema);
 
-    const post = await writePostWithUniqueSlug(generateSlug(title), (slug) =>
-      prisma.post.create({
-        data: {
-          slug,
-          title,
-          content,
-          type: "user_post",
-          authorId: user.id,
-          ...snapshotProfileLocation(user.profile),
-          publishedAt: new Date(),
-        },
-      })
-    );
+    const post = await createPublishedPost(user, { title, content });
 
     revalidatePath("/home");
 
@@ -78,6 +68,8 @@ export async function POST(request: Request) {
     applyNoStoreHeaders(response.headers);
     return response;
   } catch (error) {
-    return errorToResponse(error);
+    const response = errorToResponse(error);
+    applyNoStoreHeaders(response.headers);
+    return response;
   }
 }

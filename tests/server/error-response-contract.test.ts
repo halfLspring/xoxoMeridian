@@ -6,16 +6,21 @@ const { mockRequireCurrentUser, mockGetCurrentUser, mockPostCreate } = vi.hoiste
   mockPostCreate: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
+vi.mock("@/lib/prisma", () => {
+  const client = {
+
     post: {
       create: mockPostCreate,
       findUnique: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
     },
-  },
-}));
+    atlasBoard: { upsert: vi.fn(async () => ({ id: "home-board" })) },
+    blogWork: { create: vi.fn(async () => ({ id: "work-1" })), update: vi.fn() },
+    atlasElement: { create: vi.fn() },
+  };
+  return { prisma: { ...client, $transaction: vi.fn(async fn => fn(client)) } };
+});
 
 vi.mock("@/lib/auth", () => ({
   requireCurrentUser: mockRequireCurrentUser,

@@ -62,6 +62,7 @@ COPY --chown=app:app package.json package-lock.json tsconfig.json ./
 COPY --chown=app:app prisma ./prisma
 COPY --chown=app:app agent ./agent
 COPY --chown=app:app lib ./lib
+COPY --chown=app:app scripts/cleanup-blog-assets.ts ./scripts/cleanup-blog-assets.ts
 USER app
 ENTRYPOINT ["/sbin/tini","--"]
 CMD ["npx","tsx","agent/agent-worker.ts"]

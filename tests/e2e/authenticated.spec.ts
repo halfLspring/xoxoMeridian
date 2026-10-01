@@ -10,6 +10,7 @@ import { expect, request as playwrightRequest, test, type Locator } from "@playw
 import type { ChatMessage, RoomSnapshot } from "@/components/chat/types";
 import { cancelOnlyPlan, scheduleClarificationPrompt } from "@/tests/fixtures/schedule-clarification";
 import { MINIMAL_PNG } from "@/tests/fixtures/image-bytes";
+import { generateSlug } from "@/lib/posts";
 
 import { E2E_PASSWORD, E2E_USERS } from "./support/credentials";
 import { startStudyFocus, stopStudyFocus, withStudyUser } from "./support/study";
@@ -319,6 +320,8 @@ test("retries Home photo edits and deletions without false success after failure
     });
     await page.goto("/home");
     await expect(page.getByRole("img", { name: caption, exact: true })).toBeVisible();
+    // 等入场动画实际结束后再取手柄坐标，避免鼠标落在移动前的旧位置。
+    await page.waitForFunction(() => [...document.querySelectorAll(".page-enter")].every(node => node.getAnimations().every(animation => animation.playState === "finished")));
 
     await page.route(`**${photoUrl}`, (route) => route.fulfill({ status: 500, json: { error: "test failure" } }), { times: 1 });
     const resize = photoCard().getByRole("button", { name: /调整照片大小/ });
@@ -713,13 +716,13 @@ test("Agent 日志在首页与搜索中跟随任务发起者的文章分侧", as
     await assertSides();
     const search = page.waitForResponse((response) => {
       const url = new URL(response.url());
-      return url.pathname === "/api/posts" && url.searchParams.get("q") === prefix;
+      return url.pathname === "/api/blog/feed" && url.searchParams.get("q") === prefix;
     });
     await page.getByRole("textbox", { name: "Search posts", exact: true }).fill(prefix);
     const searchResponse = await search;
     expect(searchResponse.status()).toBe(200);
-    const results = await searchResponse.json() as { posts: Array<{ id: string }> };
-    expect(results.posts.map((post) => post.id).sort()).toEqual(postIds.slice(0, 6).sort());
+    const results = await searchResponse.json() as { entries: Array<{ post: { id: string } }> };
+    expect(results.entries.map(({ post }) => post.id).sort()).toEqual(postIds.slice(0, 6).sort());
     await expect(unmatchedCard).toHaveCount(0);
     await expect(page.getByRole("main").getByRole("article")).toHaveCount(6);
     await assertSides();
@@ -1298,14 +1301,32 @@ test("keeps private profile fields out of Chat and Study browser payloads", asyn
   }
 });
 
-test("creates and displays a post", async ({ page }) => {
-  await page.goto("/posts/new");
-  await page.getByLabel("Post title").fill("E2E Test Post");
-  await page.getByLabel("Post content").fill("Created by the Playwright acceptance suite.");
-  await page.getByRole("button", { name: "Publish" }).click();
-
-  await expect(page).toHaveURL(/\/posts\/e2e-test-post$/, { timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "E2E Test Post" })).toBeVisible();
+test("New Post 恢复独立发文，详情与 Blog 时间线保持原有入口", async ({ context }, testInfo) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    await page.goto("/home");
+    await expect(page.getByRole("link", { name: "New Draft", exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: "New Post", exact: true }).click();
+    await expect(page).toHaveURL(/\/posts\/new$/);
+    await expect(page.getByRole("heading", { name: "New Post", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "空间草稿" })).toHaveCount(0);
+    await expect(page.getByRole("group", { name: "框选草稿区域" })).toHaveCount(0);
+    await page.getByLabel("Post title", { exact: true }).fill("E2E 独立博文");
+    await page.getByLabel("Post content", { exact: true }).fill("从 New Post 直接发布的独立正文。");
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(page).toHaveURL(/\/posts\/e2e-du-li-bo-wen$/);
+    await expect(page.getByRole("heading", { name: "E2E 独立博文", exact: true })).toBeVisible();
+    const post = await db.post.findFirstOrThrow({ where: { authorId: userId, title: "E2E 独立博文" } });
+    expect(post.workId).toBeNull();
+    expect(post.publishedAt).not.toBeNull();
+    expect(await db.blogWork.count({ where: { ownerId: userId } })).toBe(0);
+    await page.goto(`/posts/edit/${post.slug}`);
+    await expect(page.getByRole("heading", { name: "Edit Post", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Post content", { exact: true })).toHaveValue("从 New Post 直接发布的独立正文。");
+    await page.getByRole("link", { name: "Blog", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "E2E 独立博文", exact: true })).toBeVisible();
+    await expect(page.locator(".scroll-reveal").filter({ has: page.getByRole("heading", { name: "E2E 独立博文", exact: true }) })).toHaveCSS("opacity", "1");
+    await page.screenshot({ path: testInfo.outputPath("new-post-timeline.png") });
+  });
 });
 
 test("starts and stops a focus session", async ({ context }) => {
@@ -1665,14 +1686,14 @@ test("搜索失败保留已有文章，键盘重试恢复后位置与首页一�
   const snapshotId = `${prefix}-snapshot`;
   const legacyTitle = `${prefix} 旧文章`;
   const snapshotTitle = `${prefix} 快照文章`;
-  const searchRoute = "**/api/posts?*";
+  const searchRoute = "**/api/blog/feed?*";
   const searchError = page.getByRole("main").getByRole("alert");
   let failure: 401 | 500 | "network" | null = null;
   const legacyCard = page.getByRole("article").filter({ has: page.getByRole("heading", { name: legacyTitle, exact: true }) });
   const snapshotCard = page.getByRole("article").filter({ has: page.getByRole("heading", { name: snapshotTitle, exact: true }) });
   const searchResponse = (query: string) => page.waitForResponse((response) => {
     const url = new URL(response.url());
-    return url.pathname === "/api/posts" && url.searchParams.get("q") === query;
+    return url.pathname === "/api/blog/feed" && url.searchParams.get("q") === query;
   });
   const submitSearch = (query: string, status: number) => test.step(`搜索查询并收到 HTTP ${status}`, async () => {
     const [response] = await Promise.all([
@@ -1720,8 +1741,8 @@ test("搜索失败保留已有文章，键盘重试恢复后位置与首页一�
       return route.continue();
     });
     const initialSearch = await submitSearch(prefix, 200);
-    const initialResults = await initialSearch.json() as { posts: Array<{ id: string }> };
-    expect(initialResults.posts.map(({ id }) => id).sort()).toEqual([legacyId, snapshotId].sort());
+    const initialResults = await initialSearch.json() as { entries: Array<{ post: { id: string } }> };
+    expect(initialResults.entries.map(({ post }) => post.id).sort()).toEqual([legacyId, snapshotId].sort());
     await test.step("首次结果已显示后再验证失败保留", async () => {
       await expect(page.getByRole("article")).toHaveCount(2);
       await expect(page.getByRole("status").filter({ hasText: "正在搜索…" })).toHaveCount(0);
@@ -1739,7 +1760,7 @@ test("搜索失败保留已有文章，键盘重试恢复后位置与首页一�
     for (const nextFailure of [401, "network"] as const) {
       failure = nextFailure;
       const failed = nextFailure === "network"
-        ? page.waitForEvent("requestfailed", (request) => new URL(request.url()).pathname === "/api/posts")
+        ? page.waitForEvent("requestfailed", (request) => new URL(request.url()).pathname === "/api/blog/feed")
         : searchResponse(legacyTitle);
       await page.getByRole("button", { name: "重试搜索", exact: true }).focus();
       await page.keyboard.press("Enter");
@@ -1805,13 +1826,13 @@ test("同毫秒文章在首页与搜索保持稳定顺序，真实 API 分页无
 
     const search = page.waitForResponse((response) => {
       const url = new URL(response.url());
-      return url.pathname === "/api/posts" && url.searchParams.get("q") === prefix;
+      return url.pathname === "/api/blog/feed" && url.searchParams.get("q") === prefix;
     });
     await page.getByRole("textbox", { name: "Search posts", exact: true }).fill(prefix);
     const searchResponse = await search;
     expect(searchResponse.status()).toBe(200);
-    const firstPage = await searchResponse.json() as { posts: Array<{ id: string }>; nextCursor: string | null };
-    expect(firstPage.posts.map((post) => post.id)).toEqual([...ids].reverse().slice(0, 50));
+    const firstPage = await searchResponse.json() as { entries: Array<{ post: { id: string } }>; nextCursor: string | null };
+    expect(firstPage.entries.map(({ post }) => post.id)).toEqual([...ids].reverse().slice(0, 50));
     await expect(headings).toHaveText(expectedTitles);
 
     const pagedIds: string[] = [];
@@ -1862,12 +1883,9 @@ test("编辑器提交纯空白正文时显示错误横幅并停在编辑页，�
   // postUpdateSchema 的 .trim().min(1)；后来者若把这里改成清空后提交，本用例会静默失去覆盖。
   const blankContent = "   ";
 
-  const created = await page.request.post("/api/posts", {
-    headers: requestHeaders,
-    data: { title, content: originalContent },
-  });
-  expect(created.ok(), await created.text()).toBe(true);
-  const { post } = await created.json() as { post: { slug: string } };
+  // 保留未归组历史 Post 的编辑契约；新建 API 现在会建立 BlogWork。
+  const author = await db.user.findUniqueOrThrow({ where: { email: E2E_USERS[0].email } });
+  const post = await db.post.create({ data: { slug: generateSlug(title), title, content: originalContent, authorId: author.id, publishedAt: new Date() } });
 
   try {
     const before = await db.post.findUniqueOrThrow({ where: { slug: post.slug } });
@@ -1913,51 +1931,42 @@ test("编辑器遇到数据库异常时只显示通用文案且不跳转", async
   const failingTitle = `错误脱敏 ${suffix}`;
   const contrastTitle = `错误脱敏对照 ${suffix}`;
 
-  // 只让带哨兵标题的那一行 INSERT 失败：触发器带 WHEN 条件，绝不影响同库上其它 Post 写入。
-  // 注入的是真实 PostgreSQL 拒绝，消息里带约束名，正是最容易被原样透给客户端的文本。
+  const author = await db.user.findUniqueOrThrow({ where: { email: E2E_USERS[0].email } });
+  const post = await db.post.create({ data: { slug: `legacy-error-${suffix}`, title: "故障前原文", content: "正文", authorId: author.id, publishedAt: new Date() } });
+  // 用历史独立 Post 的更新路径注入真实 PostgreSQL 失败，仍验证旧编辑入口的错误脱敏。
   await db.$executeRawUnsafe(`
-    CREATE FUNCTION fail_probe_post_insert() RETURNS trigger AS $$
+    CREATE FUNCTION fail_probe_post_update() RETURNS trigger AS $$
     BEGIN
       RAISE EXCEPTION 'duplicate key value violates unique constraint "Post_probe_key"';
     END;
     $$ LANGUAGE plpgsql
   `);
   await db.$executeRawUnsafe(`
-    CREATE TRIGGER fail_probe_post_insert BEFORE INSERT ON "Post"
+    CREATE TRIGGER fail_probe_post_update BEFORE UPDATE ON "Post"
     FOR EACH ROW WHEN (NEW."title" = '${failingTitle}')
-    EXECUTE FUNCTION fail_probe_post_insert()
+    EXECUTE FUNCTION fail_probe_post_update()
   `);
-
   try {
-    await page.goto("/posts/new");
+    await page.goto(`/posts/edit/${post.slug}`);
     await page.getByLabel("Post title", { exact: true }).fill(failingTitle);
-    await page.getByLabel("Post content", { exact: true }).fill("正文");
-    await page.getByRole("button", { name: "Publish", exact: true }).click();
-
+    await page.getByRole("button", { name: "Update", exact: true }).click();
     const banner = page.getByText("Internal server error", { exact: true });
     await expect(banner).toBeVisible();
-    await expect(page).toHaveURL(/\/posts\/new$/);
-
-    // 失败原因是服务端实现细节：横幅、可见页面与文档文本都不得出现约束名或数据库原文。
-    for (const leaked of ["Post_probe_key", "Unique constraint", "duplicate key value", "PrismaClient", "\n    at "]) {
+    await expect(page).toHaveURL(new RegExp(`/posts/edit/${post.slug}$`));
+    for (const leaked of ["Post_probe_key", "Unique constraint", "duplicate key value", "PrismaClient"]) {
       expect(await banner.innerText()).not.toContain(leaked);
       expect(await page.locator("body").innerText()).not.toContain(leaked);
     }
     expect(await db.post.count({ where: { title: failingTitle } })).toBe(0);
-
-    // 对照步骤：同一个编辑器与写入路径，换成不触发注入的标题必须真正发布并跳转，
-    // 证明上面的失败来自注入的数据库异常，而不是「提交永远不生效」的假阳性。
     await page.getByLabel("Post title", { exact: true }).fill(contrastTitle);
-    await page.getByRole("button", { name: "Publish", exact: true }).click();
-    // 必须排除 /posts/new：`/posts/[^/]+$` 会把当前页面也算命中，断言会立刻通过、
-    // 失去同步点，后面的行数检查就会与仍在飞行的写入竞争。
-    await expect(page).toHaveURL(/\/posts\/(?!new$)[^/]+$/, { timeout: 15_000 });
+    await page.getByRole("button", { name: "Update", exact: true }).click();
+    await expect(page).toHaveURL(/\/posts\/(?!edit)[^/]+$/, { timeout: 15_000 });
     expect(await db.post.count({ where: { title: contrastTitle } })).toBe(1);
   } finally {
     await page.goto("about:blank").catch(() => undefined);
-    await db.$executeRawUnsafe('DROP TRIGGER IF EXISTS fail_probe_post_insert ON "Post"');
-    await db.$executeRawUnsafe("DROP FUNCTION IF EXISTS fail_probe_post_insert()");
-    await db.post.deleteMany({ where: { title: { in: [failingTitle, contrastTitle] } } });
+    await db.$executeRawUnsafe('DROP TRIGGER IF EXISTS fail_probe_post_update ON "Post"');
+    await db.$executeRawUnsafe("DROP FUNCTION IF EXISTS fail_probe_post_update()");
+    await db.post.deleteMany({ where: { id: post.id } });
     await db.$disconnect();
   }
 });

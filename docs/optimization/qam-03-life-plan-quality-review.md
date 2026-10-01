@@ -10,8 +10,8 @@
 | 标准版本 | [`module-quality-review-standard.md`](./module-quality-review-standard.md) v1.0.0 |
 | 范围来源 | [`PROJECT_VIEW.md`](../../PROJECT_VIEW.md) 的 QAM-03、Cross-cutting Concerns、共享映射、BU-03/BU-04 与 Quality Tracking Index；[`AGENTS.md`](../../AGENTS.md) |
 | 本轮 Delta | `+1`（QAM-03-007 resolved；93→94；两地时间不再于渲染期读取两端各自挂钟，SSR 与 hydration 取自同一服务端时刻） |
-| 当前基线命令 | `VITEST_MAX_WORKERS=1 ./scripts/run-node22.sh npm run check` exit 0：80 文件/687 项 Vitest、production build（4.4s）、覆盖率 51.58/45.39/56.06/52.25。完整开发序列 `VITEST_MAX_WORKERS=1 E2E_APP_MODE=development ... npm run check:full` 的 PostgreSQL 29 文件/110 项通过，Playwright 41/42，最后一项搜索用例在宿主机 available 490MB、2GB swap 用满、`next-server` RSS 2.7GB 时 90000ms 超时；单独运行同一用例 9.5s 通过，属宿主机容量边界，详见 [progress.md](../../progress.md) 的 feat-068 |
-| 风险匹配命令 | 组件 [`life-panel-world-clock`](../../tests/component/life-panel-world-clock.test.tsx) 2/2（负向对照下 2 项均失败）；两地时间身份旅程 `--grep 'resolves life panel identity for the second room participant'` 2/2（含 setup）；集成 `room-snapshot-privacy` 1/1（夹具改为 `joinedAt` 全序）。原始命令、负向对照与完整门禁进展见 [progress.md](../../progress.md) |
+| 当前基线命令 | `VITEST_MAX_WORKERS=1 ./scripts/run-node22.sh npm run check` exit 0：80 文件/687 项 Vitest、production build（4.4s）、覆盖率 51.58/45.39/56.06/52.25。完整开发序列 `VITEST_MAX_WORKERS=1 E2E_APP_MODE=development ... npm run check:full` 的 PostgreSQL 29 文件/110 项通过，Playwright 41/42，最后一项搜索用例在宿主机 available 490MB、2GB swap 用满、`next-server` RSS 2.7GB 时 90000ms 超时；单独运行同一用例 9.5s 通过，属宿主机容量边界，详见 [任务验收证据](../../feature_list.json) 的 feat-068 |
+| 风险匹配命令 | 组件 [`life-panel-world-clock`](../../tests/component/life-panel-world-clock.test.tsx) 2/2（负向对照下 2 项均失败）；两地时间身份旅程 `--grep 'resolves life panel identity for the second room participant'` 2/2（含 setup）；集成 `room-snapshot-privacy` 1/1（夹具改为 `joinedAt` 全序）。原始命令、负向对照与完整门禁进展见 [任务验收证据](../../feature_list.json) |
 | 证据纪律 | E3 为本轮实际执行的测试/可复现实验；E2 为源码、schema、迁移与测试交叉证据；未把 mock 结果写成真实 PostgreSQL 或浏览器验证 |
 
 ## Overall
@@ -86,7 +86,7 @@ QAM-03-007 已关闭：两地时间不再在渲染期读取两端各自的挂钟
 - **PostgreSQL E3**：[`life-authoring-fields.integration.test.ts`](../../tests/integration/life-authoring-fields.integration.test.ts) 新增 9/9。实际 Registry/ToolCall 事务创建和更新，HTTP POST/PATCH 后回读 Prisma，确认 500/20000/500 边界值往返无损；501/20001/501 的 create/update 被两入口拒绝、原记录和 ToolCall 数量不变；null/空白清空、省略保留及超限旧字段首尾空白完整保留。连同既有 one-shot 11 项、active cap 3 项定向合计 23/23，nextRunAt、cron、runOnce 与 cap 竞争语义保持。
 - **Chromium E3**：[`authenticated.spec.ts`](../../tests/e2e/authenticated.spec.ts) 的“Agent 创建的较长备忘录和计划可在 UI 编辑保存并刷新回读”在隔离房间预置计划，经独立 Agent Runtime 进程与真实 Registry 消费，持久化 300/9000/300 字符记录、2 条 completed ToolCall。浏览器键盘替换末字后两个 PATCH 均 200，真实 DB 回读和刷新重开表单一致，计划 nextRunAt/cron 未移位；定向 2/2（含 setup）。不把预置计划称为真实 LLM 规划验证。
 - **生产 CSP 迭代 E3**：初版把 Zod 对象 schema 带入客户端，生产完整门禁在 Agent Entry Chat 往返观察到 `script-src` violation（34 passed/1 failed，Study 两项通过）；源码定位到对象构造时 `allowsEval` 的动态代码探测。修正为客户端仅消费基础字段 schema，HTTP/Agent 使用共享 field shape 组装对象；未改 CSP 或全局 Zod 配置。Node/组件/Agent 定向 67/67、生产入口/长记录旅程 3/3（含 setup）通过，长记录用例新增跨导航和表单提交的 CSP 事件断言。完整门禁最终终态见基线与进度。
-- **影响范围**：QAM-03 直接负责字段与旧值兼容；QAM-08 继续消费共享 contract，未修改通用 Registry/Planner，QAM-04 Scheduler 未改。完整命令、门禁终态与清理见 [progress.md](../../progress.md)。
+- **影响范围**：QAM-03 直接负责字段与旧值兼容；QAM-08 继续消费共享 contract，未修改通用 Registry/Planner，QAM-04 Scheduler 未改。完整命令、门禁终态与清理见 [任务验收证据](../../feature_list.json)。
 
 ### Resolved — QAM-03-006：Cron 与时区表单控件缺少可访问名称
 
@@ -95,7 +95,7 @@ QAM-03-007 已关闭：两地时间不再在渲染期读取两端各自的挂钟
 - **修正**：[`CronBuilder.tsx`](../../components/chat/CronBuilder.tsx) 使用 `fieldset/legend` 表达“执行时间”，为小时、分钟分别提供 `sr-only` label 与 `id/htmlFor`；[`TimezoneSelector.tsx`](../../components/chat/TimezoneSelector.tsx) 绑定可见 label 与 select。两者的 ID 均由 `useId` 生成，多实例不会共享同一个标签目标；原有样式、cron 生成和默认时区解析保持。
 - **组件 E3**：[`cron-timezone-controls.test.tsx`](../../tests/component/cron-timezone-controls.test.tsx) 用带 name 的 `group`、`spinbutton`、`combobox` 查询，验证双 Cron 实例、默认/自定义时区标签各自的关联和聚焦，并以 Tab/键盘把工作日 09:00 改为 18:45，输出仍为 `45 18 * * 1-5`。[`life-panel-modals.test.tsx`](../../tests/component/life-panel-modals.test.tsx) 的既有时区默认值/one-shot 回归改用名称查询；旧组件定向 5/8 失败（无名输入及缺失分组），修复后 8/8。
 - **浏览器 E3**：[`authenticated.spec.ts`](../../tests/e2e/authenticated.spec.ts) 的“仅用键盘创建计划”从入口到提交全程使用 Tab/Enter/文本键与原生 select 的 ArrowDown；真实 PostgreSQL 回读 `45 18 * * *`、`Europe/London` 及原始 prompt/description，刷新后键盘重开编辑表单，按名称读回 18、45、Europe/London。定向 Chromium 2/2（含 setup）；第二参与者默认时区旅程也已通过名称查询。jsdom 时区值变化仍用 `selectOptions` 模拟原生选择，不把它称作真实方向键验证。
-- **影响范围**：仅 QAM-03 UI 语义和对应测试；没有改动 QAM-04 调度、one-shot trigger、active cap、schema 或字段长度。完整门禁与测试迭代记录见 [feat-054 完整进度](../../progress.md#feat-054)。
+- **影响范围**：仅 QAM-03 UI 语义和对应测试；没有改动 QAM-04 调度、one-shot trigger、active cap、schema 或字段长度。完整门禁与测试迭代记录见 [feat-054 验收证据](../../feature_list.json)。
 
 ### Resolved — QAM-03-004：Agent Schedule 接受无 offset 的 `fireAt` 并按 Worker 时区持久化错误时刻
 
@@ -194,6 +194,6 @@ Tool registration/deadline/retry/approval (QAM-08) 包裹生活 Tool，但不拥
 
 | 2026-09-13 | 90 | L4 | L4 | L4 | 0（QAM-03-006 resolved） | feat-054：`useId` 绑定独立小时/分钟 label 与时区 select，fieldset/legend 表达执行时间；旧组件 5/8 失败→修复后 8/8，多实例关联和键盘输入通过。Chromium 原生方向键选择时区、键盘提交、真实 DB 回读与刷新重开一致。完整门禁各项通过：75/544 Vitest、production build、覆盖率 48.95/43.58/53.54/49.68、25/87 PostgreSQL；保留的 Playwright 报告确认 34 expected/0 unexpected/0 flaky/0 skipped、ok=true，`.last-run.json` 为 passed。原 shell 退出句柄在环境切换后不可用，不补造退出码。字段 contract 的 QAM-03-005 保持开放，原满分验证维度不再额外加分。 |
 
-| 2026-09-13 | 93 | L4 | L4 | L4 | +3（QAM-03-005 resolved） | feat-055：HTTP/Agent/UI 共享 Memo 500/20000 与 description 500、trim/default/nullable/省略规则，部分 PATCH 无损保留旧值。旧 contract 25/26 failed→26/26 passed，旧 Modal 5/6 failed→组件 11/11；PostgreSQL 定向 23/23、Agent 创建后 UI 编辑/刷新 E3。初版客户端 Zod 对象构造触发 CSP，改为客户端仅用基础字段 schema 后生产入口/编辑 3/3 无违规；最终生产 check:full exit 0：77/576、build、覆盖率 49.32/43.91/54.03/50.00、26/96 PostgreSQL、35/35 Playwright。默认开发完整门禁两次 Study 超时为独立 feat-063，未将生产通过写成开发通过；原失败与清理见 progress.md。 |
+| 2026-09-13 | 93 | L4 | L4 | L4 | +3（QAM-03-005 resolved） | feat-055：HTTP/Agent/UI 共享 Memo 500/20000 与 description 500、trim/default/nullable/省略规则，部分 PATCH 无损保留旧值。旧 contract 25/26 failed→26/26 passed，旧 Modal 5/6 failed→组件 11/11；PostgreSQL 定向 23/23、Agent 创建后 UI 编辑/刷新 E3。初版客户端 Zod 对象构造触发 CSP，改为客户端仅用基础字段 schema 后生产入口/编辑 3/3 无违规；最终生产 check:full exit 0：77/576、build、覆盖率 49.32/43.91/54.03/50.00、26/96 PostgreSQL、35/35 Playwright。默认开发完整门禁两次 Study 超时为独立 feat-063，未将生产通过写成开发通过；原失败与清理见 feature_list.json。 |
 
-| 2026-09-19 | 94 | L4 | L4 | L4 | +1（QAM-03-007 resolved） | feat-068：真实 Chromium 固定浏览器时钟（`page.clock.setFixedTime` +3 小时）在未修复的 `LifePanel` 上复现 `+13:05 / -10:05` 的 `Hydration failed because the server rendered text didn't match the client.`，组件栈终止于 `LifePanel.tsx:141`/`formatTime`。根因为渲染期 `new Date()` 让服务端与浏览器各读本机挂钟；修正后首帧由外部挂钟 store 的常量服务端快照驱动，挂载后才切换为浏览器时钟。负向对照：把服务端快照改回读挂钟，组件回归两项均失败（SSR 渲染出宿主挂钟 `21:05`），修复后 2/2；真实浏览器同一诊断 `[diag:clock:errors] []` 且 `afterHydration=["13:14","13:14"]`，两地时间旅程 E2E 通过。`npm run check` exit 0：80 文件/687 项、production build、覆盖率 51.58/45.39/56.06/52.25。完整开发序列另见 progress.md#feat-068。 |
+| 2026-09-19 | 94 | L4 | L4 | L4 | +1（QAM-03-007 resolved） | feat-068：真实 Chromium 固定浏览器时钟（`page.clock.setFixedTime` +3 小时）在未修复的 `LifePanel` 上复现 `+13:05 / -10:05` 的 `Hydration failed because the server rendered text didn't match the client.`，组件栈终止于 `LifePanel.tsx:141`/`formatTime`。根因为渲染期 `new Date()` 让服务端与浏览器各读本机挂钟；修正后首帧由外部挂钟 store 的常量服务端快照驱动，挂载后才切换为浏览器时钟。负向对照：把服务端快照改回读挂钟，组件回归两项均失败（SSR 渲染出宿主挂钟 `21:05`），修复后 2/2；真实浏览器同一诊断 `[diag:clock:errors] []` 且 `afterHydration=["13:14","13:14"]`，两地时间旅程 E2E 通过。`npm run check` exit 0：80 文件/687 项、production build、覆盖率 51.58/45.39/56.06/52.25。完整开发序列另见 feature_list.json 的 feat-068 条目。 |

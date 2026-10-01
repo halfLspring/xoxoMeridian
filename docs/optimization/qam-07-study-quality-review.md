@@ -11,7 +11,7 @@
 | 范围来源 | [`PROJECT_VIEW.md`](../../PROJECT_VIEW.md) 的 QAM-07、Cross-cutting Concerns、共享映射、BU-02 与 Quality Tracking Index；[`AGENTS.md`](../../AGENTS.md) |
 | 本轮 Delta | `+2（feat-060，QAM-07-003 resolved）` |
 | 当前基线命令 | `VITEST_MAX_WORKERS=1 ./init.sh` 收尾 exit 0，Prisma generate、类型、lint、79 文件/679 项通过 |
-| 风险匹配命令 | `VITEST_MAX_WORKERS=1 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full` exit 0：79/679、production build/coverage、29/109 PostgreSQL、40/40 Playwright；定向 UTC 日历/Focus 18 项通过，详见 [进度](../../progress.md#feat-060) |
+| 风险匹配命令 | `VITEST_MAX_WORKERS=1 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full` exit 0：79/679、production build/coverage、29/109 PostgreSQL、40/40 Playwright；定向 UTC 日历/Focus 18 项通过，详见 [feat-060 验收证据](../../feature_list.json) |
 | 证据纪律 | E3：本轮固定日期、三个独立进程 TZ、真实 PostgreSQL 读取/Focus 事务、组件 HTTP 刷新及 production 浏览器旅程；未单独模拟浏览器/服务端 DST 时钟，未运行开发模式完整门禁、Compose smoke 或实体设备，较低层测试不冒充这些证据 |
 | 工作区说明 | 保留会话开始前所有范围外未提交改动；本轮修改 Study 统计服务/纯日历模块、回归、QAM-07 报告/总览及状态记录。未修改 Focus 状态机、Goal 排序、schema/迁移或依赖 |
 
@@ -82,7 +82,7 @@ feat-060 将本地日期与绝对时长分离：连续天数逐个日期计数�
 #### QAM-07-003：时区统计在 DST 回退和本地午夜边界使用了不稳定的日期运算（resolved）
 
 - **状态**：`resolved`
-- **原问题与证据**：streak 对绝对时刻使用服务器 `Date.setDate`，秋季重复同一天、春季跳过一天；成员读取用当前 offset 拼午夜且没有次日上界。修复前 Node 为 7 passed/5 failed，纽约/伦敦两天记录得到 streakDays=3；真实 PostgreSQL 五个场景均失败，春季应为 60 分钟却为 70，秋季为 0（E3，原始命令和夹具失败区分见 [feat-060](../../progress.md#feat-060)）。
+- **原问题与证据**：streak 对绝对时刻使用服务器 `Date.setDate`，秋季重复同一天、春季跳过一天；成员读取用当前 offset 拼午夜且没有次日上界。修复前 Node 为 7 passed/5 failed，纽约/伦敦两天记录得到 streakDays=3；真实 PostgreSQL 五个场景均失败，春季应为 60 分钟却为 70，秋季为 0（E3，原始命令和夹具失败区分见 [feat-060 验收证据](../../feature_list.json)）。
 - **已实施修正**：[`study-calendar.ts`](../../lib/study-calendar.ts#L41) 独立承载纯日历规则，streak 在目标时区日期键上使用 UTC 日历递减；复用 Intl formatter，以有界二分查找该日期第一次出现的时刻作为日界，处理重复或不存在的午夜，不拼接当前 offset。[`getStudyPageData`](../../lib/study.ts#L54) 使用同一日期窗口，成员查询为 `startedAt >= todayStartUtc && startedAt < tomorrowStartUtc`；八天回看从完整本地日期起点读取。继续按 startedAt、周日周界、completed focus 和查看者传入时区统计，不改状态机、Goal 或窗口长度定义（E2/E3）。
 - **边界对照**：直接 CronDate 探针在 `America/Havana` 回退日给出第二个午夜 `2026-11-01T05:00:00Z`；Intl 证明第一个午夜为 `04:00Z`。最终日期算法不依赖该库的午夜歧义选择，未增加依赖（E3）。
 - **验收证据**：[`study.test.ts`](../../tests/lib/study.test.ts) 26 项包含报告原始两条记录、纽约/伦敦春秋、上海、哈瓦那午夜重复/跳过、跨午夜、周日周界和 UTC/洛杉矶/上海三个独立进程 TZ，统计与日界一致；[`study-calendar.integration.test.ts`](../../tests/integration/study-calendar.integration.test.ts) 8 项真实 PostgreSQL 覆盖成员分钟、下一天排除、非成员隔离、查看者时区与八天窗口首日。原 [`study-focus-transitions.integration.test.ts`](../../tests/integration/study-focus-transitions.integration.test.ts) 10 项继续通过（E3）。
@@ -176,7 +176,7 @@ FocusState 是当前计时事实，FocusSession 是完成历史，StudyGoal 是�
 - 2026-09-12 再次执行 `buildStudyStats` DST 回退实验：`America/New_York`、now=`2026-11-02T04:30:00Z`、Nov 1 与 Oct 31 各一条 completed focus session，仍得到 `streakDays: 3`，QAM-07-003 可复现且状态保持 `open`。
 - 2026-09-12 未运行 Docker、真实 PostgreSQL integration、Playwright E2E、`npm run check` 或 `npm run check:full`；transition/Goal/timer/presence 实现与 2026-09-09 风险匹配 E3 基线相同，当前新增的 Room snapshot 公共字段投影和 Focus `updatedAt` 漂移迁移按源码/测试实现记为 E2，不把历史执行写成本轮 E3。
 
-- 2026-09-13 feat-060：修复前 Node 7 passed/5 failed；PostgreSQL 五个日历场景均失败。最终定向日期/组件 2 文件/27 项、UTC 进程 PostgreSQL 2 文件/18 项通过；其中 8 项日历、10 项 Focus 原子/到期回归。初始正常权限 `./init.sh` 78/653 通过，收尾 `VITEST_MAX_WORKERS=1 ./init.sh` 79/679 exit 0；最终单 worker 的 production `npm run check:full` exit 0，79/679、生产构建、覆盖率 50.50/45.07/55.09/51.07、29/109 PostgreSQL、40/40 Playwright（4.1 分钟），Focus 启停及离开后到期恢复均通过。首次沙箱子进程空 stdout、两次夹具错误、组件动画等待、全量验证前次失败和复跑命令均保留在 [进度](../../progress.md#feat-060)；范围外全量首页组件/上传 Route 门禁问题独立登记 feat-065/066，不关闭其默认配置风险。
+- 2026-09-13 feat-060：修复前 Node 7 passed/5 failed；PostgreSQL 五个日历场景均失败。最终定向日期/组件 2 文件/27 项、UTC 进程 PostgreSQL 2 文件/18 项通过；其中 8 项日历、10 项 Focus 原子/到期回归。初始正常权限 `./init.sh` 78/653 通过，收尾 `VITEST_MAX_WORKERS=1 ./init.sh` 79/679 exit 0；最终单 worker 的 production `npm run check:full` exit 0，79/679、生产构建、覆盖率 50.50/45.07/55.09/51.07、29/109 PostgreSQL、40/40 Playwright（4.1 分钟），Focus 启停及离开后到期恢复均通过。首次沙箱子进程空 stdout、两次夹具错误、组件动画等待、全量验证前次失败和复跑命令均保留在 [feat-060 验收证据](../../feature_list.json)；范围外全量首页组件/上传 Route 门禁问题独立登记 feat-065/066，不关闭其默认配置风险。
 
 ### 只追加评分历史
 

@@ -162,7 +162,7 @@
 
 - 任一问题修复后必须保留原 ID，状态只可改为 `resolved`、`accepted-risk` 或 `not-reproduced`，并附修复提交/测试证据；不得删除历史结论。
 - 下一次复审必须重新核对 QAM-01 profile 隐私、QAM-07 Study snapshot 使用方和 QAM-08 Task/Trace 所有权，避免把共享文件的改善重复计入多个 QAM。
-- 本轮定向与完整命令、负向对照及归档记录见 [进度](../../progress.md)。默认开发模式的 Study 完整序列问题保留在 feat-063，生产验收不代表该问题已定位或恢复。未运行 Compose smoke：没有修改构建/部署/运行配置，本次风险由真实 PostgreSQL 与浏览器完整门禁覆盖。
+- 本轮定向与完整命令、负向对照及归档记录见 [任务验收证据](../../feature_list.json)。默认开发模式的 Study 完整序列问题保留在 feat-063，生产验收不代表该问题已定位或恢复。未运行 Compose smoke：没有修改构建/部署/运行配置，本次风险由真实 PostgreSQL 与浏览器完整门禁覆盖。
 
 ### 评分历史（只追加）
 

@@ -19,14 +19,13 @@ XOXO Meridian 是一个面向私密双人空间的 Next.js 15 全栈应用，提
 - 启动 Web：`npm run dev`
 - 当 `AGENT_TASK_INLINE_RUN=false` 时，在另一终端运行：`npm run agent:worker`
 
-开始工作前依次阅读 `AGENTS.md`、`feature_list.json`、`progress.md` 和 `session-handoff.md`；状态文件按需提取当前总览、未完成任务和所选任务的完整验收/进度，不把当前批次所有 done 正文或历史归档批量载入上下文。确认所选 feature 的依赖与验收标准后，只把它标为 `in-progress`，再运行 `./init.sh`；纯文档/状态整理适用下述门禁例外。
+开始工作前依次阅读 `AGENTS.md`、`feature_list.json` 和 `session-handoff.md`；状态文件按需提取当前总览、未完成任务和所选任务的完整验收/证据，不把当前批次所有 done 正文或历史归档批量载入上下文。确认所选 feature 的依赖与验收标准后，只把它标为 `in-progress`，再运行 `./init.sh`；纯文档/状态整理适用下述门禁例外。
 
 ### 状态文件与批量归档
 
 - `feature_list.json`：保留全部未完成项和当前批次的全部 `done`，含状态、依赖、优先级、完整验收与简短证据。顶层 `featuresNumber` 始终等于根 `features` 数组长度，包含全部状态、不包含归档；新增任务或将条目移入/移出根列表时同步更新，只变更状态时不变。`archivedFeatureFiles` 指向此前批次，查询旧 ID 或依赖时只提取目标条目。
-- `progress.md`：与根列表同步保留任务进度和改动/验证记录，同一任务的多次会话合在该任务下；不另记 feature 总数、done 汇总或归档计数，不反复复制整份进度或质量报告。
-- `session-handoff.md`：仅服务相邻两次会话，每轮任务结束均重写，只保留下一会话需要的当前进展、风险、验证摘要、恢复路径与唯一下一步；不追加、不归档、不保留历史版本。长期证据和约定写入进度或项目文档，不依赖交接文件追踪。
-- 归档先看 `featuresNumber`：不超过 40 时直接跳过；超过 40 时才统计根列表的 done，仍须 **超过 40 个 done（即至少 41 个）** 才触发。一次归档本批全部 done 条目和完整进度，未完成任务及其必要证据留在根文件；同步将 `featuresNumber` 更新为剩余条目数，不强制归零。`progress.md` 不单独计数，交接文件不参与归档。
+- `session-handoff.md`：仅服务相邻两次会话，每轮任务结束均重写，只保留下一会话需要的当前进展、风险、验证摘要、恢复路径与唯一下一步；不追加、不归档、不保留历史版本。长期证据和约定写入 `feature_list.json` 或项目文档，不依赖交接文件追踪。
+- 归档先看 `featuresNumber`：不超过 40 时直接跳过；超过 40 时才统计根列表的 done，仍须 **超过 40 个 done（即至少 41 个）** 才触发。一次归档本批全部 done 条目及其验收证据，未完成任务及其必要证据留在根文件；同步将 `featuresNumber` 更新为剩余条目数，不强制归零。交接文件不参与归档。
 - 取消按字节数设置的归档限制与文件预算；不因文件体积、单次任务完成、会话次数或日期创建零散归档。收尾按上述计数字段判断是否归档，并核对记录完整性与引用；不得丢弃未完成验收、失败证据或未决约定。格式、检索和批量归档步骤见 [Harness 维护说明](docs/harness/README.md)，仅在维护或查历史时读取。
 
 ### 验证门禁
@@ -47,21 +46,21 @@ XOXO Meridian 是一个面向私密双人空间的 Next.js 15 全栈应用，提
 
 ### Definition of Done（完成定义）
 
-- Feature 只有在验收标准满足、相关门禁通过、验证范围与证据同时写入 `feature_list.json` 和 `progress.md` 后才能标记为 `done`；文档例外按上述结构核验验收。证据写命令、结果与详情路径，归档时保留完整记录。
+- Feature 只有在验收标准满足、相关门禁通过、验证范围与证据写入 `feature_list.json` 后才能标记为 `done`；文档例外按上述结构核验验收。证据写命令、结果与详情路径，归档时保留完整记录。
 - 无关的既有检查失败时，记录原始失败并保持当前范围，不得用扩大改动范围换取“全绿”。
 
 ### End of Session（会话结束）
 
-- Before ending，更新 feature 状态、验收证据和 `featuresNumber`，同步 progress 的改动/验证/阻塞，并重写 session-handoff 为面向下一会话的恢复说明；长期证据在进度中保留。归档只处理 feature 和 progress，先写历史并核验再缩减根文件，不备份旧交接。
+- Before ending，更新 feature 状态、改动/验证/阻塞证据和 `featuresNumber`，并重写 session-handoff 为面向下一会话的恢复说明；长期证据在 `feature_list.json` 或项目文档中保留。归档只处理 feature，先写历史并核验再缩减根文件，不备份旧交接。
 - 保持仓库 restartable：不得留下半写入状态；交接中的 clean restart 路径必须能由下一会话直接执行。
 
 ## 会话退出检查清单
 
-代码会话只有以下五项全部满足，才可称为“完成”或“清洁退出”；未运行、失败或因环境受阻的项目必须在 `progress.md` 和 `session-handoff.md` 中记录原始命令、结果与原因，并不得称为完成。纯文档/状态会话按门禁例外验收，仍须完成进度记录、归档核验与工件清理。
+代码会话只有以下五项全部满足，才可称为“完成”或“清洁退出”；未运行、失败或因环境受阻的项目必须在 `feature_list.json` 和 `session-handoff.md` 中记录原始命令、结果与原因，并不得称为完成。纯文档/状态会话按门禁例外验收，仍须完成状态记录、归档核验与工件清理。
 
 - [ ] 构建通过：至少执行 `npm run check`；涉及数据库、认证、关键旅程或部署时执行风险匹配的 `npm run check:full` 或 `npm run test:compose-smoke`。
 - [ ] 测试通过：相关 Node、组件、集成和 E2E 测试均已通过；不得以低层 mock 替代应有的真实 PostgreSQL 或浏览器验证。
-- [ ] 进度已记录：`feature_list.json`、`progress.md` 和 `session-handoff.md` 已写入状态、改动、验证证据、阻塞与唯一推荐下一步。
+- [ ] 状态已记录：`feature_list.json` 和 `session-handoff.md` 已写入状态、改动、验证证据、阻塞与唯一推荐下一步。
 - [ ] 临时工件已清理：清除本会话创建且不需交接的临时目录、测试数据、隔离容器/网络/卷/镜像和测试报告；运行 `git diff --check` 并检查 `git status --short`，但不得删除既有用户改动。为诊断保留的失败日志意味着会话应标为 `blocked`，不属于清洁退出。
 - [ ] 启动路径可用：`./init.sh` 成功建立快速基线；如改动启动或部署路径，还须验证相应的 `npm run dev` 健康端点或 Compose 启动路径。
 
@@ -102,7 +101,6 @@ XOXO Meridian 是一个面向私密双人空间的 Next.js 15 全栈应用，提
 - [Vitest 配置](vitest.config.ts) — 修改 Node/jsdom 项目、setup、别名或覆盖率门槛时必读。
 - [Playwright 配置](playwright.config.ts) — 修改浏览器项目、认证状态、Web Server 或 E2E 产物时必读。
 - [功能状态](feature_list.json) — 开始工作前选择一个未完成特性并核对依赖与验收标准。
-- [进度日志](progress.md) — 交接前记录改动、验证证据和阻塞项。
 - [会话交接](session-handoff.md) — 恢复工作时查看当前状态、可复现命令和唯一推荐下一步。
 
 <!-- BEGIN:nextjs-agent-rules -->
