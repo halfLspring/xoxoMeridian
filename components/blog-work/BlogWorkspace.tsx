@@ -85,6 +85,6 @@ function ActorWorkspace({ actorId, registerAnchor, onDraftChange, onPublished }:
       finally { if (sequence === requestSequence.current) setPending(false); }
     }} />}
     {mode === "list" && <DraftListDialog actorId={actorId} onClose={() => { invalidate(); setMode(null); setError(""); }} onOpen={id => request(sequence => void open(id, sequence))} />}
-    {draft && <div className="active-draft" style={{ top: draft.draftY ?? 40, left: `min(${Math.max(12, draft.draftX ?? 24)}px, calc(100% - 172px))` }}><WorkEditor key={`${actorId}:${draft.id}`} initial={draft} actorId={actorId} editable focusPostId={params.get("post") ?? undefined} leaveRef={guard} onClose={close} onPublished={result => { onPublished?.(result); close(); requestAnimationFrame(() => document.querySelector(`[data-work-id="${result.id}"]`)?.scrollIntoView({ block: "center" })); }} registerAnchor={registerAnchor} onChanged={onDraftChange} /></div>}
+    {draft && <div className="active-draft" data-private-draft={draft.status === "draft" ? "" : undefined} style={draft.status === "draft" ? { top: 0, left: 0 } : { top: 40, left: 24 }}><WorkEditor key={`${actorId}:${draft.id}`} initial={draft} actorId={actorId} editable focusPostId={params.get("post") ?? undefined} leaveRef={guard} onClose={close} onPublished={result => { onPublished?.(result); close(); requestAnimationFrame(() => document.querySelector(`[data-work-id="${result.id}"]`)?.scrollIntoView({ block: "center" })); }} registerAnchor={registerAnchor} onChanged={onDraftChange} /></div>}
   </>;
 }

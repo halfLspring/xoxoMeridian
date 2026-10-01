@@ -42,3 +42,35 @@ it("pending、无引用和任意存储 key 均在读取字节前被拒绝", asyn
   await prisma.blogMediaAsset.create({ data: { storageKey: key, ownerId: owner, workId: w.workId, uploadMutationId: randomUUID(), contentType: "image/png", size: 10, expiresAt: new Date(Date.now() + 10000) } });
   for (const filename of [key, "atlas/untracked.png", "../secret"]) { const response = await bytes(new Request("http://localhost/api/atlas/uploads/x"), { params: Promise.resolve({ filename }) }); expect(response.status).toBe(404); expect(response.headers.get("cache-control")).toContain("no-store"); }
 });
+
+it("草稿位置写入沿用作者、版本与幂等约束，公开后拒绝平移且不改时间线", async () => {
+  const w = await create();
+  await mutateWork(owner, w.workId, { mutationId: randomUUID(), baseRevision: 0, expectedStatus: "draft" }, { operation: "post.create", data: { title: "平移授权", content: "内部内容保持不变" } });
+  const before = await prisma.blogWork.findUniqueOrThrow({ where: { id: w.workId } });
+  const elements = await prisma.atlasElement.findMany({ where: { workId: w.workId } });
+  const params = { params: Promise.resolve({ workId: w.workId }) };
+  const request = (body: unknown) => new Request("http://localhost/api/blog/works/x", { method: "PATCH", headers: { "X-Blog-Viewer-Id": auth.id }, body: JSON.stringify(body) });
+  const input = { mutationId: randomUUID(), baseRevision: before.revision, expectedStatus: "draft", command: { operation: "frame", data: { draftX: -23, draftY: 456.5 } } };
+  auth.id = other;
+  expect((await patchWork(request(input), params)).status).toBe(404);
+  expect(await prisma.blogWork.findUniqueOrThrow({ where: { id: w.workId } })).toEqual(before);
+  auth.id = owner;
+  expect((await patchWork(request(input), params)).status).toBe(200);
+  const moved = await prisma.blogWork.findUniqueOrThrow({ where: { id: w.workId } });
+  expect(moved).toMatchObject({ draftX: -23, draftY: 456.5, viewportX: before.viewportX, viewportY: before.viewportY, viewportWidth: before.viewportWidth, viewportHeight: before.viewportHeight, layoutWidth: before.layoutWidth, revision: before.revision + 1 });
+  expect(await prisma.atlasElement.findMany({ where: { workId: w.workId } })).toEqual(elements);
+  expect((await patchWork(request(input), params)).status).toBe(200);
+  expect(await prisma.blogWork.findUniqueOrThrow({ where: { id: w.workId } })).toEqual(moved);
+  const stale = await patchWork(request({ ...input, mutationId: randomUUID() }), params);
+  expect(stale.status).toBe(409); expect((await stale.json()).code).toBe("REVISION_CONFLICT");
+  await mutateWork(owner, w.workId, { mutationId: randomUUID(), baseRevision: moved.revision, expectedStatus: "draft" }, { operation: "publish" });
+  const published = await prisma.blogWork.findUniqueOrThrow({ where: { id: w.workId } });
+  for (const [actor, status] of [[owner, 400], [other, 403]] as const) {
+    auth.id = actor;
+    const rejected = await patchWork(request({ ...input, mutationId: randomUUID(), baseRevision: published.revision, expectedStatus: "published" }), params);
+    expect(rejected.status).toBe(status);
+    expect(await prisma.blogWork.findUniqueOrThrow({ where: { id: w.workId } })).toEqual(published);
+    const dto = await (await getWork(new Request("http://localhost/api/blog/works/x"), params)).json();
+    expect(dto.work).not.toHaveProperty("draftX"); expect(dto.work).not.toHaveProperty("draftY");
+  }
+});

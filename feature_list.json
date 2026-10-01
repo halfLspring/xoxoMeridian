@@ -46,10 +46,10 @@
     {
       "id": "feat-097",
       "name": "草稿编辑时拖动边框平移整份草稿",
-      "description": "用户要求登记：草稿编辑模式下，鼠标位于边框时可自由拖动整个草稿框；后续实施整组页面位置移动，不混入本轮工具栏及入口调整。",
+      "description": "本人私密草稿编辑时可从四边可拖动区域平移整份草稿，图文、蒙版和控件同步移动；只保存 draftX/draftY，保留非破坏裁切、八向缩放和既有权限/保存契约。",
       "priority": "P2",
       "priorityReason": "用户明确要求登记的后续编辑能力；原计划不提供整组平移，本项独立承载此新增范围。",
-      "status": "not-started",
+      "status": "done",
       "dependencies": [
         "feat-095"
       ],
@@ -60,7 +60,7 @@
         "已发布作品不启用私密草稿自由放置能力，所有写入沿用作者授权、版本/幂等、保存失败与重试语义；不改变公开时间线定位",
         "同步计划原“不提供整组拖动”的约定，增加真实浏览器连续拖动、取消、刷新恢复、窄屏比例、缩放/平移冲突及键盘回归，通过风险匹配门禁后完成"
       ],
-      "evidence": "2026-09-30 用户明确仅要求登记；not-started，未实施或运行本项应用门禁。"
+      "evidence": "2026-09-30 用户明确仅要求登记；not-started，未实施或运行本项应用门禁。 2026-10-01 用户启动实施：前置 feat-095 已在第二批归档中 done。已实现四边平移、grab/grabbing 指针、方向键 1px/Shift 10px、取消预览与保存队列，位置独立于窄屏显示比例；计划第 3.2/13.2 节同步。根目录 ./scripts/run-node22.sh ./init.sh exit 0（104 文件/991 项）。隔离副本定向 LANG=en_US.UTF-8 TZ=UTC E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npx playwright test tests/e2e/blog-drafts.spec.ts --project=authenticated -g '整稿平移' --trace=on：首轮 3/5 passed、exit 1，静态图片夹具无上传账本导致 UPLOAD_PENDING/409，发布等待 30000ms 超时；窄屏夹具起点在导航覆盖区，命中断言 Expected true / Received false。修正为真实上传和新建默认位置后第二轮 4/5 passed、exit 1，夹具错误假定上传仅推进一次 revision（Expected 1 / Received 2）；改为读取手势前版本，仍严格断言手势中零写入。第三轮 exit 0、5/5 passed（含 setup），覆盖连续拖动、缩放交替、刷新、真实触摸取消、丢失捕获、窄屏键盘、延迟响应与失败同幂等键重试；已查看桌面/390px 截图。新增 tests/integration/blog-work-authorization.integration.test.ts 位置授权/版本/幂等/公开拒绝回归。最终隔离 LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run check:full exit 0：标准层 104 文件/991 项、生产构建及覆盖率（Statements 54.10%、Branches 48.70%、Functions 57.98%、Lines 55.26%）通过；真实 PostgreSQL 44 文件/192 项通过；生产浏览器 87/87 passed（9.0 分钟，无跳过/重试）。新平移旅程和全部既有 Blog 草稿/双标签页用例均通过。最终应用源码、CSS、测试与验证副本逐字节一致。未运行 npm run test:compose-smoke 或 npm run dev，本项未改 schema、部署或启动路径；启动快速基线与生产浏览器服务已验证。全计划本地链接探针（内联 python3）曾 exit 1：AssertionError: ../../design-qa.md，已用 HEAD 核实为既有失效引用，保持原历史记录；本轮修改段落链接复核通过。误在无 .git 的隔离副本执行 git diff --check 为 exit 129（Not a git repository），改回仓库根执行为 exit 0。JSON、全局 ID/依赖/状态与 featuresNumber=6 核验通过，不触发归档。隔离副本、临时数据库/容器/网络/卷及日志/截图/视频/trace/覆盖率报告已清理；原开发数据库和用户参考 PNG 保留。未提交、推送或部署。"
     },
     {
       "id": "feat-098",

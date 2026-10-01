@@ -484,6 +484,14 @@ body:has(.home-linen-page) {
 .work-frame-editing { outline: 1px dashed #84a774; background: rgb(237 250 231 / .34); }
 .work-crop { position: relative; overflow: hidden; }
 .work-scene { position: relative; }
+.work-frame .work-frame-move { position: absolute; z-index: 6; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: grab; touch-action: none; }
+.work-frame .work-frame-move-n, .work-frame .work-frame-move-s { left: 0; width: 100%; height: 12px; transform: translateY(-50%); }
+.work-frame .work-frame-move-n { top: 0; }
+.work-frame .work-frame-move-s { top: 100%; }
+.work-frame .work-frame-move-e, .work-frame .work-frame-move-w { top: 0; height: 100%; width: 12px; transform: translateX(-50%); }
+.work-frame .work-frame-move-e { left: 100%; }
+.work-frame .work-frame-move-w { left: 0; }
+.work-frame-moving, .work-frame-moving * { cursor: grabbing !important; }
 .work-frame .work-frame-handle { position: absolute; z-index: 8; width: 24px; height: 24px; padding: 0; border: 8px solid transparent; background: white; background-clip: padding-box; border-radius: 0; box-shadow: inset 0 0 0 1px #557d45; transform: translate(-50%, -50%); touch-action: none; }
 .work-post { background: rgb(255 255 255 / .96); border: 1px solid #e2e6df; border-radius: 10px; padding: 20px 22px; color: #181b17; }
 .work-post-meta { color: #9aa2af; font-size: 13px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -530,6 +538,7 @@ body:has(.home-linen-page) {
   .work-header { padding: 10px; }
   .work-badge { font-size: 11px; gap: 6px; }
   .active-draft { left: 12px !important; right: 12px; }
+  .active-draft[data-private-draft] { left: 0 !important; }
   .work-toolbar button { padding: 8px 12px; }
   .work-dialog { padding: 16px; }
 }

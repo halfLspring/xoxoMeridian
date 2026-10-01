@@ -20,6 +20,212 @@ async function resizeFrame(page: Page, editor: Locator, width: number, height: n
   await page.mouse.up();
 }
 
+async function waitForWorkLayout(page: Page, editor: Locator) {
+  await expect(editor).toBeVisible();
+  await page.waitForFunction(() => [...document.querySelectorAll(".page-enter")].every(node => node.getAnimations().every(animation => animation.playState === "finished")));
+}
+
+async function startFrameMove(page: Page, editor: Locator, edge = "上") {
+  const border = editor.getByRole("button", { name: `平移草稿${edge}边框`, exact: true });
+  const box = (await border.boundingBox())!;
+  // 避开四角和边中点的缩放手柄，验证实际命中边框。
+  const at = box.width > box.height
+    ? { x: box.x + box.width / 4, y: box.y + box.height / 2 }
+    : { x: box.x + box.width / 2, y: box.y + box.height / 4 };
+  expect(await border.evaluate((node, point) => document.elementFromPoint(point.x, point.y) === node, at)).toBe(true);
+  await page.mouse.move(at.x, at.y);
+  await expect(border).toHaveCSS("cursor", "grab");
+  await page.mouse.down();
+  await expect(border).toHaveCSS("cursor", "grabbing");
+  return { border, ...at };
+}
+
+test("整稿平移连续预览、缩放交替及刷新恢复，内容与控件一起移动", async ({ context }, testInfo) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, draftX: 100, draftY: 80, viewportWidth: 900, viewportHeight: 600 } });
+    const upload = await page.request.post(`/api/blog/works/${work.id}/uploads`, {
+      headers: { "X-Blog-Viewer-Id": userId, origin: new URL(testInfo.project.use.baseURL!).origin },
+      multipart: { file: { name: "move.png", mimeType: "image/png", buffer: png }, metadata: JSON.stringify({ mutationId: randomUUID(), baseRevision: 0, expectedStatus: "draft", data: { x: 500, y: 200, width: 240, height: 180, caption: "整稿平移图片" } }) },
+    });
+    expect(upload.status()).toBe(200);
+    const uploaded = await db.atlasElement.findFirstOrThrow({ where: { workId: work.id, type: "photo" } });
+    const photo = await db.atlasElement.update({ where: { id: uploaded.id }, data: { rotation: 12 } });
+    const post = await db.post.create({ data: { workId: work.id, authorId: userId, workOrder: 0, title: "整稿平移正文", content: "保留内部排版", slug: randomUUID() } });
+    await db.atlasElement.create({ data: { workId: work.id, boardId: "home-board", postId: post.id, type: "note", x: 0, y: 0, width: 352, height: 180 } });
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    await page.goto(`/home?draft=${work.id}`);
+    const editor = page.getByRole("region", { name: "空间草稿" });
+    await waitForWorkLayout(page, editor);
+    const positions = async () => Promise.all([
+      editor, editor.locator(".work-frame"), editor.locator(".work-crop"), editor.locator(".work-header"),
+      editor.getByRole("toolbar", { name: "草稿工具栏" }), editor.locator(`[data-element-id="${photo.id}"]`), editor.locator(`[data-work-post="${post.id}"]`),
+    ].map(async node => (await node.boundingBox())!));
+    const start = await positions();
+    const initialRevision = (await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision;
+    const at = await startFrameMove(page, editor);
+    for (const [dx, dy] of [[30, 20], [90, 40], [60, 70]]) {
+      await page.mouse.move(at.x + dx, at.y + dy, { steps: 4 });
+      const preview = await positions();
+      for (let i = 0; i < start.length; i++) {
+        expect(preview[i].x - start[i].x).toBeCloseTo(dx, 0);
+        expect(preview[i].y - start[i].y).toBeCloseTo(dy, 0);
+        expect(preview[i].width).toBe(start[i].width);
+        expect(preview[i].height).toBe(start[i].height);
+      }
+      expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(initialRevision);
+      await expect(editor.getByRole("button", { name: "发布", exact: true })).toBeDisabled();
+    }
+    const saved = page.waitForResponse(r => r.request().method() === "PATCH" && r.url().endsWith(`/works/${work.id}`));
+    await page.mouse.up();
+    expect((await saved).request().postDataJSON().command).toEqual({ operation: "frame", data: { draftX: 160, draftY: 150 } });
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    const moved = await positions();
+    const corner = (await editor.getByRole("button", { name: "调整草稿左上边界", exact: true }).boundingBox())!;
+    await page.mouse.move(corner.x + 12, corner.y + 12); await page.mouse.down();
+    await page.mouse.move(corner.x + 42, corner.y + 32, { steps: 4 }); await page.mouse.up();
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    const resized = await positions();
+    expect(resized[5]).toEqual(moved[5]); expect(resized[6]).toEqual(moved[6]);
+    const next = await startFrameMove(page, editor, "左");
+    await page.mouse.move(next.x - 20, next.y + 10, { steps: 4 }); await page.mouse.up();
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    const final = await positions();
+    expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toMatchObject({ draftX: 170, draftY: 180, viewportX: 30, viewportY: 20, viewportWidth: 870, viewportHeight: 580 });
+    expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(photo);
+    await editor.getByRole("button", { name: "退出草稿", exact: true }).click();
+    await page.reload();
+    await page.getByRole("link", { name: "My Draft", exact: true }).click();
+    await page.getByRole("button", { name: /^整稿平移正文/ }).click();
+    await waitForWorkLayout(page, editor);
+    expect(await positions()).toEqual(final);
+    await page.screenshot({ path: testInfo.outputPath("draft-moved-desktop.png") });
+    await editor.getByRole("button", { name: "发布", exact: true }).click();
+    const published = page.getByRole("region", { name: "已发布作品" }).filter({ has: page.getByRole("heading", { name: "整稿平移正文" }) });
+    await published.getByRole("button", { name: "编辑作品", exact: true }).click();
+    await expect(published.getByRole("button", { name: /^平移草稿/ })).toHaveCount(0);
+    await expect(published.getByRole("button", { name: /^调整草稿/ })).toHaveCount(8);
+  });
+});
+
+test("整稿平移 Escape、pointercancel 和丢失捕获取消且不写入", async ({ context }) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, draftX: 100, draftY: 60, viewportWidth: 800, viewportHeight: 540 } });
+    await page.goto(`/home?draft=${work.id}`);
+    const editor = page.getByRole("region", { name: "空间草稿" });
+    await waitForWorkLayout(page, editor);
+    const before = await editor.boundingBox(), writes: unknown[] = [];
+    page.on("request", request => { if (request.method() === "PATCH" && request.url().endsWith(`/works/${work.id}`)) writes.push(request.postDataJSON()); });
+    for (const action of ["Escape", "pointercancel", "lostpointercapture"]) {
+      if (action === "pointercancel") {
+        const cdp = await context.newCDPSession(page);
+        try {
+          await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+          const border = (await editor.getByRole("button", { name: "平移草稿上边框", exact: true }).boundingBox())!;
+          const at = { x: border.x + border.width / 4, y: border.y + border.height / 2, id: 1 };
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at] });
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...at, x: at.x + 60, y: at.y + 40 }] });
+          expect((await editor.boundingBox())!.x).toBeCloseTo(before!.x + 60, 0);
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+        } finally { await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false }); await cdp.detach(); }
+      } else {
+        const at = await startFrameMove(page, editor);
+        await page.mouse.move(at.x + 60, at.y + 40, { steps: 4 });
+        expect((await editor.boundingBox())!.x).toBeCloseTo(before!.x + 60, 0);
+        if (action === "Escape") await page.keyboard.press("Escape");
+        else await at.border.evaluate(node => node.releasePointerCapture(1));
+        await page.mouse.up();
+      }
+      expect(await editor.boundingBox()).toEqual(before);
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    }
+    expect(writes).toEqual([]);
+    expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toEqual(work);
+  });
+});
+
+test("整稿平移在窄屏保持比例，键盘等价操作和图片拖动互不抢占", async ({ context }, testInfo) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, draftX: 24, draftY: 40, viewportHeight: 960 } });
+    const photo = await db.atlasElement.create({ data: { boardId: "home-board", workId: work.id, type: "photo", x: 80, y: 350, width: 240, height: 180, imageUrl: "/brand/logo_transparent.svg", caption: "平移与图片" } });
+    await page.setViewportSize({ width: 390, height: 844 }); await page.goto(`/home?draft=${work.id}`);
+    const editor = page.getByRole("region", { name: "空间草稿" }), node = editor.locator(`[data-element-id="${photo.id}"]`);
+    await waitForWorkLayout(page, editor);
+    const before = (await editor.boundingBox())!, imageBefore = (await node.boundingBox())!;
+    const ratio = imageBefore.width / photo.width;
+    expect(ratio).toBeLessThan(1);
+    const at = await startFrameMove(page, editor);
+    await page.mouse.move(at.x + 8, at.y + 30, { steps: 5 }); await page.mouse.up();
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    const imageMoved = (await node.boundingBox())!;
+    expect(imageMoved.x - imageBefore.x).toBeCloseTo(8, 0);
+    expect(imageMoved.y - imageBefore.y).toBeCloseTo(30, 0);
+    expect(imageMoved.width).toBe(imageBefore.width);
+    expect((await editor.boundingBox())!.width).toBe(before.width);
+    await page.reload(); await waitForWorkLayout(page, editor);
+    expect(await node.boundingBox()).toEqual(imageMoved);
+    const move = editor.getByRole("button", { name: "平移草稿上边框", exact: true });
+    await move.focus(); await page.keyboard.press("Tab");
+    await expect(editor.getByRole("button", { name: "平移草稿右边框", exact: true })).toBeFocused();
+    await page.keyboard.press("Shift+ArrowLeft"); await page.keyboard.press("ArrowUp");
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toMatchObject({ draftX: 22, draftY: 69, viewportX: 0, viewportY: 0, viewportWidth: 960, viewportHeight: 960 });
+    expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(photo);
+    const pic = (await node.boundingBox())!, x = pic.x + pic.width / 2, y = pic.y + pic.height / 3;
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("[data-element-id]")?.getAttribute("data-element-id"), { x, y })).toBe(photo.id);
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 20, y + 10, { steps: 5 }); await page.mouse.up();
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    expect((await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).x).toBeCloseTo(80 + 20 / ratio, 0);
+    expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toMatchObject({ draftX: 22, draftY: 69 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await editor.getByRole("button", { name: "博文", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "编辑博文" })).toBeVisible();
+    await page.getByRole("button", { name: "关闭编辑博文", exact: true }).click();
+    await page.screenshot({ path: testInfo.outputPath("draft-moved-mobile.png") });
+  });
+});
+
+test("整稿平移等待保存时可连续操作，取消保留前次位置，失败沿用幂等键重试", async ({ context }) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, draftX: 100, draftY: 60, viewportWidth: 800, viewportHeight: 540 } });
+    await page.goto(`/home?draft=${work.id}`);
+    const editor = page.getByRole("region", { name: "空间草稿" });
+    await waitForWorkLayout(page, editor);
+    let release!: () => void, ready!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; }), requested = new Promise<void>(resolve => { ready = resolve; });
+    const writes: Array<{ mutationId: string; command: unknown }> = [];
+    await page.route(`**/api/blog/works/${work.id}`, async route => {
+      if (route.request().method() !== "PATCH") { await route.continue(); return; }
+      writes.push(route.request().postDataJSON());
+      if (writes.length === 1) { const response = await route.fetch(); ready(); await held; await route.fulfill({ response }); }
+      else if (writes.length === 2) await route.fulfill({ status: 503, json: { error: "平移保存暂时失败" } });
+      else await route.continue();
+    });
+    try {
+      for (const [dx, dy] of [[40, 20], [30, 10]]) {
+        const at = await startFrameMove(page, editor);
+        await page.mouse.move(at.x + dx, at.y + dy, { steps: 4 }); await page.mouse.up();
+      }
+      await requested;
+      const latest = await editor.boundingBox();
+      const cancel = await startFrameMove(page, editor);
+      await page.mouse.move(cancel.x + 50, cancel.y + 30, { steps: 4 });
+      await page.keyboard.press("Escape"); await page.mouse.up();
+      expect(await editor.boundingBox()).toEqual(latest);
+      release();
+      await expect(editor.getByText("保存失败", { exact: true })).toBeVisible();
+      expect(await editor.boundingBox()).toEqual(latest);
+      await expect(editor.getByRole("button", { name: "发布", exact: true })).toBeDisabled();
+      await editor.getByRole("button", { name: "重试保存", exact: true }).click();
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      expect(writes).toHaveLength(3);
+      expect(writes[2]).toEqual(writes[1]);
+      expect(writes[1].command).toEqual({ operation: "frame", data: { draftX: 170, draftY: 90 } });
+      expect(await editor.boundingBox()).toEqual(latest);
+      expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toMatchObject({ draftX: 170, draftY: 90, revision: 2 });
+    } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
+  });
+});
+
 test.describe("作品时间水合", () => {
   test.use({ locale: "zh-CN", timezoneId: "America/Los_Angeles" });
 

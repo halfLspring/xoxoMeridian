@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FilePenLine, ImagePlus, Link2, LockKeyhole } from "lucide-react";
 import { useWorkMutations } from "@/components/blog-work/useWorkMutations";
 import { WorkCanvas, type AnchorRegistrar } from "@/components/blog-work/WorkCanvas";
-import { WorkFrame } from "@/components/blog-work/WorkFrame";
+import { WorkFrame, type WorkFrameValue } from "@/components/blog-work/WorkFrame";
 import { WorkDialog } from "@/components/blog-work/WorkDialog";
 import { WorkPostForm } from "@/components/blog-work/WorkPostForm";
 import { WorkConnectionPicker } from "@/components/blog-work/WorkConnectionPicker";
@@ -29,7 +29,8 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const [editing, setEditing] = useState(editable || initial.status === "draft"), [modal, setModal] = useState<string | null>(focusPostId && initial.posts.some(p => p.id === focusPostId) ? `post:${focusPostId}` : null);
   const textVersion = useRef(0), sentVersions = useRef(new Map<string, number>());
   const [texts, setTexts] = useState<Record<string, TextBuffer>>({}), textRef = useRef(texts), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [photoPatches, setPhotoPatches] = useState<Record<string, Partial<WorkElement>>>({}), [frame, setFrame] = useState<WorkWindow | null>(null);
+  const [photoPatches, setPhotoPatches] = useState<Record<string, Partial<WorkElement>>>({}), [frame, setFrame] = useState<WorkFrameValue | null>(null);
+  const [framePreview, setFramePreview] = useState<WorkFrameValue | null>(null);
   const [scale, setScale] = useState(1), root = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState(initial.viewportWidth);
   const [availableLeft, setAvailableLeft] = useState(0);
@@ -42,7 +43,7 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const fileInput = useRef<HTMLInputElement>(null);
   const dirtyText = Object.keys(texts).length > 0;
   const dirtyPhotos = Object.entries(photoPatches).some(([id, patch]) => photoChanged(work, id, patch));
-  const dirtyFrame = !!frame && (["viewportX", "viewportY", "viewportWidth", "viewportHeight"] as const).some(key => frame[key] !== work[key]);
+  const dirtyFrame = !!framePreview || (!!frame && (["viewportX", "viewportY", "viewportWidth", "viewportHeight", "draftX", "draftY"] as const).some(key => frame[key] !== work[key]));
   const busy = state !== "clean" || dirtyText || dirtyPhotos || dirtyFrame || uploading || publishing;
   const flush = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -61,9 +62,9 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const requestLeave = useCallback((next: () => void) => {
     if (work.status === "published" && Object.keys(textRef.current).length && !window.confirm("保存并公开博文修改后离开？")) return;
     pendingLeave.current = next;
-    if (!save.isClean() || Object.keys(textRef.current).length || uploading) { setLeaving(true); flush(); }
+    if (!save.isClean() || Object.keys(textRef.current).length || uploading || dirtyFrame) { setLeaving(true); flush(); }
     else { pendingLeave.current = null; next(); }
-  }, [save, flush, uploading, work.status]);
+  }, [save, flush, uploading, dirtyFrame, work.status]);
   useEffect(() => { if (leaveRef) leaveRef.current = requestLeave; return () => { if (leaveRef) leaveRef.current = null; }; }, [leaveRef, requestLeave]);
   useEffect(() => {
     if (leaving && !busy && pendingLeave.current) {
@@ -89,15 +90,16 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     window.addEventListener("keydown", cancel);
     return () => window.removeEventListener("keydown", cancel);
   }, []);
-  useLayoutEffect(() => { viewportWidth.current = frame?.viewportWidth ?? work.viewportWidth; }, [frame?.viewportWidth, work.viewportWidth]);
+  useLayoutEffect(() => { viewportWidth.current = framePreview?.viewportWidth ?? frame?.viewportWidth ?? work.viewportWidth; }, [framePreview?.viewportWidth, frame?.viewportWidth, work.viewportWidth]);
   // 可用宽度来自不随裁切框变化的宿主；调整边框不能反过来触发自动缩放。
   const fit = useCallback(() => {
     if (!root.current) return;
     const width = root.current.clientWidth;
     setAvailableWidth(width);
     setAvailableLeft(Math.min(0, 12 - root.current.getBoundingClientRect().left));
-    setScale(Math.min(1, width / viewportWidth.current));
-  }, []);
+    // 私密草稿的宿主固定在页面原点，适配宽度不随保存/平移位置改变。
+    setScale(Math.min(1, Math.max(1, width - (initial.status === "draft" ? 24 : 0)) / viewportWidth.current));
+  }, [initial.status]);
   useEffect(() => { fit(); window.addEventListener("resize", fit); return () => window.removeEventListener("resize", fit); }, [fit]);
   useLayoutEffect(() => {
     const measure = () => {
@@ -117,11 +119,14 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", reread); };
   }, [editing, busy, refresh]);
   useEffect(() => { onChanged?.(work); }, [work, onChanged]);
-  const merged = useMemo<WorkSnapshot>(() => ({ ...work, ...frame, posts: work.posts.map(p => ({ ...p, ...texts[p.id] })), elements: work.elements.map(e => ({ ...e, ...photoPatches[e.id] })) }), [work, frame, texts, photoPatches]);
+  const merged = useMemo<WorkSnapshot>(() => ({ ...work, ...frame, ...framePreview, posts: work.posts.map(p => ({ ...p, ...texts[p.id] })), elements: work.elements.map(e => ({ ...e, ...photoPatches[e.id] })) }), [work, frame, framePreview, texts, photoPatches]);
   const frameWidth = merged.viewportWidth * scale, frameHeight = merged.viewportHeight * scale;
-  const offsetX = (merged.viewportX - initial.viewportX) * scale, offsetY = (merged.viewportY - initial.viewportY) * scale;
+  const cropOffsetX = (merged.viewportX - initial.viewportX) * scale, cropOffsetY = (merged.viewportY - initial.viewportY) * scale;
+  const offsetX = work.status === "draft" ? merged.draftX ?? 24 : cropOffsetX;
+  const offsetY = work.status === "draft" ? merged.draftY ?? 40 : cropOffsetY;
   const marginLeft = work.status === "draft" ? 0 : Math.max(0, (availableWidth - initial.viewportWidth * scale) / 2);
-  const frameLeft = marginLeft + offsetX;
+  // 控件沿用裁切窗口布局；整稿平移不能改变控件宽度或换行，使其与内容同步移动。
+  const frameLeft = work.status === "draft" ? 24 + cropOffsetX : marginLeft + offsetX;
   const visibleLeft = Math.max(availableLeft, frameLeft), visibleRight = Math.min(availableWidth, frameLeft + frameWidth);
   // 超宽窗口仍保留当前比例；操作区锚定其屏幕可见部分，避免被页面水平裁切。
   const controlsWidth = Math.min(availableWidth - availableLeft, Math.max(320, visibleRight - visibleLeft));
@@ -148,10 +153,11 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     void enqueue({ operation: "photo.update", id, data: parsed.data }).then(result => { if (result) setPhotoPatches(previous => { const next = { ...previous, [id]: { ...previous[id] } }; for (const key of Object.keys(patch)) if (next[id]?.[key as keyof WorkElement] === patch[key as keyof WorkElement]) delete next[id][key as keyof WorkElement]; return next; }); });
     return true;
   };
-  const commitFrame = (next: WorkWindow) => {
+  const commitFrame = (next: WorkFrameValue, kind: "move" | "resize") => {
+    setFramePreview(null);
     setFrame(next);
-    const draftPosition = work.status === "draft" ? { draftX: (initial.draftX ?? 24) + (next.viewportX - initial.viewportX) * scale, draftY: (initial.draftY ?? 40) + (next.viewportY - initial.viewportY) * scale } : {};
-    void enqueue({ operation: "frame", data: { ...onlyWindow(next), ...draftPosition } }).then(result => { if (result) setFrame(previous => previous === next ? null : previous); });
+    const draftPosition = work.status === "draft" ? { draftX: next.draftX, draftY: next.draftY } : {};
+    void enqueue({ operation: "frame", data: { ...(kind === "resize" ? onlyWindow(next) : {}), ...draftPosition } }).then(result => { if (result) setFrame(previous => previous === next ? null : previous); });
   };
   const chooseEndpoint = (id: string) => { if (!editing || publishing) return; if (!selected) setSelected(id); else if (selected === id) setSelected(null); else { void enqueue({ operation: "connection.create", data: { fromId: selected, toId: id, color: "#72975a" } }); setSelected(null); } };
   const updateText = (id: string, data: { title: string; content: string }) => {
@@ -159,7 +165,7 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     if (work.status === "draft") { if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(flush, 600); }
   };
   const currentPost = merged.posts.find(p => modal === `post:${p.id}`);
-  const canvas = <WorkFrame frame={merged} scale={scale} editing={editing && work.canManage && !publishing} onPreview={setFrame} onCommit={commitFrame}>
+  const canvas = <WorkFrame frame={{ ...onlyWindow(merged), ...(work.status === "draft" ? { draftX: merged.draftX ?? 24, draftY: merged.draftY ?? 40 } : {}) }} scale={scale} editing={editing && work.canManage && !publishing && !leaving} movable={work.status === "draft" && work.ownerId === actorId} onPreview={setFramePreview} onCommit={commitFrame}>
     <WorkCanvas work={merged} scale={scale} editing={editing} disabled={state === "auth-invalid" || leaving || publishing} onPhotoPreview={previewPhoto} onPhotoCommit={commitPhoto} onDeletePhoto={id => { void enqueue({ operation: "photo.delete", id }); }} onPost={id => { if (!publishing) setModal(`post:${id}`); }} onSelect={chooseEndpoint} selected={selected} registerAnchor={registerAnchor} />
   </WorkFrame>;
   if (state === "auth-invalid") return <div role="alert">登录已失效。<Link href="/">重新登录</Link></div>;
@@ -172,7 +178,7 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
         {work.status === "draft" && <button className="work-primary" disabled={busy} onClick={() => { setPublishing(true); void enqueue({ operation: "publish" }).then(result => { setPublishing(false); if (result) onPublished(result); }); }}>发布</button>}
       </div>
     </header>
-    <div className="work-notices">{(save.error || localError) && <div className="work-error" role="alert">{save.error || localError} {state === "failed" && <button onClick={save.retry}>重试保存</button>}{state === "conflict" && <><button onClick={() => { void save.resolveConflict(false).then(() => { setTexts({}); textRef.current = {}; sentVersions.current.clear(); setPhotoPatches({}); setFrame(null); setUploading(false); }); }}>采用最新内容</button><button onClick={() => void save.resolveConflict(true)}>重新提交我的修改</button></>}</div>}
+    <div className="work-notices">{(save.error || localError) && <div className="work-error" role="alert">{save.error || localError} {state === "failed" && <button onClick={save.retry}>重试保存</button>}{state === "conflict" && <><button onClick={() => { void save.resolveConflict(false).then(() => { setTexts({}); textRef.current = {}; sentVersions.current.clear(); setPhotoPatches({}); setFrame(null); setFramePreview(null); setUploading(false); }); }}>采用最新内容</button><button onClick={() => void save.resolveConflict(true)}>重新提交我的修改</button></>}</div>}
     {leaving && busy && <div className="work-error" role="status">正在等待保存后离开。{["failed", "conflict"].includes(state) && <button onClick={() => { if (window.confirm("放弃尚未保存的修改并离开？")) pendingLeave.current?.(); }}>放弃未保存修改</button>}</div>}
     </div>
     <div className="work-stage-host">{canvas}</div>
