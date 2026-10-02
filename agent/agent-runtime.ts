@@ -674,6 +674,9 @@ async function runBudgetedModelCall<
         status: "failed",
         durationMs: Date.now() - startedAt,
         requestPayload: input.requestPayload,
+        // 解析/校验失败时 result 为 null，把模型原始返回一并落盘，
+        // 否则失败日志缺少现场（例如 tool_inputs 结构不符无法复现）。
+        responsePayload: error instanceof AgentPlanValidationError ? error.rawResponse : undefined,
         error: message
       });
     }
