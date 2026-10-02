@@ -2,7 +2,7 @@ import type { AtlasConnectionData, AtlasElementData } from "@/components/atlas/t
 import type { WorkWindow } from "@/lib/blog-work/schemas";
 import type { TimelinePost } from "@/components/blog/Timeline";
 
-export type WorkPost = { id: string; slug: string | null; title: string; content: string; workOrder: number; publishedAt: string | null; authorTimezone?: string | null; elementId: string };
+export type WorkPost = { id: string; slug: string | null; title: string; content: string; workOrder: number; publishedAt: string | null; authorTimezone?: string | null; authorCity?: string | null; authorCountry?: string | null; elementId: string };
 export type WorkElement = AtlasElementData & { postId: string | null; workId: string };
 export type WorkSnapshot = WorkWindow & {
   id: string; ownerId: string; ownerName: string; status: "draft" | "published"; revision: number;

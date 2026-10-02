@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { formatPostTime, resolveAuthorLocation } from "@/lib/post-time";
-import { MarkdownContent } from "@/components/blog/MarkdownContent";
+import { PostCardView } from "@/components/blog/PostCardView";
+import { resolveAuthorLocation } from "@/lib/post-time";
 
 type PostCardProps = {
   post: {
@@ -23,37 +23,27 @@ type PostCardProps = {
 };
 
 export function PostCard({ post, isOwner }: PostCardProps) {
-  const date = new Date(post.publishedAt);
+  const location = resolveAuthorLocation(post);
   return (
-    <article className="timeline-card max-w-sm w-full">
-      <div className="metadata-mono flex items-center gap-2 mb-2">
-        <span>{post.author?.displayName ?? "System"}</span>
-        <span aria-hidden="true">&middot;</span>
-        <time dateTime={date.toISOString()}>
-          {formatPostTime(date, resolveAuthorLocation(post))}
-        </time>
-      </div>
-
-      <Link href={`/posts/${post.slug}`} className="block group">
-        <h2 className="text-lg font-semibold text-black leading-snug group-hover:text-[#3a5b22] transition-colors">
-          {post.title}
-        </h2>
-      </Link>
-
-      {post.content && (
-        <MarkdownContent content={post.content} variant="preview" />
-      )}
-
-      {isOwner && (
+    <PostCardView
+      title={post.title}
+      content={post.content}
+      authorName={post.author?.displayName ?? "System"}
+      timestamp={post.publishedAt}
+      authorTimezone={post.authorTimezone}
+      authorCity={location.city}
+      authorCountry={location.country}
+      href={`/posts/${post.slug}`}
+      actions={isOwner && (
         <div className="mt-3 flex gap-2">
           <Link
             href={`/posts/edit/${post.slug}`}
-            className="text-xs text-black/40 hover:text-black transition-colors"
+            className="post-card-edit"
           >
             Edit
           </Link>
         </div>
       )}
-    </article>
+    />
   );
 }

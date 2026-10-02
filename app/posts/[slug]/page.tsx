@@ -39,7 +39,7 @@ export default async function PostDetailPage({
 
   return (
     <div className="min-h-screen bg-sage-50">
-      <SiteNav currentUser={user} />
+      <SiteNav displayName={user.displayName} />
       <PageTransition>
         <main className="mx-auto max-w-3xl px-6 py-12">
           {post.workId && <Link href={`/home?work=${post.workId}`}>返回所属作品</Link>}

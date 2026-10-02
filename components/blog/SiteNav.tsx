@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { BrandBadge } from "@/components/layout/BrandBadge";
 import { SearchInput } from "@/components/blog/SearchInput";
 
-export function SiteNav({ currentUser }: { currentUser: { id: string; displayName: string; avatarLabel: string } }) {
+export function SiteNav({ displayName }: { displayName: string }) {
   const pathname = usePathname();
   const blogActions = useBlogActions();
   const isHome = pathname === "/home";
@@ -62,7 +62,7 @@ export function SiteNav({ currentUser }: { currentUser: { id: string; displayNam
             href="/me"
             className="text-xs text-black/40 hover:text-black transition-colors"
           >
-            {currentUser.displayName}
+            {displayName}
           </Link>
         </div>
       </div>

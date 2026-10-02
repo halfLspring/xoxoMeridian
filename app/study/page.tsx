@@ -15,13 +15,7 @@ export default async function StudyPage() {
 
   return (
     <div className="min-h-screen bg-sage-50">
-      <SiteNav
-        currentUser={{
-          id: user.id,
-          displayName: user.displayName,
-          avatarLabel: user.avatarLabel,
-        }}
-      />
+      <SiteNav displayName={user.displayName} />
       <main className="mx-auto max-w-6xl px-6 py-10">
         <StudyDashboard initialData={initialData} />
       </main>

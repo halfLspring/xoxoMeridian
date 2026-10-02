@@ -17,6 +17,10 @@ const dataDir = await mkdtemp(join(tmpdir(), "xoxo-meridian-e2e-"));
 const databaseUrlFile = resolve("test-results/.e2e-database-url");
 const appInfoFile = resolve("test-results/.e2e-app.json");
 const appMode = e2eAppMode();
+const devOrigins = process.env.E2E_DEV_ORIGINS === "true";
+if (devOrigins && appMode !== "development") {
+  throw new Error("双地址来源回归必须使用 development 模式。");
+}
 const buildTheme = e2eAgentEntryTheme();
 const runtimeTheme = appMode === "production"
   ? (buildTheme === "default" ? "birthday-2026" : "default")
@@ -42,6 +46,7 @@ const appEnv: NodeJS.ProcessEnv = {
   DATABASE_URL: databaseUrl,
   DIRECT_URL: databaseUrl,
   APP_BASE_URL: baseURL,
+  ALLOWED_ORIGINS: devOrigins ? `${baseURL},http://localhost:${port}` : baseURL,
   NEXT_PUBLIC_APP_URL: baseURL,
   NEXT_PUBLIC_AGENT_ENTRY_THEME: buildTheme,
   SESSION_SECRET: "xoxo-e2e-session-secret-at-least-thirty-two-characters",
@@ -143,7 +148,7 @@ try {
   const server = spawn(process.execPath, [
     nextCli,
     ...(appMode === "production" ? ["start"] : ["dev", "--webpack"]),
-    "--hostname", "127.0.0.1", "--port", port,
+    "--hostname", devOrigins ? "0.0.0.0" : "127.0.0.1", "--port", port,
   ], {
     cwd: process.cwd(),
     env: { ...appEnv, NEXT_PUBLIC_AGENT_ENTRY_THEME: runtimeTheme },

@@ -18,6 +18,7 @@
     "test:component": "vitest run --project component",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
+    "test:e2e:dev-origins": "playwright test --config playwright.dev-origins.config.ts",
     "test:e2e:public": "playwright test --project=public",
     "test:e2e:production": "E2E_APP_MODE=production npm run test:e2e",
     "test:compose-smoke": "node --import tsx scripts/compose-deployment-smoke.ts",

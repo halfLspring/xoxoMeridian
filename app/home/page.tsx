@@ -45,7 +45,7 @@ export default async function HomePage() {
 
       <ScrollRestore storageKey="home-timeline" />
       <BlogActionProvider key={user.id}>
-        <SiteNav currentUser={user} />
+        <SiteNav displayName={user.displayName} />
         <PageTransition>
           <Suspense fallback={null}>
             <HomeTimelineBoard

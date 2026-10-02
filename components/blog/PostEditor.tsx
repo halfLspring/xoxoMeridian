@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { createPost, updatePost, deletePost } from "@/app/actions/posts";
 
 type PostEditorProps = {
-  currentUser: { id: string; displayName: string; avatarLabel: string };
   initialValues?: { title: string; content: string; slug: string };
 };
 
-export function PostEditor({ currentUser, initialValues }: PostEditorProps) {
+export function PostEditor({ initialValues }: PostEditorProps) {
   const router = useRouter();
   const isEditing = !!initialValues;
   const [title, setTitle] = useState(initialValues?.title ?? "");

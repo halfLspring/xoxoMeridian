@@ -18,11 +18,12 @@ describe("SiteNav study link", () => {
   it("renders Study link and highlights it on /study", () => {
     const html = renderToStaticMarkup(
       React.createElement(SiteNav, {
-        currentUser: { id: "user-1", displayName: "Alice", avatarLabel: "A" },
+        displayName: "Alice",
       })
     );
 
     expect(html).toContain(">Study<");
+    expect(html).toContain(">Alice<");
     expect(html).toContain('href="/study"');
   });
 
@@ -31,7 +32,7 @@ describe("SiteNav study link", () => {
 
     const html = renderToStaticMarkup(
       React.createElement(SiteNav, {
-        currentUser: { id: "user-1", displayName: "Alice", avatarLabel: "A" },
+        displayName: "Alice",
       })
     );
 
@@ -45,7 +46,7 @@ describe("SiteNav study link", () => {
 
     const html = renderToStaticMarkup(
       React.createElement(SiteNav, {
-        currentUser: { id: "user-1", displayName: "Alice", avatarLabel: "A" },
+        displayName: "Alice",
       })
     );
 
@@ -58,7 +59,7 @@ describe("SiteNav study link", () => {
 
     const html = renderToStaticMarkup(
       React.createElement(SiteNav, {
-        currentUser: { id: "user-1", displayName: "Alice", avatarLabel: "A" },
+        displayName: "Alice",
       })
     );
 

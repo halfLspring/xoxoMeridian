@@ -3,6 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { expect, test, type Frame, type Locator, type Page } from "@playwright/test";
 import { withStudyUser } from "@/tests/e2e/support/study";
 import { E2E_PASSWORD, E2E_USERS } from "@/tests/e2e/support/credentials";
+import { observeResponseDiagnostics } from "@/tests/e2e/support/response-diagnostics";
 import { MINIMAL_PNG as png } from "@/tests/fixtures/image-bytes";
 
 async function openDraftSelection(page: Page) {
@@ -127,13 +128,12 @@ async function seedTimeWork(db: PrismaClient, userId: string, followingHeight = 
   return work;
 }
 
-test("作品发布时间在框外悬停可读、键盘可达且 Escape 关闭，两态均不改变占位", async ({ context }, testInfo) => {
+test("作品发布时间仅在框外悬停查看，无时钟按钮，两态均不改变占位", async ({ context }, testInfo) => {
   await withStudyUser(context, async ({ page, db, userId }) => {
     const work = await seedTimeWork(db, userId);
     await page.setViewportSize({ width: 1440, height: 1100 });
     await page.goto("/home");
     const editor = page.locator(`[data-work-id="${work.id}"]`);
-    const trigger = editor.getByRole("button", { name: "查看作品发布时间", exact: true });
     const tooltip = page.getByRole("tooltip", { name: "作品发布时间", exact: true });
     await waitForPublishedLayout(page, editor, work.viewportWidth);
     await page.mouse.move(1, 100);
@@ -143,6 +143,7 @@ test("作品发布时间在框外悬停可读、键盘可达且 Escape 关闭，
     // 控制的只是悬停关闭宽限期，所有尺寸仍由真实浏览器布局提供。
     await page.clock.install();
     for (const mode of ["浏览", "编辑"]) {
+      await expect(editor.getByRole("button", { name: "查看作品发布时间", exact: true })).toHaveCount(0);
       const before = await workGeometry(editor);
       await editor.hover({ position: { x: 600, y: 260 } });
       await expect(tooltip).toBeVisible();
@@ -166,24 +167,16 @@ test("作品发布时间在框外悬停可读、键盘可达且 Escape 关闭，
       await page.clock.runFor(250);
       await expect(tooltip).toHaveCount(0);
       expectSameGeometry(await workGeometry(editor), before);
+      await editor.hover({ position: { x: 600, y: 260 } });
+      await expect(tooltip).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(tooltip).toHaveCount(0);
       if (mode === "浏览") {
-        // 真实 Tab 导航进入时间入口；Escape 不移动焦点，Enter 可再次查看。
-        await editor.getByRole("button", { name: "编辑作品", exact: true }).focus();
-        await page.keyboard.press("Shift+Tab");
-        await expect(trigger).toBeFocused();
-        await expect(tooltip).toBeVisible();
-        await page.keyboard.press("Escape");
-        await expect(tooltip).toHaveCount(0);
-        await expect(trigger).toBeFocused();
-        await page.keyboard.press("Enter");
-        await expect(tooltip).toBeVisible();
-        await page.keyboard.press("Tab");
-        await page.clock.runFor(250);
-        await expect(tooltip).toHaveCount(0);
         const refresh = page.waitForResponse(reply => new URL(reply.url()).pathname === `/api/blog/works/${work.id}` && reply.request().method() === "GET");
-        await page.keyboard.press("Enter");
+        await editor.getByRole("button", { name: "编辑作品", exact: true }).click();
         await (await refresh).finished();
         await expect(editor.getByRole("button", { name: "退出编辑", exact: true })).toBeVisible();
+        await page.mouse.move(1, 100);
       }
     }
     expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toEqual(work);
@@ -236,38 +229,19 @@ test("作品时间浮层在窄屏右侧和顶部避让，缩放手柄及裁切�
   });
 });
 
-test("触屏可点按作品时间并收起，未发布草稿没有虚构的发布时间", async ({ browser }, testInfo) => {
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  try {
-    await withStudyUser(context, async ({ page, db, userId }) => {
-      const work = await seedTimeWork(db, userId);
-      await page.goto("/home");
-      const editor = page.locator(`[data-work-id="${work.id}"]`);
-      await waitForPublishedLayout(page, editor, work.viewportWidth);
-      const before = await workGeometry(editor);
-      const trigger = editor.getByRole("button", { name: "查看作品发布时间", exact: true });
-      const tooltip = page.getByRole("tooltip", { name: "作品发布时间" });
-      await expect(tooltip).toHaveCount(0);
-      await trigger.tap();
-      await expect(tooltip).toBeVisible();
-      await expect(tooltip).toContainText("05/03/2050");
-      expectSameGeometry(await workGeometry(editor), before);
-      await trigger.tap();
-      await expect(tooltip).toHaveCount(0);
-      await trigger.tap();
-      await expect(tooltip).toBeVisible();
-      await page.touchscreen.tap(4, 300);
-      await expect(tooltip).toHaveCount(0);
-      expectSameGeometry(await workGeometry(editor), before);
-      expect(await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).toEqual(work);
-      const draft = await db.blogWork.create({ data: { ownerId: userId, boardId: "home-board" } });
-      await page.goto(`/home?draft=${draft.id}`);
-      const privateEditor = page.getByRole("region", { name: "空间草稿" });
-      await waitForWorkLayout(page, privateEditor);
-      await expect(privateEditor.getByRole("button", { name: "查看作品发布时间" })).toHaveCount(0);
-      await expect(page.getByRole("tooltip", { name: "作品发布时间" })).toHaveCount(0);
-    });
-  } finally { await context.close(); }
+test("未发布草稿悬停不显示发布时间", async ({ context }) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const draft = await db.blogWork.create({ data: {
+      owner: { connect: { id: userId } },
+      board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } },
+    } });
+    await page.goto(`/home?draft=${draft.id}`);
+    const privateEditor = page.getByRole("region", { name: "空间草稿" });
+    await waitForWorkLayout(page, privateEditor);
+    await privateEditor.hover();
+    await expect(privateEditor.getByRole("button", { name: "查看作品发布时间" })).toHaveCount(0);
+    await expect(page.getByRole("tooltip", { name: "作品发布时间" })).toHaveCount(0);
+  });
 });
 
 async function startFrameMove(page: Page, editor: Locator, edge = "上") {
@@ -509,7 +483,7 @@ test.describe("作品时间水合", () => {
         expect(response?.status()).toBe(200);
         const html = await response!.text();
         const selectors = [
-          `[data-work-post="${published.post.id}"] .work-post-meta`,
+          `[data-work-post="${published.post.id}"] .post-card-meta`,
         ];
         const serverText = await page.evaluate(({ html, selectors }) => {
           const doc = new DOMParser().parseFromString(html, "text/html");
@@ -518,7 +492,7 @@ test.describe("作品时间水合", () => {
         const publishedEditor = page.locator(`[data-work-id="${published.work.id}"]`);
         await waitForPublishedLayout(page, publishedEditor, published.work.viewportWidth);
         await expect(publishedEditor.locator(".work-header time")).toHaveCount(0);
-        await publishedEditor.getByRole("button", { name: "查看作品发布时间" }).click();
+        await publishedEditor.hover();
         await expect(page.getByRole("tooltip", { name: "作品发布时间" }).locator("time")).toHaveText(scenario.date);
         await page.keyboard.press("Escape");
         // 成功打开并读取列表证明页面已水合；同时检查原始响应里的时间，避免只有客户端渲染的假通过。
@@ -531,15 +505,15 @@ test.describe("作品时间水合", () => {
           expect(serverText[index]).toBeTruthy();
           await expect(page.locator(selectors[index])).toHaveText(serverText[index]!);
         }
-        expect(serverText).toEqual([`E2E Focus · ${scenario.timestamp}`]);
+        expect(serverText).toEqual([`E2E Focus · ${scenario.timestamp}  —`]);
         await expect(draftButton.locator("time")).toHaveText(scenario.timestamp);
         await expect(dialog.getByRole("button", { name: /^未命名草稿/ }).locator("time")).toHaveText("09/30/2026, 23:30");
         await draftButton.click();
         const editor = page.getByRole("region", { name: "空间草稿" });
-        await expect(editor.locator(".work-post-meta")).toHaveText(`E2E Focus · ${scenario.timestamp} 草稿`);
+        await expect(editor.locator(".post-card-meta")).toHaveText(`E2E Focus · ${scenario.timestamp} — 草稿`);
         // 草稿通过水合后的读取请求恢复；刷新仍必须保持相同的显式时间语义。
         await page.goto(`/home?draft=${draft.work.id}`);
-        await expect(editor.locator(".work-post-meta")).toHaveText(`E2E Focus · ${scenario.timestamp} 草稿`);
+        await expect(editor.locator(".post-card-meta")).toHaveText(`E2E Focus · ${scenario.timestamp} — 草稿`);
         expect(errors).toEqual([]);
       });
     });
@@ -852,8 +826,16 @@ test("右键框选空白作品，双篇双图自动布局、手动连线及恢�
     await expect(page.getByRole("button", { name: "删除作品连线 1" })).toBeVisible(); await page.getByRole("button", { name: "关闭连线" }).click();
     await expect(editor.locator("[data-work-connection]")).toHaveCount(1);
     const cards = editor.locator("[data-work-post]"), originalSecond = (await cards.nth(1).boundingBox())!.y;
-    await editor.getByRole("heading", { name: "把九月，留在这片绿色里" }).click(); await page.getByLabel("正文（Markdown）").fill("更长的完整正文。\n\n".repeat(30)); await page.getByRole("button", { name: "关闭编辑博文" }).click();
-    await expect.poll(async () => (await cards.nth(1).boundingBox())!.y).toBeGreaterThan(originalSecond + 300);
+    const fullContent = "更长的完整正文。\n\n".repeat(30);
+    await editor.getByRole("heading", { name: "把九月，留在这片绿色里" }).click(); await page.getByLabel("正文（Markdown）").fill(fullContent); await page.getByRole("button", { name: "关闭编辑博文" }).click();
+    // 卡片按摘要的实际高度让位，长文不再把后续卡片推开数百像素。
+    await expect.poll(async () => (await cards.nth(1).boundingBox())!.y).toBeGreaterThan(originalSecond);
+    await expect(cards.first().locator(".prose")).toHaveCSS("max-height", "78px");
+    const firstRect = (await cards.first().boundingBox())!, secondRect = (await cards.nth(1).boundingBox())!;
+    expect(Math.abs(secondRect.y - firstRect.y - firstRect.height - 32)).toBeLessThan(1);
+    expect(secondRect.y - originalSecond).toBeLessThanOrEqual(78);
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    expect((await db.post.findFirstOrThrow({ where: { workId: id, title: "把九月，留在这片绿色里" } })).content).toBe(fullContent);
     await editor.getByRole("heading", { name: "把九月，留在这片绿色里" }).click(); await page.getByLabel("正文（Markdown）").fill("散步、拍照，把普通的一天慢慢记录下来。让文字与照片，留住当时的心情。"); await page.getByRole("button", { name: "关闭编辑博文" }).click();
     await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("reference-desktop.png") });
@@ -1173,7 +1155,7 @@ test("旋转图片 AABB 空角没有线和钉子，扩大窗口后恢复真实�
     await resizeFrame(page, editor, 360, 360);
     await expect(editor.locator(`[data-work-connection="${connection.id}"] path`)).toBeVisible();
     const circles = await editor.locator(`[data-work-connection="${connection.id}"] circle`).evaluateAll(nodes => nodes.map(n => ({ x: Number(n.getAttribute("cx")), y: Number(n.getAttribute("cy")) })));
-    expect(circles[0].x).toBeGreaterThan(work.viewportX); expect(circles[0].y).toBeGreaterThan(work.viewportY + 120);
+    expect(circles[1].x).toBeGreaterThan(0); expect(circles[1].y).toBeGreaterThan(120);
     await page.setViewportSize({ width: 375, height: 812 }); await expect(editor.locator(`[data-work-connection="${connection.id}"] path`)).toBeVisible();
     expect(await db.atlasConnection.count({ where: { id: connection.id } })).toBe(1);
   });
@@ -1204,21 +1186,8 @@ test("双标签页同字段冲突保留本地输入，明确选择后重提", as
     const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } } } });
     const other = await context.newPage();
     const startedAt = Date.now(), loadingEvents: Array<Record<string, unknown>> = [];
-    for (const [label, tab] of [["first", page], ["second", other]] as const) {
-      tab.on("request", request => {
-        if (request.url().endsWith(`/api/blog/works/${work.id}`)) loadingEvents.push({ tab: label, event: "request", method: request.method(), at: Date.now() - startedAt });
-      });
-      tab.on("response", async response => {
-        if (!response.url().endsWith(`/api/blog/works/${work.id}`)) return;
-        loadingEvents.push({ tab: label, event: "response", method: response.request().method(), status: response.status(), at: Date.now() - startedAt, timing: response.request().timing() });
-        await response.finished();
-        loadingEvents.push({ tab: label, event: "body-finished", at: Date.now() - startedAt });
-      });
-      tab.on("requestfailed", request => {
-        if (request.url().endsWith(`/api/blog/works/${work.id}`)) loadingEvents.push({ tab: label, event: "request-failed", failure: request.failure(), at: Date.now() - startedAt });
-      });
-      tab.on("pageerror", error => loadingEvents.push({ tab: label, event: "page-error", message: error.message, at: Date.now() - startedAt }));
-    }
+    const stopDiagnostics = ([["first", page], ["second", other]] as const).map(([label, tab]) =>
+      observeResponseDiagnostics(tab, `/api/blog/works/${work.id}`, event => loadingEvents.push({ tab: label, ...event, at: Date.now() - startedAt })));
     const responseFor = (tab: Page, method: "GET" | "PATCH", status?: number) => tab.waitForResponse(response =>
       response.request().method() === method && response.url().endsWith(`/api/blog/works/${work.id}`) && (status === undefined || response.status() === status));
     try {
@@ -1272,8 +1241,12 @@ test("双标签页同字段冲突保留本地输入，明确选择后重提", as
       await expect(other.getByText("已自动保存", { exact: true })).toBeVisible();
       expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).viewportWidth).toBe(959);
     } finally {
-      await testInfo.attach("draft-loading-events", { contentType: "application/json", body: JSON.stringify(loadingEvents, null, 2) });
-      await other.close();
+      try {
+        await other.close();
+      } finally {
+        for (const stop of stopDiagnostics) stop();
+        await testInfo.attach("draft-loading-events", { contentType: "application/json", body: JSON.stringify(loadingEvents, null, 2) });
+      }
     }
   });
 });

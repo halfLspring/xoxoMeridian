@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { Clock3 } from "lucide-react";
 import { formatPostTimestamp } from "@/lib/post-time";
 
 export function WorkPublishedTime({ anchorRef, ownerName, publishedAt, timezone }: {
@@ -11,10 +10,9 @@ export function WorkPublishedTime({ anchorRef, ownerName, publishedAt, timezone 
   publishedAt: string;
   timezone?: string | null;
 }) {
-  const id = useId(), popup = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const active = useRef({ frame: false, popup: false, keyboard: false, touch: false });
-  const pointerType = useRef("");
+  const active = useRef({ frame: false, popup: false });
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearClose = useCallback(() => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -23,8 +21,6 @@ export function WorkPublishedTime({ anchorRef, ownerName, publishedAt, timezone 
   const show = useCallback(() => { clearClose(); setOpen(true); }, [clearClose]);
   const dismiss = useCallback(() => {
     clearClose();
-    active.current.keyboard = false;
-    active.current.touch = false;
     active.current.popup = false;
     setOpen(false);
   }, [clearClose]);
@@ -64,7 +60,7 @@ export function WorkPublishedTime({ anchorRef, ownerName, publishedAt, timezone 
     const pointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       // 开始编辑、拖动或点按其它位置即关闭；浮层不截获任何画布手势。
-      if (!trigger.current?.contains(target) && !popup.current?.contains(target)) dismiss();
+      if (!popup.current?.contains(target)) dismiss();
     };
     document.addEventListener("keydown", escape);
     document.addEventListener("pointerdown", pointerDown, true);
@@ -102,23 +98,9 @@ export function WorkPublishedTime({ anchorRef, ownerName, publishedAt, timezone 
     return () => cancelAnimationFrame(animationFrame);
   }, [open, anchorRef]);
 
-  return <>
-    <button ref={trigger} type="button" aria-label="查看作品发布时间" aria-describedby={open ? id : undefined}
-      onPointerDown={event => { pointerType.current = event.pointerType; }}
-      onFocus={event => {
-        if (event.currentTarget.matches(":focus-visible")) { active.current.keyboard = true; show(); }
-      }}
-      onBlur={() => { active.current.keyboard = false; closeAfterLeave(); }}
-      onClick={event => {
-        if (event.detail !== 0 && pointerType.current === "touch") {
-          active.current.touch = !active.current.touch;
-          if (active.current.touch) show(); else dismiss();
-        } else show();
-      }}><Clock3 size={17} aria-hidden="true" /></button>
-    {open && createPortal(<div ref={popup} id={id} role="tooltip" aria-label="作品发布时间" className="work-published-time"
-      onPointerEnter={() => { active.current.popup = true; clearClose(); }}
-      onPointerLeave={() => { active.current.popup = false; closeAfterLeave(); }}>
-      {ownerName} · <time dateTime={publishedAt}>{formatPostTimestamp(new Date(publishedAt), { timezone, dateOnly: true })}</time>
-    </div>, document.body)}
-  </>;
+  return open ? createPortal(<div ref={popup} role="tooltip" aria-label="作品发布时间" className="work-published-time"
+    onPointerEnter={() => { active.current.popup = true; clearClose(); }}
+    onPointerLeave={() => { active.current.popup = false; closeAfterLeave(); }}>
+    {ownerName} · <time dateTime={publishedAt}>{formatPostTimestamp(new Date(publishedAt), { timezone, dateOnly: true })}</time>
+  </div>, document.body) : null;
 }

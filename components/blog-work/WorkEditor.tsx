@@ -183,10 +183,10 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   </WorkFrame>;
   if (state === "auth-invalid") return <div role="alert">登录已失效。<Link href="/">重新登录</Link></div>;
   return <div ref={root} className="work-editor-host"><section ref={workFrame} style={frameStyle} className={`blog-work ${editing ? "blog-work-editing" : ""} ${controlsOutside ? "work-controls-outside" : ""}`} data-work-id={work.id} aria-label={work.status === "draft" ? "空间草稿" : "已发布作品"}>
+    {work.status === "published" && work.publishedAt && <WorkPublishedTime anchorRef={workFrame} ownerName={work.ownerName} publishedAt={work.publishedAt} timezone={work.posts[0]?.authorTimezone} />}
     <header ref={header} className="work-header">
       {work.status === "draft" && <span className="work-badge"><strong>DRAFT</strong><LockKeyhole size={14} />仅自己可见</span>}
       <div className="work-actions">
-        {work.status === "published" && work.publishedAt && <WorkPublishedTime anchorRef={workFrame} ownerName={work.ownerName} publishedAt={work.publishedAt} timezone={work.posts[0]?.authorTimezone} />}
         {editing && <span role="status" className={!busy ? "work-save-status work-save-status-saved" : "work-save-status"}>{state === "failed" ? deleting ? "删除失败" : "保存失败" : state === "conflict" ? deleting ? "删除冲突" : "修改冲突" : deleting ? "删除中…" : publishing ? "发布中…" : busy ? "保存中…" : "已自动保存"}</span>}
         {editing && work.status === "published" && work.canManage && work.ownerId === actorId && <button className="work-danger" disabled={busy || leaving} onClick={deleteWork}>删除作品</button>}
         {editing ? <button disabled={deleting} onClick={() => requestLeave(() => { setEditing(false); onClose(); })}>{work.status === "draft" ? "退出草稿" : "退出编辑"}</button> : <button onClick={() => { setEditing(true); void save.refresh(); }}>编辑作品</button>}

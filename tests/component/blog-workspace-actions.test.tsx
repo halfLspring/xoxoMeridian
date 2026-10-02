@@ -48,7 +48,7 @@ function DelayedAction({ wait }: { wait: Promise<void> }) {
 
 function Page({ ready, actorId = "author", menu = false, delayed }: { ready: boolean; actorId?: string; menu?: boolean; delayed?: Promise<void> }) {
   return <StrictMode><BlogActionProvider key={actorId}>
-    <SiteNav currentUser={{ id: actorId, displayName: "作者", avatarLabel: "作" }} />
+    <SiteNav displayName="作者" />
     {menu && <HomeContextMenu state={{ screenX: 0, screenY: 0, boardX: 0, boardY: 0 }} onAddPhoto={() => {}} />}
     {delayed && <DelayedAction wait={delayed} />}
     {ready && <BlogWorkspace actorId={actorId} />}

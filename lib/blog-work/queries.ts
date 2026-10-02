@@ -17,7 +17,7 @@ export async function readWork(actorId: string, id: string): Promise<WorkSnapsho
     viewportX: work.viewportX, viewportY: work.viewportY, viewportWidth: work.viewportWidth, viewportHeight: work.viewportHeight,
     layoutWidth: work.layoutWidth, ...(work.status === "draft" ? { draftX: work.draftX, draftY: work.draftY } : {}),
     publishedAt: work.publishedAt?.toISOString() ?? null, updatedAt: work.updatedAt.toISOString(), canManage: work.ownerId === actorId,
-    posts: work.posts.map(p => ({ id: p.id, slug: work.status === "draft" ? null : p.slug, title: p.title, content: p.content, workOrder: p.workOrder!, publishedAt: p.publishedAt?.toISOString() ?? null, authorTimezone: p.authorTimezone, elementId: work.elements.find(e => e.postId === p.id)!.id })),
+    posts: work.posts.map(p => ({ id: p.id, slug: work.status === "draft" ? null : p.slug, title: p.title, content: p.content, workOrder: p.workOrder!, publishedAt: p.publishedAt?.toISOString() ?? null, authorTimezone: p.authorTimezone, authorCity: p.authorCity, authorCountry: p.authorCountry, elementId: work.elements.find(e => e.postId === p.id)!.id })),
     elements: work.elements.map(e => ({ id: e.id, workId: work.id, type: e.type, postId: e.postId, x: e.x, y: e.y, width: e.width, height: e.height, rotation: e.rotation, zIndex: e.zIndex, caption: e.caption, content: null, imageUrl: e.imageUrl, createdById: e.createdById, createdAt: e.createdAt.toISOString() })),
     connections: connections.map(c => ({ id: c.id, workId: c.workId!, fromId: c.fromId, toId: c.toId, color: c.color })),
   };

@@ -180,6 +180,14 @@ input {
   border-color: #a7c49b;
 }
 
+.post-card { font-family: var(--font-inter), system-ui, sans-serif; }
+.post-card .post-card-open { display: block; width: 100%; padding: 0; border-radius: 0; background: transparent; text-align: left; font: inherit; color: inherit; transition: color 150ms; }
+.post-card .post-card-open:hover { background: transparent; color: #3a5b22; }
+.post-card .post-card-edit { @apply text-xs text-black/40 transition-colors; padding: 0; border-radius: 0; background: transparent; }
+.post-card .post-card-edit:hover { @apply text-black; background: transparent; }
+/* 博文锚点以实际布局尺寸计算；卡片只变化边框和阴影，避免悬停位移脱离端点。 */
+.post-card:hover { transform: none; }
+
 /* ── Reduced motion ── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -499,13 +507,6 @@ body:has(.home-linen-page) {
 .work-frame .work-frame-move-w { left: 0; }
 .work-frame-moving, .work-frame-moving * { cursor: grabbing !important; }
 .work-frame .work-frame-handle { position: absolute; z-index: 8; width: 24px; height: 24px; padding: 0; border: 8px solid transparent; background: white; background-clip: padding-box; border-radius: 0; box-shadow: inset 0 0 0 1px #557d45; transform: translate(-50%, -50%); touch-action: none; }
-.work-post { background: rgb(255 255 255 / .96); border: 1px solid #e2e6df; border-radius: 10px; padding: 20px 22px; color: #181b17; }
-.work-post-meta { color: #9aa2af; font-size: 13px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
-.work-post-meta span { padding: 1px 8px; background: #f0f4eb; color: #636e59; border-radius: 6px; }
-.work-post h3 { font-size: 20px; font-weight: 650; line-height: 1.4; }
-.work-post .work-post-open { text-align: left; padding: 0; }
-.work-post .prose { font-size: 16px; color: #686e77; overflow-wrap: anywhere; }
-.work-post .prose p { margin: .5em 0; }
 .work-post .work-post-link { font-size: 11px; color: #60784e; }
 .work-post .work-post-link { position: absolute; right: 4px; bottom: 2px; padding: 2px 6px; opacity: 0; }
 .work-post:hover .work-post-link, .work-post:focus-within .work-post-link { opacity: 1; }

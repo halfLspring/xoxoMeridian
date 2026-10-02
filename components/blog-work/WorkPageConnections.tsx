@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { HomeAnchor } from "@/components/home/types";
 import { visibleAnchor, type Point } from "@/lib/blog-work/geometry";
 import type { AtlasConnectionData } from "@/components/atlas/types";
+import { CanvasConnection } from "@/components/home/CanvasConnection";
 export function WorkPageConnections({ connections, anchors, legacy }: { connections: AtlasConnectionData[]; anchors: Map<string, () => Point | null>; legacy: Map<string, HomeAnchor> }) {
   const [lines, setLines] = useState<Array<{ id: string; color: string; a: Point; b: Point }>>([]);
   useEffect(() => {
@@ -29,5 +30,5 @@ export function WorkPageConnections({ connections, anchors, legacy }: { connecti
     frame = requestAnimationFrame(measure);
     return () => cancelAnimationFrame(frame);
   }, [connections, anchors, legacy]);
-  return <svg className="work-page-connections" aria-hidden="true">{lines.map(({ id, color, a, b }) => <g key={id} data-external-connection={id}><path d={`M ${a.x} ${a.y} C ${(a.x + b.x) / 2} ${a.y} ${(a.x + b.x) / 2} ${b.y} ${b.x} ${b.y}`} fill="none" stroke={color} strokeWidth={1.5} /><circle cx={a.x} cy={a.y} r={4} fill={color} /><circle cx={b.x} cy={b.y} r={4} fill={color} /></g>)}</svg>;
+  return <svg className="work-page-connections" aria-hidden="true">{lines.map(({ id, color, a, b }) => <g key={id} data-external-connection={id}><CanvasConnection from={a} to={b} color={color} /></g>)}</svg>;
 }

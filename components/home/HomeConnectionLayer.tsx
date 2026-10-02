@@ -3,16 +3,7 @@
 import type { AtlasConnectionData } from "@/components/atlas/types";
 import type { HomeAnchor } from "@/components/home/types";
 import { getRectCenter } from "@/lib/home-spatial";
-
-function HomePin({ cx, cy }: { cx: number; cy: number }) {
-  return (
-    <g style={{ pointerEvents: "none" }}>
-      <circle cx={cx + 1} cy={cy + 2} r={5} fill="rgba(40,48,52,0.12)" />
-      <circle cx={cx} cy={cy} r={5} fill="#dfead8" stroke="#668a5b" strokeWidth={1} />
-      <circle cx={cx - 1.5} cy={cy - 1.5} r={1.6} fill="rgba(255,255,255,0.7)" />
-    </g>
-  );
-}
+import { CanvasConnection } from "@/components/home/CanvasConnection";
 
 export function HomeConnectionLayer({
   boardRect,
@@ -38,47 +29,9 @@ export function HomeConnectionLayer({
 
         const start = getRectCenter(from, boardRect);
         const end = getRectCenter(to, boardRect);
-        const midX = (start.x + end.x) / 2;
-        const midY = (start.y + end.y) / 2;
-        const sag = Math.min(Math.abs(end.x - start.x) * 0.22 + 18, 120);
-        const path = `M ${start.x},${start.y} Q ${midX},${midY + sag} ${end.x},${end.y}`;
-
         return (
-          <g key={connection.id}>
-            <path
-              d={path}
-              fill="none"
-              stroke="transparent"
-              strokeWidth={14}
-              role="button"
-              tabIndex={0}
-              aria-label={`删除连线 ${index + 1}`}
-              aria-disabled={deletingIds.includes(connection.id)}
-              className="focus-visible:stroke-sage-300/60 focus-visible:outline-none"
-              style={{ pointerEvents: "stroke", cursor: "pointer" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (!deletingIds.includes(connection.id)) onDelete(connection.id);
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                event.stopPropagation();
-                if (!deletingIds.includes(connection.id)) onDelete(connection.id);
-              }}
-            />
-            <path
-              d={path}
-              fill="none"
-              stroke={connection.color || "#668a5b"}
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeDasharray="6 4"
-              style={{ pointerEvents: "none" }}
-            />
-            <HomePin cx={start.x} cy={start.y} />
-            <HomePin cx={end.x} cy={end.y} />
-          </g>
+          <CanvasConnection key={connection.id} from={start} to={end} color={connection.color}
+            deleteAction={{ label: `删除连线 ${index + 1}`, disabled: deletingIds.includes(connection.id), onDelete: () => onDelete(connection.id) }} />
         );
       })}
     </svg>

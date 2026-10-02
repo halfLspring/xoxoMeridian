@@ -17,6 +17,7 @@ it.each(["draft", "published"] as const)("%s 读取保留每篇博文的作者�
   for (const [workOrder, authorTimezone] of [[1, null], [0, "Asia/Tokyo"]] as const) {
     const post = await prisma.post.create({ data: {
       workId: work.id, workOrder, authorId: owner.id, authorTimezone,
+      authorCity: workOrder === 0 ? "Tokyo" : null, authorCountry: workOrder === 0 ? "Japan" : null,
       slug: randomUUID(), title: `博文 ${workOrder}`, content: "时区快照", publishedAt,
     } });
     await prisma.atlasElement.create({ data: { workId: work.id, boardId: "home-board", type: "note", postId: post.id, x: 0, y: 0 } });
@@ -24,6 +25,8 @@ it.each(["draft", "published"] as const)("%s 读取保留每篇博文的作者�
   const snapshot = await readWork(owner.id, work.id);
   expect(snapshot.posts.map(post => ({ order: post.workOrder, timezone: post.authorTimezone })))
     .toEqual([{ order: 0, timezone: "Asia/Tokyo" }, { order: 1, timezone: null }]);
+  expect(snapshot.posts.map(post => ({ city: post.authorCity, country: post.authorCountry })))
+    .toEqual([{ city: "Tokyo", country: "Japan" }, { city: null, country: null }]);
   if (status === "draft") {
     const empty = await prisma.blogWork.create({ data: { ownerId: owner.id, boardId: "home-board" } });
     const { drafts } = await listDrafts(owner.id, {});
