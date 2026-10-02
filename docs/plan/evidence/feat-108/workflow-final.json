@@ -1,0 +1,1039 @@
+[
+  {
+    "id": "chat",
+    "repeat": 1,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "无工具直接自然回复",
+    "result": {
+      "plan": {
+        "intent": "用户表示今天有些累，想找人陪聊；属于纯情感陪伴对话，无需检索或操作。",
+        "confidence": 0.95,
+        "requiredTools": [],
+        "taskSteps": [
+          "识别为情绪陪伴类对话，无事实查询或写操作需求",
+          "不记录临时情绪等非持久信息",
+          "以简洁自然的回应接住情绪，轻轻邀请对方说说"
+        ],
+        "finalResponsePlan": "不调用任何工具，直接以陪伴式语气回应：先接纳疲惫感，再给一个低压力的开口邀请，不追问、不说教。",
+        "finalResponseText": "嗯，累的时候就别硬撑了，我在这儿。\n\n想说说是什么让你这么累吗？工作、事情，还是就是单纯地耗光了？不想讲具体的事也行，随便聊点别的、发发呆都可以。",
+        "toolInputs": {},
+        "usage": {
+          "promptTokens": 3700,
+          "completionTokens": 285,
+          "totalTokens": 3985
+        }
+      },
+      "toolResults": [],
+      "answer": {
+        "text": "嗯，累的时候就别硬撑了，我在这儿。\n\n想说说是什么让你这么累吗？工作、事情，还是就是单纯地耗光了？不想讲具体的事也行，随便聊点别的、发发呆都可以。"
+      }
+    }
+  },
+  {
+    "id": "range",
+    "repeat": 1,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "weather.get 重庆2—5日；不漏范围，不预判结果",
+    "result": {
+      "plan": {
+        "intent": "查询重庆2026年10月2日至5日的逐日天气",
+        "confidence": 0.95,
+        "requiredTools": [
+          "weather.get"
+        ],
+        "taskSteps": [
+          "调用 weather.get，指定城市为重庆，日期范围 2026-10-02 至 2026-10-05，请求逐日预报。",
+          "获取结果后整理各日天气、缺口和来源时间，若部分日期超出提供方覆盖范围则只说明缺口。"
+        ],
+        "finalResponsePlan": "使用天气工具查询重庆10月2日至5日预报，等待返回后据实汇总。",
+        "finalResponseText": "我先帮你查重庆10月2日至5日的天气，稍等。",
+        "toolInputs": {
+          "weather.get": {
+            "city": "重庆",
+            "includeForecast": true,
+            "startDate": "2026-10-02",
+            "endDate": "2026-10-05"
+          }
+        },
+        "usage": {
+          "promptTokens": 3702,
+          "completionTokens": 389,
+          "totalTokens": 4091
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "weather.get",
+          "input": {
+            "city": "重庆",
+            "includeForecast": true,
+            "startDate": "2026-10-02",
+            "endDate": "2026-10-05"
+          },
+          "output": {
+            "provider": "qweather",
+            "city": "重庆",
+            "condition": "小雨",
+            "advice": "雨天带伞",
+            "availability": "available",
+            "issuedAt": "2026-10-02T11:00:00Z",
+            "source": {
+              "name": "合成天气",
+              "url": "https://weather.example.test/chongqing"
+            },
+            "timezone": "Asia/Shanghai",
+            "forecast": [
+              {
+                "date": "2026-10-02",
+                "textDay": "小雨",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-03",
+                "textDay": "小雨",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-04",
+                "textDay": "多云",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-05",
+                "textDay": "多云",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              }
+            ]
+          },
+          "stepKey": "tool:1"
+        }
+      ],
+      "answer": {
+        "text": "重庆2026年10月2日至5日天气预报：10月2日、3日均为小雨，气温18～23℃；10月4日、5日转为多云，气温仍为18～23℃。前两天有雨，建议带伞。",
+        "references": {
+          "version": 1,
+          "sources": [
+            {
+              "id": "s1",
+              "title": "合成天气",
+              "url": "https://weather.example.test/chongqing",
+              "dates": [
+                {
+                  "kind": "issued",
+                  "value": "2026-10-02T11:00:00Z"
+                }
+              ]
+            }
+          ],
+          "citations": [
+            {
+              "start": 0,
+              "end": 77,
+              "sourceIds": [
+                "s1"
+              ]
+            }
+          ]
+        },
+        "usage": {
+          "promptTokens": 891,
+          "completionTokens": 398,
+          "totalTokens": 1289
+        }
+      }
+    }
+  },
+  {
+    "id": "combo",
+    "repeat": 1,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "天气和外部预警分别选对工具；不把旅行日期当发布窗口",
+    "result": {
+      "plan": {
+        "intent": "查询重庆2026年10月2日至5日的逐日天气，并核实同期是否有台风影响，再判断是否适合旅游。",
+        "confidence": 0.85,
+        "requiredTools": [
+          "weather.get",
+          "web.search"
+        ],
+        "taskSteps": [
+          "调用 weather.get 获取重庆2026-10-02至2026-10-05逐日预报，记录实际覆盖日期、缺口与来源时间。",
+          "调用 web.search 检索2026年10月初台风最新动态及其对重庆/西南地区的影响（天气工具不含灾害预警）。",
+          "综合预报与台风信息，判断出行适宜性；资料不足或冲突处只说明缺口。"
+        ],
+        "finalResponsePlan": "先给重庆10月2日至5日逐日天气要点（以工具实际覆盖日期为准），再说明台风是否影响重庆的核实结论，最后给出适合与否的条件性建议与出行提示。",
+        "finalResponseText": "我这就查一下重庆10月2日至5日的逐日天气，并核实这段时间有没有台风会影响到重庆，稍后给你出行建议。",
+        "toolInputs": {
+          "weather.get": {
+            "city": "重庆",
+            "startDate": "2026-10-02",
+            "endDate": "2026-10-05"
+          },
+          "web.search": {
+            "query": "2026年10月 台风 最新路径 是否影响重庆 西南地区降雨",
+            "maxResults": 6,
+            "searchDepth": "basic",
+            "topic": "news",
+            "timeRange": "week"
+          }
+        },
+        "usage": {
+          "promptTokens": 3709,
+          "completionTokens": 747,
+          "totalTokens": 4456
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "weather.get",
+          "input": {
+            "city": "重庆",
+            "startDate": "2026-10-02",
+            "endDate": "2026-10-05"
+          },
+          "output": {
+            "provider": "qweather",
+            "city": "重庆",
+            "condition": "小雨",
+            "advice": "雨天带伞",
+            "availability": "available",
+            "issuedAt": "2026-10-02T11:00:00Z",
+            "source": {
+              "name": "合成天气",
+              "url": "https://weather.example.test/chongqing"
+            },
+            "timezone": "Asia/Shanghai",
+            "forecast": [
+              {
+                "date": "2026-10-02",
+                "textDay": "小雨",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-03",
+                "textDay": "小雨",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-04",
+                "textDay": "多云",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-05",
+                "textDay": "多云",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              }
+            ]
+          },
+          "stepKey": "tool:1"
+        },
+        {
+          "toolName": "web.search",
+          "input": {
+            "query": "2026年10月 台风 最新路径 是否影响重庆 西南地区降雨",
+            "maxResults": 6,
+            "searchDepth": "basic",
+            "topic": "news",
+            "timeRange": "week"
+          },
+          "output": {
+            "provider": "tavily",
+            "query": "2026年10月 台风 最新路径 是否影响重庆 西南地区降雨",
+            "availability": "available",
+            "results": [
+              {
+                "title": "旧公告",
+                "url": "https://warning.example.test/old",
+                "content": "9月12日至15日的海上预警，已结束。",
+                "score": 0.9,
+                "publishedDate": "2026-09-12"
+              }
+            ]
+          },
+          "stepKey": "tool:2"
+        }
+      ],
+      "answer": {
+        "text": "重庆10月2日至5日：10月2日小雨，18—23℃；10月3日小雨，18—23℃；10月4日多云，18—23℃；10月5日多云，18—23℃。2日至3日有雨，出行建议带伞。\n\n台风方面：本轮检索到的相关内容是9月12日至15日的海上预警，且已结束，不能用于判断10月2日至5日重庆是否受台风影响。目前没有查到该时段台风影响重庆的有效信息，因此无法确认“有台风”或“没有台风”，这是影响判断的关键缺口。\n\n是否适合旅游：仅按现有天气看，10月2日至3日小雨、4日至5日多云，气温18—23℃，城市游、室内景点和灵活调整行程相对可行，但雨天会影响户外活动，需注意防雨防滑。由于台风影响信息不足，不能作整体肯定；如计划前往，建议出发前再查看最新台风预报和短临天气。",
+        "references": {
+          "version": 1,
+          "sources": [
+            {
+              "id": "s1",
+              "title": "合成天气",
+              "url": "https://weather.example.test/chongqing",
+              "dates": [
+                {
+                  "kind": "issued",
+                  "value": "2026-10-02T11:00:00Z"
+                }
+              ]
+            },
+            {
+              "id": "s2",
+              "title": "旧公告",
+              "url": "https://warning.example.test/old",
+              "dates": [
+                {
+                  "kind": "published",
+                  "value": "2026-09-12"
+                }
+              ]
+            }
+          ],
+          "citations": [
+            {
+              "start": 0,
+              "end": 86,
+              "sourceIds": [
+                "s1"
+              ]
+            },
+            {
+              "start": 88,
+              "end": 200,
+              "sourceIds": [
+                "s2"
+              ]
+            },
+            {
+              "start": 202,
+              "end": 329,
+              "sourceIds": [
+                "s1",
+                "s2"
+              ]
+            }
+          ]
+        },
+        "usage": {
+          "promptTokens": 1117,
+          "completionTokens": 1367,
+          "totalTokens": 2484
+        }
+      }
+    }
+  },
+  {
+    "id": "one-shot",
+    "repeat": 1,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "schedule.create fireAt=2026-10-02T20:00:00+08:00，一次性",
+    "result": {
+      "plan": {
+        "intent": "为小林创建今晚八点带雨伞的一次性提醒",
+        "confidence": 0.95,
+        "requiredTools": [
+          "schedule.create"
+        ],
+        "taskSteps": [
+          "确认当前北京时间：2026-10-02T19:00+08:00",
+          "创建一次性提醒计划，触发时间为 2026-10-02T20:00:00+08:00，提示内容为提醒带雨伞"
+        ],
+        "finalResponsePlan": "创建一个一次性定时提醒，今晚八点（北京时间）触发，提示小林出门带雨伞；创建成功后告知已设置。",
+        "finalResponseText": "我来帮你设置今晚八点的带雨伞提醒。",
+        "toolInputs": {
+          "schedule.create": {
+            "timezone": "Asia/Shanghai",
+            "fireAt": "2026-10-02T20:00:00+08:00",
+            "prompt": "提醒小林：今晚八点了，出门记得带雨伞。",
+            "description": "今晚八点带雨伞提醒",
+            "runOnce": true
+          }
+        },
+        "usage": {
+          "promptTokens": 3699,
+          "completionTokens": 511,
+          "totalTokens": 4210
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "schedule.create",
+          "input": {
+            "fireAt": "2026-10-02T20:00:00+08:00",
+            "timezone": "Asia/Shanghai",
+            "prompt": "提醒小林：今晚八点了，出门记得带雨伞。",
+            "description": "今晚八点带雨伞提醒",
+            "runOnce": true
+          },
+          "output": {
+            "jobId": "synthetic-job",
+            "cron": "0 20 * * *",
+            "timezone": "Asia/Shanghai",
+            "nextRunAt": "2026-10-02T20:00:00+08:00",
+            "description": "今晚八点带雨伞提醒",
+            "runOnce": true
+          },
+          "stepKey": "tool:1"
+        }
+      ],
+      "answer": {
+        "text": "已安排：今晚八点带雨伞提醒；下次执行 2026年10月2日 20:00（Asia/Shanghai）；仅执行一次。"
+      }
+    }
+  },
+  {
+    "id": "recurring",
+    "repeat": 1,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "schedule.create cron每天20点，正确时区，非一次性",
+    "result": {
+      "plan": {
+        "intent": "用户要求设置每天 20:00 的喝水提醒（重复计划）",
+        "confidence": 0.93,
+        "requiredTools": [
+          "schedule.list",
+          "schedule.create"
+        ],
+        "taskSteps": [
+          "先列出本房间现有计划，确认没有重复的每日提醒",
+          "创建重复计划：cron 0 20 * * *，时区 Asia/Shanghai，触发时向用户发出带水/喝水提醒"
+        ],
+        "finalResponsePlan": "确认需求为每日固定时间提醒；先查重再创建一条按 Asia/Shanghai 每天 20:00 触发的重复计划，触发动作是提醒用户带水。不改动备忘和记忆。",
+        "finalResponseText": "我按每天 20:00（Asia/Shanghai）为你设置带水提醒，先确认没有重复计划再创建。",
+        "toolInputs": {
+          "schedule.list": {},
+          "schedule.create": {
+            "timezone": "Asia/Shanghai",
+            "cron": "0 20 * * *",
+            "prompt": "提醒用户：该带水/喝水了（每晚八点的日常提醒）。",
+            "description": "每天晚上八点提醒带水",
+            "runOnce": false
+          }
+        },
+        "usage": {
+          "promptTokens": 3698,
+          "completionTokens": 1077,
+          "totalTokens": 4775
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "schedule.list",
+          "input": {},
+          "output": {
+            "count": 0,
+            "jobs": []
+          },
+          "stepKey": "tool:1"
+        },
+        {
+          "toolName": "schedule.create",
+          "input": {
+            "cron": "0 20 * * *",
+            "timezone": "Asia/Shanghai",
+            "prompt": "提醒用户：该带水/喝水了（每晚八点的日常提醒）。",
+            "description": "每天晚上八点提醒带水",
+            "runOnce": false
+          },
+          "output": {
+            "jobId": "synthetic-job",
+            "cron": "0 20 * * *",
+            "timezone": "Asia/Shanghai",
+            "nextRunAt": "2026-10-02T12:00:00Z",
+            "description": "每天晚上八点提醒带水",
+            "runOnce": false
+          },
+          "stepKey": "tool:2"
+        }
+      ],
+      "answer": {
+        "text": "已为你设置每天晚上八点（20:00，Asia/Shanghai）的提醒，内容是「该带水/喝水了」，属于每天重复的日程，不会只提醒一次。下一次触发时间对应北京时间 2026-10-02 20:00（即 UTC 2026-10-02 12:00）。",
+        "usage": {
+          "promptTokens": 761,
+          "completionTokens": 144,
+          "totalTokens": 905
+        }
+      }
+    }
+  },
+  {
+    "id": "memory",
+    "repeat": 1,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "memory.set me.本人偏好，value为事实，伙伴不被误写",
+    "result": {
+      "plan": {
+        "intent": "把请求者明确告知的花生过敏这一持久健康事实写入记忆",
+        "confidence": 0.97,
+        "requiredTools": [
+          "memory.set"
+        ],
+        "taskSteps": [
+          "确认该陈述是请求者本人的明确持久事实，归属 me",
+          "以 me.allergy.peanut 为键写入记忆，内容为花生过敏"
+        ],
+        "finalResponsePlan": "调用 memory.set 记录小林花生过敏；回复中仅说明正在记录，不编造记忆结果",
+        "finalResponseText": "好的，我这就把“你对花生过敏”记下来，之后涉及饮食建议会注意这一点。",
+        "toolInputs": {
+          "memory.set": {
+            "key": "me.allergy.peanut",
+            "value": "我对花生过敏。",
+            "scope": "me",
+            "source": "用户在本房间明确告知"
+          }
+        },
+        "usage": {
+          "promptTokens": 3697,
+          "completionTokens": 392,
+          "totalTokens": 4089
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "memory.set",
+          "input": {
+            "key": "me.allergy.peanut",
+            "value": "我对花生过敏。",
+            "scope": "me",
+            "source": "用户在本房间明确告知"
+          },
+          "output": {
+            "memoryId": "synthetic-memory",
+            "key": "me.allergy.peanut",
+            "value": "我对花生过敏。"
+          },
+          "stepKey": "tool:1"
+        }
+      ],
+      "answer": {
+        "text": "已记住：我对花生过敏。。"
+      }
+    }
+  },
+  {
+    "id": "chat",
+    "repeat": 2,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "无工具直接自然回复",
+    "result": {
+      "plan": {
+        "intent": "用户表达疲惫并希望陪伴聊天，属于无工具需求的纯对话。",
+        "confidence": 0.95,
+        "requiredTools": [],
+        "taskSteps": [
+          "判断为纯陪伴型对话，无需查询或写操作",
+          "不将临时疲惫情绪记录为持久记忆",
+          "以温和、简洁的方式回应并引导对方说说具体情况"
+        ],
+        "finalResponsePlan": "直接以陪伴口吻回应疲惫感受，表达愿意倾听，并给出一两个轻量的开口方向，不涉及任何数据查询或写入。",
+        "finalResponseText": "你好，辛苦了。累了就先别硬撑着安排什么，坐一会儿、喝口热水都好。\n\n想说说是哪方面累吗？是事情太多、心累，还是身体上的乏？随便聊聊也行，我不着急。",
+        "toolInputs": {},
+        "usage": {
+          "promptTokens": 3700,
+          "completionTokens": 227,
+          "totalTokens": 3927
+        }
+      },
+      "toolResults": [],
+      "answer": {
+        "text": "你好，辛苦了。累了就先别硬撑着安排什么，坐一会儿、喝口热水都好。\n\n想说说是哪方面累吗？是事情太多、心累，还是身体上的乏？随便聊聊也行，我不着急。"
+      }
+    }
+  },
+  {
+    "id": "range",
+    "repeat": 2,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "weather.get 重庆2—5日；不漏范围，不预判结果",
+    "result": {
+      "plan": {
+        "intent": "查询重庆2026年10月2日至5日的逐日天气",
+        "confidence": 0.95,
+        "requiredTools": [
+          "weather.get"
+        ],
+        "taskSteps": [
+          "以重庆为目标城市，请求2026-10-02至2026-10-05的逐日预报",
+          "按返回结果整理每日天气，并标注实际覆盖日期、缺口与来源时间"
+        ],
+        "finalResponsePlan": "调用 weather.get 获取重庆10月2日至5日的天气后，按日期列出预报并说明实际覆盖范围与缺口。",
+        "finalResponseText": "我来帮你查重庆10月2日至5日的天气。",
+        "toolInputs": {
+          "weather.get": {
+            "city": "重庆",
+            "startDate": "2026-10-02",
+            "endDate": "2026-10-05",
+            "includeForecast": true
+          }
+        },
+        "usage": {
+          "promptTokens": 3702,
+          "completionTokens": 283,
+          "totalTokens": 3985
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "weather.get",
+          "input": {
+            "city": "重庆",
+            "includeForecast": true,
+            "startDate": "2026-10-02",
+            "endDate": "2026-10-05"
+          },
+          "output": {
+            "provider": "qweather",
+            "city": "重庆",
+            "condition": "小雨",
+            "advice": "雨天带伞",
+            "availability": "available",
+            "issuedAt": "2026-10-02T11:00:00Z",
+            "source": {
+              "name": "合成天气",
+              "url": "https://weather.example.test/chongqing"
+            },
+            "timezone": "Asia/Shanghai",
+            "forecast": [
+              {
+                "date": "2026-10-02",
+                "textDay": "小雨",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-03",
+                "textDay": "小雨",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-04",
+                "textDay": "多云",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-05",
+                "textDay": "多云",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              }
+            ]
+          },
+          "stepKey": "tool:1"
+        }
+      ],
+      "answer": {
+        "text": "重庆2026年10月2日至5日天气预报（合成天气，2026年10月2日发布）：10月2日小雨，18～23℃；10月3日小雨，18～23℃；10月4日多云，18～23℃；10月5日多云，18～23℃。雨天建议带伞。",
+        "references": {
+          "version": 1,
+          "sources": [
+            {
+              "id": "s1",
+              "title": "合成天气",
+              "url": "https://weather.example.test/chongqing",
+              "dates": [
+                {
+                  "kind": "issued",
+                  "value": "2026-10-02T11:00:00Z"
+                }
+              ]
+            }
+          ],
+          "citations": [
+            {
+              "start": 0,
+              "end": 106,
+              "sourceIds": [
+                "s1"
+              ]
+            }
+          ]
+        },
+        "usage": {
+          "promptTokens": 891,
+          "completionTokens": 393,
+          "totalTokens": 1284
+        }
+      }
+    }
+  },
+  {
+    "id": "combo",
+    "repeat": 2,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "天气和外部预警分别选对工具；不把旅行日期当发布窗口",
+    "result": {
+      "plan": {
+        "intent": "查询重庆2026年10月2日至5日的逐日天气，核实同期是否有台风影响，并据此判断是否适合旅游",
+        "confidence": 0.82,
+        "requiredTools": [
+          "weather.get",
+          "web.search"
+        ],
+        "taskSteps": [
+          "调用 weather.get 获取重庆 2026-10-02 至 2026-10-05 的逐日预报，记录覆盖日期、缺口的来源时间",
+          "调用 web.search 检索近期台风动态及是否影响重庆（含四川盆地/长江上游）",
+          "综合预报与台风信息，按剩余可出行日（10月2日为当天晚间，重点看10月3日至5日）判断出行适宜度",
+          "若预报或台风信息存在缺口/冲突，只说明缺口并给条件性建议，不推测具体天气数值"
+        ],
+        "finalResponsePlan": "先给重庆10月2日至5日逐日天气结论（气温、降水、风），再明确台风是否有影响及信息是否完整，最后给出行适宜度判断和带伞/增减衣物等条件性建议；10月2日当天已进入晚间，提示按剩余天数安排。若工具返回缺日或台风信息不足，则明确说明该缺口，仅给条件性建议。",
+        "finalResponseText": "我这就查重庆10月2日至5日的逐日天气，并核实同期有没有台风会影响到重庆。稍等，查到后我会一并说明这几天的气温、降雨情况，以及是否适合安排出行（10月2日已到当天晚间，重点会看3日至5日）。",
+        "toolInputs": {
+          "weather.get": {
+            "city": "重庆",
+            "includeForecast": true,
+            "startDate": "2026-10-02",
+            "endDate": "2026-10-05"
+          },
+          "web.search": {
+            "query": "2026年10月 台风最新动态 是否影响重庆 四川盆地 天气预报",
+            "maxResults": 6,
+            "searchDepth": "advanced",
+            "topic": "news",
+            "timeRange": "week"
+          }
+        },
+        "usage": {
+          "promptTokens": 3709,
+          "completionTokens": 1017,
+          "totalTokens": 4726
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "weather.get",
+          "input": {
+            "city": "重庆",
+            "includeForecast": true,
+            "startDate": "2026-10-02",
+            "endDate": "2026-10-05"
+          },
+          "output": {
+            "provider": "qweather",
+            "city": "重庆",
+            "condition": "小雨",
+            "advice": "雨天带伞",
+            "availability": "available",
+            "issuedAt": "2026-10-02T11:00:00Z",
+            "source": {
+              "name": "合成天气",
+              "url": "https://weather.example.test/chongqing"
+            },
+            "timezone": "Asia/Shanghai",
+            "forecast": [
+              {
+                "date": "2026-10-02",
+                "textDay": "小雨",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-03",
+                "textDay": "小雨",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-04",
+                "textDay": "多云",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              },
+              {
+                "date": "2026-10-05",
+                "textDay": "多云",
+                "tempMinC": 18,
+                "tempMaxC": 23
+              }
+            ]
+          },
+          "stepKey": "tool:1"
+        },
+        {
+          "toolName": "web.search",
+          "input": {
+            "query": "2026年10月 台风最新动态 是否影响重庆 四川盆地 天气预报",
+            "maxResults": 6,
+            "searchDepth": "advanced",
+            "topic": "news",
+            "timeRange": "week"
+          },
+          "output": {
+            "provider": "tavily",
+            "query": "2026年10月 台风最新动态 是否影响重庆 四川盆地 天气预报",
+            "availability": "available",
+            "results": [
+              {
+                "title": "旧公告",
+                "url": "https://warning.example.test/old",
+                "content": "9月12日至15日的海上预警，已结束。",
+                "score": 0.9,
+                "publishedDate": "2026-09-12"
+              }
+            ]
+          },
+          "stepKey": "tool:2"
+        }
+      ],
+      "answer": {
+        "text": "重庆2026年10月2日至5日：10月2日、3日均为小雨，10月4日、5日转为多云；四天最低气温均为18℃，最高气温均为23℃。整体气温比较舒适，但前期有雨。\n\n台风方面，现有资料里只检索到一条9月12日至15日的海上预警，且已结束，与10月2日至5日重庆的天气无关；本轮没有取得同期台风是否影响重庆的直接信息，因此无法确认这段时间重庆是否受台风影响，不能据此排除或确认台风风险。\n\n从天气看，10月2日至3日有小雨、10月4日至5日多云，气温18～23℃，适合出行但建议带伞；雨天可能影响户外行程，安排室内或灵活行程更稳妥。由于台风影响信息缺失，不宜对“完全不受台风影响”作整体肯定，建议出行前再核实临近的台风动态。",
+        "references": {
+          "version": 1,
+          "sources": [
+            {
+              "id": "s1",
+              "title": "合成天气",
+              "url": "https://weather.example.test/chongqing",
+              "dates": [
+                {
+                  "kind": "issued",
+                  "value": "2026-10-02T11:00:00Z"
+                }
+              ]
+            },
+            {
+              "id": "s2",
+              "title": "旧公告",
+              "url": "https://warning.example.test/old",
+              "dates": [
+                {
+                  "kind": "published",
+                  "value": "2026-09-12"
+                }
+              ]
+            }
+          ],
+          "citations": [
+            {
+              "start": 0,
+              "end": 79,
+              "sourceIds": [
+                "s1"
+              ]
+            },
+            {
+              "start": 81,
+              "end": 190,
+              "sourceIds": [
+                "s2"
+              ]
+            },
+            {
+              "start": 192,
+              "end": 309,
+              "sourceIds": [
+                "s1",
+                "s2"
+              ]
+            }
+          ]
+        },
+        "usage": {
+          "promptTokens": 1122,
+          "completionTokens": 710,
+          "totalTokens": 1832
+        }
+      }
+    }
+  },
+  {
+    "id": "one-shot",
+    "repeat": 2,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "schedule.create fireAt=2026-10-02T20:00:00+08:00，一次性",
+    "result": {
+      "plan": {
+        "intent": "为请求者创建一次性提醒：今晚八点提醒带雨伞。",
+        "confidence": 0.96,
+        "requiredTools": [
+          "schedule.create"
+        ],
+        "taskSteps": [
+          "确认当前本地时间为北京时间 2026-10-02 19:00，今晚八点即 2026-10-02 20:00（+08:00）。",
+          "房间当前无活动计划，不存在同类提醒，无需去重。",
+          "创建一次性定时任务，到点执行提醒动作。"
+        ],
+        "finalResponsePlan": "创建 fireAt=2026-10-02T20:00:00+08:00 的一次性计划，时区 Asia/Shanghai，prompt 描述到点提醒带雨伞；回复中说明将设置该提醒。",
+        "finalResponseText": "好的，我会为今晚 20:00 设置一条提醒，到点提示你带雨伞。",
+        "toolInputs": {
+          "schedule.create": {
+            "fireAt": "2026-10-02T20:00:00+08:00",
+            "timezone": "Asia/Shanghai",
+            "prompt": "提醒小林：现在是今晚八点，出门记得带雨伞。"
+          }
+        },
+        "usage": {
+          "promptTokens": 3699,
+          "completionTokens": 881,
+          "totalTokens": 4580
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "schedule.create",
+          "input": {
+            "fireAt": "2026-10-02T20:00:00+08:00",
+            "timezone": "Asia/Shanghai",
+            "prompt": "提醒小林：现在是今晚八点，出门记得带雨伞。"
+          },
+          "output": {
+            "jobId": "synthetic-job",
+            "cron": "0 20 * * *",
+            "timezone": "Asia/Shanghai",
+            "nextRunAt": "2026-10-02T20:00:00+08:00",
+            "description": null,
+            "runOnce": true
+          },
+          "stepKey": "tool:1"
+        }
+      ],
+      "answer": {
+        "text": "已安排：定时任务；下次执行 2026年10月2日 20:00（Asia/Shanghai）；仅执行一次。"
+      }
+    }
+  },
+  {
+    "id": "recurring",
+    "repeat": 2,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "schedule.create cron每天20点，正确时区，非一次性",
+    "result": {
+      "plan": {
+        "intent": "用户要求设置每天 20:00 重复提醒带水，需要先检查房间内已有计划以避免重复，再创建周期提醒。",
+        "confidence": 0.9,
+        "requiredTools": [
+          "schedule.list",
+          "schedule.create"
+        ],
+        "taskSteps": [
+          "调用 schedule.list 查看当前房间已有计划，确认是否已存在同一提醒（当前房间记录中活跃计划为空，重复风险低）。",
+          "若不存在同类计划，用 schedule.create 创建重复计划：cron='0 20 * * *'、timezone='Asia/Shanghai'、runOnce=false，到时执行“提醒带水”的动作。",
+          "若已存在近似计划，则改为在后续用 schedule.update 调整时间与内容，而不是新建重复项。"
+        ],
+        "finalResponsePlan": "先列举现有计划，再创建每日 20:00（Asia/Shanghai）带水提醒，cron 为 0 20 * * *，runOnce=false；回复中只说明已发起的操作，不预告结果。",
+        "finalResponseText": "好的，我先确认房间里没有重复的提醒，然后为你设置每天晚上 8 点（重庆时间）带水的提醒。",
+        "toolInputs": {
+          "schedule.list": {},
+          "schedule.create": {
+            "cron": "0 20 * * *",
+            "timezone": "Asia/Shanghai",
+            "runOnce": false,
+            "prompt": "提醒小林：该带水了。",
+            "description": "每天晚上 8 点提醒带水"
+          }
+        },
+        "usage": {
+          "promptTokens": 3698,
+          "completionTokens": 1235,
+          "totalTokens": 4933
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "schedule.list",
+          "input": {},
+          "output": {
+            "count": 0,
+            "jobs": []
+          },
+          "stepKey": "tool:1"
+        },
+        {
+          "toolName": "schedule.create",
+          "input": {
+            "cron": "0 20 * * *",
+            "timezone": "Asia/Shanghai",
+            "prompt": "提醒小林：该带水了。",
+            "description": "每天晚上 8 点提醒带水",
+            "runOnce": false
+          },
+          "output": {
+            "jobId": "synthetic-job",
+            "cron": "0 20 * * *",
+            "timezone": "Asia/Shanghai",
+            "nextRunAt": "2026-10-02T12:00:00Z",
+            "description": "每天晚上 8 点提醒带水",
+            "runOnce": false
+          },
+          "stepKey": "tool:2"
+        }
+      ],
+      "answer": {
+        "text": "已设置每天 20:00（Asia/Shanghai）提醒你带水；下一次提醒时间是 2026-10-02 20:00。房间内原先没有同类计划，因此未重复创建。",
+        "usage": {
+          "promptTokens": 770,
+          "completionTokens": 357,
+          "totalTokens": 1127
+        }
+      }
+    }
+  },
+  {
+    "id": "memory",
+    "repeat": 2,
+    "provider": "openai-compatible",
+    "model": "deepseek-v4-flash",
+    "criteria": "memory.set me.本人偏好，value为事实，伙伴不被误写",
+    "result": {
+      "plan": {
+        "intent": "将用户明确告知的持久事实「本人对花生过敏」写入房间语义记忆（归属本人）",
+        "confidence": 0.96,
+        "requiredTools": [
+          "memory.set"
+        ],
+        "taskSteps": [
+          "判断该句为本人明确、持久的健康类事实，非临时情绪或猜测",
+          "按 me. 前缀写入记忆，内容写成陈述句，归属本人"
+        ],
+        "finalResponsePlan": "调用 memory.set，以 me.allergy.peanut 为键记录小林对花生过敏，归属本人；回复确认已记住并提示后续涉及饮食时会避开花生。",
+        "finalResponseText": "好的，我这就把「你对花生过敏」记下来，之后涉及饮食时会注意避开花生。",
+        "toolInputs": {
+          "memory.set": {
+            "key": "me.allergy.peanut",
+            "value": "小林对花生过敏。",
+            "scope": "me",
+            "source": "用户在房间中明确告知"
+          }
+        },
+        "usage": {
+          "promptTokens": 3697,
+          "completionTokens": 527,
+          "totalTokens": 4224
+        }
+      },
+      "toolResults": [
+        {
+          "toolName": "memory.set",
+          "input": {
+            "key": "me.allergy.peanut",
+            "value": "小林对花生过敏。",
+            "scope": "me",
+            "source": "用户在房间中明确告知"
+          },
+          "output": {
+            "memoryId": "synthetic-memory",
+            "key": "me.allergy.peanut",
+            "value": "小林对花生过敏。"
+          },
+          "stepKey": "tool:1"
+        }
+      ],
+      "answer": {
+        "text": "已记住：小林对花生过敏。。"
+      }
+    }
+  }
+]

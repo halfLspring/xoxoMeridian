@@ -1,9 +1,10 @@
 import type { Prisma } from "@prisma/client";
 
 import type { ChatMessage } from "@/components/chat/types";
+import { readAnswerReferences } from "@/lib/answer-references";
 import { prisma } from "@/lib/prisma";
 
-// 消息列表只读取展示字段；metadata.toolResults 和完整 Trace 留在专门的授权入口。
+// metadata 仅在服务端校验来源投影；toolResults 和完整 Trace 不随消息 DTO 发送。
 const chatMessageSelect = {
   id: true,
   roomId: true,
@@ -11,6 +12,7 @@ const chatMessageSelect = {
   senderAgentId: true,
   senderType: true,
   content: true,
+  metadata: true,
   targetType: true,
   targetId: true,
   status: true,
@@ -42,8 +44,9 @@ export async function getChatMessages(roomId: string) {
     select: chatMessageSelect,
   });
 
-  return recent.reverse().map((message) => ({
+  return recent.reverse().map(({ metadata, ...message }) => ({
     ...message,
+    ...(message.senderType === "agent" ? { references: readAnswerReferences(metadata, message.content) } : {}),
     createdAt: message.createdAt.toISOString(),
   })) satisfies ChatMessage[];
 }

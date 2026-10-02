@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
+import type { AnswerReferences } from "@/lib/answer-references";
 
-import { renderEvidenceFallback } from "@/agent/answer-evidence";
+import { buildEvidenceFallback, validateAnswerResult } from "@/agent/answer-evidence";
 import { buildAgentContext } from "@/agent/context-builder";
 import {
   beginAgentStep,
@@ -335,6 +336,7 @@ export async function runAgentTask(
     await runtimeBudget.assertCanFinalize();
     let content = plan.finalResponseText.trim()
       || "我已经把你的请求记下了，可以再补充一些细节让我更准确地帮到你。";
+    let references: AnswerReferences | undefined;
     if (toolResults.length > 0) {
       const needsSynthesis = plan.requiredTools.some((name) => (
         registry.list().find((tool) => tool.name === name)?.effect !== "database-write"
@@ -350,14 +352,15 @@ export async function runAgentTask(
           kind: "plan",
           stepInput: { prompt, referenceTime, toolResults }
         });
-        let answer: { text: string; mode: "model" | "fallback" };
+        let answer: { text: string; references?: AnswerReferences; mode: "model" | "fallback" };
         if (checkpoint.step.status === "completed") {
           answer = readStepOutput(checkpoint.step.output, isPersistedAnswer, "synthesis");
+          if (answer.references) validateAnswerResult(answer, answerRequest);
           await tracer.event("agent.synthesis.resumed", { mode: answer.mode });
         } else {
           const provider = createLLMProvider(registry);
           answer = {
-            text: renderEvidenceFallback(answerRequest, "暂时无法综合查询结果"),
+            ...buildEvidenceFallback(answerRequest, "暂时无法综合查询结果"),
             mode: "fallback"
           };
           if (provider.synthesize) {
@@ -379,7 +382,7 @@ export async function runAgentTask(
                 assertLease: heartbeat.assertActive
               });
               if (!synthesized.text?.trim()) throw new Error("Empty synthesized answer.");
-              answer = { text: synthesized.text.trim(), mode: "model" };
+              answer = { ...validateAnswerResult(synthesized, answerRequest), mode: "model" };
             } catch (error) {
               if (error instanceof AgentRuntimeBudgetExceededError
                 || error instanceof AgentTaskLeaseLostError) throw error;
@@ -402,9 +405,12 @@ export async function runAgentTask(
           await tracer.event("agent.synthesis.completed", { mode: answer.mode });
         }
         content = answer.text;
+        references = answer.references;
       } else {
         // 纯写操作逐项确认实际结果，不把执行前的成功承诺当成事实。
-        content = renderEvidenceFallback(answerRequest);
+        const fallback = buildEvidenceFallback(answerRequest);
+        content = fallback.text;
+        references = fallback.references;
       }
     }
     await heartbeat.assertActive();
@@ -438,6 +444,7 @@ export async function runAgentTask(
           taskId: task.id,
           intent: plan.intent,
           confidence: plan.confidence,
+          ...(references ? { answerReferences: references } : {}),
           toolResults
         } as Prisma.InputJsonObject
       },
@@ -470,10 +477,16 @@ export async function runAgentTask(
     if (error instanceof AgentRuntimeBudgetExceededError) {
       let finalMessage;
       try {
-        const content = getBudgetLimitMessage(error.reason)
-          + (completedEvidence?.toolResults.length
-            ? `\n\n${renderEvidenceFallback(completedEvidence, "综合预算不足")}`
-            : "");
+        const fallback = completedEvidence?.toolResults.length
+          ? buildEvidenceFallback(completedEvidence, "综合预算不足") : undefined;
+        const prefix = getBudgetLimitMessage(error.reason) + (fallback ? "\n\n" : "");
+        const content = prefix + (fallback?.text ?? "");
+        const references = fallback?.references ? {
+          ...fallback.references,
+          citations: fallback.references.citations.map((citation) => ({
+            ...citation, start: citation.start + prefix.length, end: citation.end + prefix.length,
+          })),
+        } : undefined;
         finalMessage = await tracer.limitExceededWithMessage(
           {
             roomId: task.roomId,
@@ -485,6 +498,7 @@ export async function runAgentTask(
             metadata: {
               taskId: task.id,
               limitReason: error.reason,
+              ...(references ? { answerReferences: references } : {}),
               details: error.details
             } as Prisma.InputJsonObject
           },
@@ -768,7 +782,7 @@ export function filterToolsForTrigger<T extends { name: string }>(
   return tools.filter((t) => !SCHEDULER_BLOCKED_TOOL_SET.has(t.name));
 }
 
-function isPersistedAnswer(value: unknown): value is { text: string; mode: "model" | "fallback" } {
+function isPersistedAnswer(value: unknown): value is { text: string; references?: AnswerReferences; mode: "model" | "fallback" } {
   if (typeof value !== "object" || value === null) return false;
   const answer = value as { text?: unknown; mode?: unknown };
   return typeof answer.text === "string" && answer.text.trim().length > 0

@@ -7,6 +7,8 @@ import { PrismaClient } from "@prisma/client";
 import { expect, test } from "@playwright/test";
 
 import { privateDatabaseUrl } from "./support/agent-conversation";
+import { withStudyUser } from "./support/study";
+import { entryName } from "./support/agent-entry";
 import { E2E_USERS } from "./support/credentials";
 
 const weatherSource = "https://weather.example.test/sanya/2026-09-22";
@@ -21,7 +23,7 @@ type ModelInput = {
   reference_time?: string;
   available_tools?: unknown[];
   room_context?: { recentMessages?: Array<{ content: string }> };
-  evidence?: { calls: EvidenceCall[] };
+  evidence?: { calls: EvidenceCall[]; sources: Array<{ id: string; url: string }> };
 };
 
 async function jsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
@@ -118,11 +120,16 @@ test("指定日期天气与台风追问经过真实工具综合，来源与答�
             expect(input.room_context?.recentMessages?.some((message) => message.content === replies[0])).toBe(true);
           }
           const dates = daily.filter((day) => day.date >= "2026-09-24").map((day) => `${day.date.slice(5)} ${day.textDay} ${day.tempMinC}～${day.tempMaxC}℃`).join("；");
-          const text = followup
-            ? `台风情况暂时无法确认：查到的是9月12日发布、适用至9月15日的历史公告，另一页时间不明，不能据此断言现在没有台风。[历史海上预警](${warningSource}) [时间不明的状态页](${undatedSource})`
-            : `你说的9月24日至28日包含五个日期，先按五个日历日整理。\n${dates}。预报发布时间为9月22日18:00。[天气预报](${weatherSource})\n台风情况暂时无法确认：历史公告只适用于9月12日至15日。[历史海上预警](${warningSource})\n旅游安排需保留调整空间，当前证据不足以保证出海安全或认定适合旅游。`;
-          replies.push(text);
-          content = { text };
+          const sources = input.evidence!.sources;
+          const sourceId = (url: string) => sources.find((source) => source.url === url)!.id;
+          const blocks = followup
+            ? [{ text: "台风情况暂时无法确认：查到的是9月12日发布、适用至9月15日的历史公告，另一页时间不明，不能据此断言现在没有台风。", sourceIds: [sourceId(warningSource), sourceId(undatedSource)] }]
+            : [
+              { text: `你说的9月24日至28日包含五个日期，先按明确日期范围整理。\n${dates}。`, sourceIds: [sourceId(weatherSource)] },
+              { text: "台风情况暂时无法确认：历史公告只适用于9月12日至15日。旅游安排需保留调整空间，当前证据不足以保证出海安全。", sourceIds: [sourceId(warningSource)] },
+            ];
+          replies.push(blocks.map((block) => block.text).join("\n\n"));
+          content = { blocks };
         }
         result = { choices: [{ message: { content: JSON.stringify(content) } }], usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 } };
       } else {
@@ -181,9 +188,17 @@ test("指定日期天气与台风追问经过真实工具综合，来源与答�
       expect(saved.llmCalls).toHaveLength(2);
       expect(saved.toolCalls).toHaveLength(3);
       expect(saved.finalMessage?.content).toBe(replies.at(-1));
-      await expect(page.getByRole("article").getByText(replies.at(-1)!, { exact: true })).toBeVisible();
+      await expect(page.getByRole("article").locator(":scope > p").filter({ hasText: replies.at(-1)! })).toBeVisible();
     }
 
+    const summaries = page.locator("summary").filter({ hasText: "参考来源" });
+    await expect(summaries).toHaveCount(2);
+    await expect(page.getByRole("link", { name: /历史海上预警/ })).toHaveCount(0);
+    await summaries.first().focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("link", { name: /历史海上预警/ })).toHaveAttribute("href", warningSource);
+    await summaries.first().press("Space");
+    await expect(page.getByRole("link", { name: /历史海上预警/ })).toHaveCount(0);
     expect(synthesisInputs).toHaveLength(2);
     expect(synthesisInputs.map((input) => input.evidence!.calls.map((call) => call.toolName))).toEqual([
       ["weather.get", "web.search", "web.search"], ["web.search", "web.search", "weather.get"]
@@ -191,7 +206,7 @@ test("指定日期天气与台风追问经过真实工具综合，来源与答�
     expect(requests.filter((path) => path === "/qweather/v7/weather/7d")).toHaveLength(2);
     expect(requests.filter((path) => path === "/search")).toHaveLength(4);
     await page.reload();
-    for (const reply of replies) await expect(page.getByRole("article").getByText(reply, { exact: true })).toBeVisible();
+    for (const reply of replies) await expect(page.getByRole("article").locator(":scope > p").filter({ hasText: reply })).toBeVisible();
     expect(await db.message.count({ where: { roomId, senderType: "agent" } })).toBe(2);
     await expect(page.getByText(/执行前未核验草稿|未经原文支持的摘要/)).toHaveCount(0);
   } finally {
@@ -200,4 +215,55 @@ test("指定日期天气与台风追问经过真实工具综合，来源与答�
     try { await db.room.deleteMany({ where: { id: roomId } }); }
     finally { await db.$disconnect(); }
   }
+});
+
+
+test("共享Chat、Study与专属私聊的来源均支持键盘展开、历史刷新与隔离", async ({ context }) => {
+  await withStudyUser(context, async ({ page, db, roomId, userId }) => {
+    const agent = await db.agent.findUniqueOrThrow({ where: { slug: "life-assistant" } });
+    const privateRoom = await db.room.create({ data: {
+      slug: `${userId}-private`, name: "专属来源验证", kind: "agent_private", privateOwnerId: userId, maxHumanUsers: 1,
+      participants: { create: { userId, role: "owner" } },
+    } });
+    const sharedText = "共享展览十点开门。";
+    const privateText = "专属展览十一点开门。";
+    const source = (text: string, label: string) => ({ version: 1, sources: [{ id: "s1", title: label, url: `https://museum.example.test/${label}`, dates: [{ kind: "published", value: "2026-09-20" }] }], citations: [{ start: 0, end: text.length, sourceIds: ["s1"] }] });
+    try {
+      await db.message.createMany({ data: [
+        { roomId, senderType: "agent", senderAgentId: agent.id, content: sharedText, metadata: { answerReferences: source(sharedText, "shared"), toolResults: "内部载荷不得显示" } },
+        { roomId, senderType: "agent", senderAgentId: agent.id, content: "没有来源的历史消息。" },
+        { roomId: privateRoom.id, senderType: "agent", senderAgentId: agent.id, content: privateText, metadata: { answerReferences: source(privateText, "private") } },
+      ] });
+      for (const path of [`/chat/${roomId}`, "/study", "/home"]) {
+        await page.goto(path);
+        const isPrivate = path === "/home";
+        if (isPrivate) await page.getByRole("button", { name: entryName }).click();
+        const scope = isPrivate ? page.getByRole("dialog") : page.locator("main");
+        const summary = scope.locator("summary").filter({ hasText: "参考来源" });
+        await expect(summary).toHaveCount(1);
+        await expect(scope.getByText(isPrivate ? privateText : sharedText, { exact: true }).first()).toBeVisible();
+        await expect(scope.getByText(isPrivate ? sharedText : privateText, { exact: true })).toHaveCount(0);
+        const link = scope.getByRole("link", { name: isPrivate ? /^private\s*（新窗口打开）$/u : /^shared\s*（新窗口打开）$/u });
+        await expect(link).toHaveCount(0);
+        await summary.focus();
+        await page.keyboard.press("Enter");
+        await expect(link).toBeVisible();
+        await page.keyboard.press("Tab");
+        await expect(link).toBeFocused();
+        await expect(link).toHaveAttribute("href", `https://museum.example.test/${isPrivate ? "private" : "shared"}`);
+        await expect(scope.getByText("发布/更新：2026-09-20")).toBeVisible();
+        await page.reload();
+        if (isPrivate) await page.getByRole("button", { name: entryName }).click();
+        await expect(summary).toBeVisible();
+        await expect(link).toHaveCount(0);
+        await summary.focus();
+        await page.keyboard.press("Space");
+        await expect(link).toBeVisible();
+        await expect(scope.getByText("内部载荷不得显示")).toHaveCount(0);
+      }
+    } finally {
+      await page.goto("about:blank");
+      await db.room.delete({ where: { id: privateRoom.id } });
+    }
+  });
 });

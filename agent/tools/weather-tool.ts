@@ -150,8 +150,7 @@ export function createWeatherTool(): AgentTool<WeatherInput> {
     name: "weather.get",
     risk: "low",
     retry: TRANSIENT_TOOL_RETRY,
-    description:
-      "Get current weather and a bounded 3- or 7-day forecast via QWeather. Pass startDate/endDate for a trip, including both endpoints. Reports missing dates and unavailable data. Does not provide typhoon warnings; use web.search for current official warnings or forecast gaps.",
+    description: "查询当前天气和最多七天的逐日预报；提供实际覆盖日期、缺口和来源时间，不提供灾害预警。",
     schema: {
       type: "object",
       properties: {

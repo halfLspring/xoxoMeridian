@@ -1,5 +1,6 @@
 "use client";
 
+import { AnswerReferences } from "@/components/chat/AnswerReferences";
 import { useEffect, useId, useRef, useState } from "react";
 import { LocateFixed, Trash2 } from "lucide-react";
 import { ToolApprovalPanel } from "@/components/chat/ToolApprovalPanel";
@@ -82,6 +83,7 @@ export default function AgentConversationDialog({ conversation, principalId, tit
           <article key={message.id} className={`${styles.message} ${message.role === "user" ? styles.humanMessage : styles.agentMessage}`}>
             <p className={styles.sender}>{message.role === "user" ? "你" : snapshot?.agent.displayName ?? "小助手"}</p>
             <p className={styles.messageContent}>{message.content}</p>
+            {message.role === "agent" && <AnswerReferences content={message.content} references={message.references} />}
           </article>
         ))}
         {pending.map((record) => (

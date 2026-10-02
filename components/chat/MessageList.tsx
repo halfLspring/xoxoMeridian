@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useRef } from "react";
 
+import { AnswerReferences } from "@/components/chat/AnswerReferences";
 import type { ChatMessage, ChatUser } from "@/components/chat/types";
 import { MENTION_AGENT } from "@/lib/identity";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,7 @@ function MessageBubble({
 
         <p className="whitespace-pre-wrap break-words text-sm leading-6">{message.content}</p>
 
+        {isAgent && <AnswerReferences content={message.content} references={message.references} />}
         {isAgent && message.finalTask ? (
           <details className={cn("mt-3 rounded-[8px] border p-2 text-xs", isMine ? "border-white/20" : "border-[#e8e8e8] bg-white")}>
             <summary className="cursor-pointer select-none font-medium">执行链路</summary>

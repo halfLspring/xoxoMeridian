@@ -111,15 +111,7 @@ export function createSearchTool(): AgentTool<SearchInput, SearchOutput> {
     name: "web.search",
     risk: "low",
     retry: TRANSIENT_TOOL_RETRY,
-    description:
-      "Search the web for real-time information using Tavily API. " +
-      "**Use for**: breaking news, local recommendations (restaurants/events/attractions), " +
-      "product info, fact-checking, time-sensitive content (exhibitions/movies/concerts). " +
-      "Use weather.get for ordinary weather; search official sources for typhoon warnings, marine restrictions, and dates outside weather coverage. " +
-      "Publication filters refer to when a page was published/updated, not future travel dates. Scores measure relevance, not reliability. " +
-      "**DO NOT use for**: info already in memory/memos, " +
-      "personal data, scheduling (use schedule.create), or casual chat. " +
-      "Falls back to mock when TAVILY_API_KEY is missing.",
+    description: "查询外部、实时或需要核实的资料。日期筛选约束网页发布/更新时间，不表示事件有效期；结果包含原文片段与来源，相关性分数不表示事实可信度。房间内数据使用对应工具。",
     schema: {
       type: "object",
       required: ["query"],

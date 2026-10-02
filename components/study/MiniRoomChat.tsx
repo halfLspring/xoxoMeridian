@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { AnswerReferences } from "@/components/chat/AnswerReferences";
 import type { ChatUser, RoomSnapshot } from "@/components/chat/types";
 import { useRoomChat } from "@/components/chat/useRoomChat";
 
@@ -78,15 +79,16 @@ export function MiniRoomChat({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-medium text-black/70">
-                    {msg.sender?.displayName ?? "未知"}
+                    {msg.sender?.displayName ?? msg.senderAgent?.displayName ?? "未知"}
                   </span>
                   <span className="text-[10px] text-black/30">
                     {formatTime(msg.createdAt)}
                   </span>
                 </div>
-                <p className="text-sm text-black/80 leading-relaxed break-words">
+                <p className="whitespace-pre-wrap text-sm text-black/80 leading-relaxed break-words">
                   {msg.content}
                 </p>
+                {msg.senderType === "agent" && <AnswerReferences content={msg.content} references={msg.references} />}
               </div>
             </div>
           ))

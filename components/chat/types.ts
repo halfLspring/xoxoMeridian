@@ -1,3 +1,5 @@
+import type { AnswerReferences } from "@/lib/answer-references";
+
 export type ChatStudyStatus = {
   state: "idle" | "running" | "paused";
   mode?: "focus" | "short" | "long" | null;
@@ -24,6 +26,7 @@ export type ChatMessage = {
   senderAgentId?: string | null;
   senderType: "human" | "agent" | "system";
   content: string;
+  references?: AnswerReferences;
   targetType: "all" | "user" | "agent";
   targetId?: string | null;
   status: "sent" | "processing" | "failed";

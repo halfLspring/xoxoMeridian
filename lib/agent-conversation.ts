@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, type User } from "@prisma/client";
 
+import { readAnswerReferences } from "@/lib/answer-references";
 import { assertPrivateRoomMembers } from "@/lib/access";
 import type {
   AgentConversationMessage,
@@ -51,6 +52,7 @@ const messageSelect = {
   clientMessageId: true,
   senderType: true,
   content: true,
+  metadata: true,
   createdAt: true,
   sourceTask: { select: { id: true } },
   finalTask: { select: { id: true } },
@@ -62,6 +64,7 @@ function projectMessage(message: Prisma.MessageGetPayload<{ select: typeof messa
     clientMessageId: message.clientMessageId,
     role: message.senderType === "human" ? "user" : "agent",
     content: message.content,
+    ...(message.senderType === "agent" ? { references: readAnswerReferences(message.metadata, message.content) } : {}),
     createdAt: message.createdAt.toISOString(),
     taskId: message.sourceTask?.id ?? message.finalTask?.id ?? null,
   };

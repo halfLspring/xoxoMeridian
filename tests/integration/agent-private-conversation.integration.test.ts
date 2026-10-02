@@ -128,6 +128,31 @@ describe("Agent 专属对话的事务与快照", () => {
     expect(JSON.stringify(snapshot)).not.toContain(bob.id);
   });
 
+  it("私聊来源仅对所有者投影，共享API不能读取，也不泄漏完整metadata", async () => {
+    const { alice, bob, agent } = await fixture();
+    const accepted = await send(alice.id);
+    const content = "私聊展览十点开放。";
+    const references = {
+      version: 1, sources: [{ id: "s1", title: "仅A的来源", url: "https://private-source.example.test/", dates: [] }],
+      citations: [{ start: 0, end: content.length, sourceIds: ["s1"] }],
+    };
+    await prisma.message.create({ data: {
+      roomId: accepted.roomId, senderType: "agent", senderAgentId: agent.id, content,
+      metadata: { answerReferences: references, toolResults: [{ output: "never-project-this" }] },
+    } });
+    await authenticate(alice.id);
+    const own = await getConversation(request("/api/agent/conversation", alice.id));
+    expect(own.status).toBe(200);
+    const snapshot = await own.json();
+    expect(snapshot.messages.at(-1).references).toEqual(references);
+    expect(JSON.stringify(snapshot)).not.toContain("never-project-this");
+    expect((await getRoomMessages(request(`/api/rooms/${accepted.roomId}/messages`, alice.id), roomParams(accepted.roomId))).status).toBe(403);
+    await authenticate(bob.id);
+    const other = await getConversation(request("/api/agent/conversation", bob.id));
+    expect(JSON.stringify(await other.json())).not.toContain("private-source");
+    expect((await getRoomMessages(request(`/api/rooms/${accepted.roomId}/messages`, bob.id), roomParams(accepted.roomId))).status).toBe(403);
+  });
+
   it("并发首次发送及同键重试只创建一个房间、一条消息和一个任务，私聊原文不被触发解析改变", async () => {
     const { alice } = await fixture();
     const content = "  /agent @agent 请保留\n\n    const answer = 42;\n末行  ";

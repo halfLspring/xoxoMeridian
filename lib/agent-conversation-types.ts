@@ -1,8 +1,11 @@
+import type { AnswerReferences } from "@/lib/answer-references";
+
 export type AgentConversationMessage = {
   id: string;
   clientMessageId: string | null;
   role: "user" | "agent";
   content: string;
+  references?: AnswerReferences;
   createdAt: string;
   taskId: string | null;
 };

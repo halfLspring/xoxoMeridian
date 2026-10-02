@@ -71,21 +71,7 @@ export function createScheduleCreateTool(): AgentTool<ScheduleCreateInput> {
     name: "schedule.create",
     risk: "medium",
     retry: TRANSIENT_TOOL_RETRY,
-    description:
-      "Create a scheduled job that fires the given prompt to the agent. " +
-      "**For ONE-OFF tasks at a specific datetime** (今晚八点 / 明早 7:30 / 4月5日 9:00), " +
-      "use the **fireAt** field with an ISO-8601 datetime (with timezone offset) — this is the correct, unambiguous way " +
-      "and the tool will automatically set runOnce=true. Example: fireAt='2026-05-09T20:40:00+08:00'. " +
-      "**For RECURRING tasks** (每周六 / 每天早上 / 每晚), use the **cron** field with a 5-field cron expression. " +
-      "Never use cron+runOnce to express 'today at HH:MM' — planning latency can push current time past HH:MM and " +
-      "cron's next() will roll to tomorrow; fireAt handles this correctly. " +
-      "Common cron patterns: " +
-      "'0 9 * * *' = every day at 9:00; " +
-      "'0 9 * * 6' = every Saturday at 9:00 (0=Sun, 6=Sat); " +
-      "'30 22 * * 1-5' = weekdays at 22:30; " +
-      "'0 */2 * * *' = every 2 hours. " +
-      "Always set timezone to the user's IANA zone (e.g. 'Asia/Shanghai'); for fireAt, the ISO offset also carries zone info but timezone is still used for display. " +
-      "The prompt field is what the agent will receive and act on when the schedule fires — phrase it as a command to yourself, e.g. '提醒用户打扫卫生，温柔一点'.",
+    description: "创建计划，到时由助手执行 prompt。一次性绝对时间使用 fireAt，重复周期使用 cron；两者互斥。修改已有计划优先 schedule.update。",
     effect: "database-write",
     schema: {
       type: "object",

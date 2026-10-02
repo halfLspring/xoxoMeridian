@@ -107,7 +107,10 @@ describe("聊天消息读取窗口与摘要", () => {
         senderType: "agent",
         senderId: null,
         senderAgentId: agent.id,
-        metadata: { toolResults: [{ output: "private-message-tool-result" }] },
+        metadata: { toolResults: [{ output: "private-message-tool-result" }], answerReferences: {
+          version: 1, sources: [{ id: "s1", title: "来源", url: "https://public.example.test/", dates: [] }],
+          citations: [{ start: 0, end: finalMessage.content.length, sourceIds: ["s1"] }],
+        } },
       },
     });
     const task = await prisma.agentTask.create({
@@ -156,6 +159,10 @@ describe("聊天消息读取窗口与摘要", () => {
         senderAgentId: agent.id,
         senderType: "agent",
         content: finalMessage.content,
+        references: {
+          version: 1, sources: [{ id: "s1", title: "来源", url: "https://public.example.test/", dates: [] }],
+          citations: [{ start: 0, end: finalMessage.content.length, sourceIds: ["s1"] }],
+        },
         targetType: "all",
         targetId: null,
         status: "sent",

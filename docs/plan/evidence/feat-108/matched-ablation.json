@@ -1,0 +1,377 @@
+{
+  "variant": "minimal-final",
+  "comparison": "与concise-final逐条比较，唯一差异为删除EVIDENCE_GUIDANCE；实际消息已逐条断言一致",
+  "total": 36,
+  "structurePassed": 36,
+  "synthesisBodyChars": 85,
+  "synthesisBodyUrls": 2,
+  "durationMs": 2421,
+  "observations": [
+    "36个采样使用与最终稿相同的输入、工具契约和协议，保留完整出站消息及哈希。",
+    "多数案例仍能处理日期缺口、来源冲突、网页伪指令和写入失败，不能把消融结果表述成所有场景失效。",
+    "typhoon-followup第1次在缺少当前风险证据时写出整体没有极端天气；第2次作整体适合去重庆的判断。保留通用证据原则的最终稿也有建议强度波动，未宣称该原则可以消除全部推断风险。",
+    "action-link两次均将展期转述为报名期，与最终稿中已记录的同类误差一致。"
+  ],
+  "samples": [
+    {
+      "id": "events",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 67,
+      "bodyUrls": 0,
+      "inputChars": 2171,
+      "durationMs": 1727
+    },
+    {
+      "id": "overview",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 49,
+      "bodyUrls": 0,
+      "inputChars": 2300,
+      "durationMs": 1259
+    },
+    {
+      "id": "daily",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 77,
+      "bodyUrls": 0,
+      "inputChars": 2301,
+      "durationMs": 1601
+    },
+    {
+      "id": "missing",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 67,
+      "bodyUrls": 0,
+      "inputChars": 2166,
+      "durationMs": 1373
+    },
+    {
+      "id": "typhoon-followup",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 174,
+      "bodyUrls": 0,
+      "inputChars": 3339,
+      "durationMs": 5065
+    },
+    {
+      "id": "unavailable",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 103,
+      "bodyUrls": 0,
+      "inputChars": 1666,
+      "durationMs": 1376
+    },
+    {
+      "id": "conflict",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 85,
+      "bodyUrls": 0,
+      "inputChars": 2113,
+      "durationMs": 2564
+    },
+    {
+      "id": "injection",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 14,
+      "bodyUrls": 0,
+      "inputChars": 1841,
+      "durationMs": 983
+    },
+    {
+      "id": "action-link",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 73,
+      "bodyUrls": 1,
+      "inputChars": 1826,
+      "durationMs": 971
+    },
+    {
+      "id": "multiple",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 120,
+      "bodyUrls": 0,
+      "inputChars": 2903,
+      "durationMs": 5207
+    },
+    {
+      "id": "empty",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 83,
+      "bodyUrls": 0,
+      "inputChars": 1515,
+      "durationMs": 1186
+    },
+    {
+      "id": "writes",
+      "phase": "synthesis",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 70,
+      "bodyUrls": 0,
+      "inputChars": 1634,
+      "durationMs": 1265
+    },
+    {
+      "id": "chat",
+      "phase": "planning",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 82,
+      "bodyUrls": 0,
+      "inputChars": 12376,
+      "durationMs": 2085
+    },
+    {
+      "id": "range",
+      "phase": "planning",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 19,
+      "bodyUrls": 0,
+      "inputChars": 12379,
+      "durationMs": 1672
+    },
+    {
+      "id": "combo",
+      "phase": "planning",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 43,
+      "bodyUrls": 0,
+      "inputChars": 12387,
+      "durationMs": 3016
+    },
+    {
+      "id": "one-shot",
+      "phase": "planning",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 17,
+      "bodyUrls": 0,
+      "inputChars": 12373,
+      "durationMs": 3553
+    },
+    {
+      "id": "recurring",
+      "phase": "planning",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 40,
+      "bodyUrls": 0,
+      "inputChars": 12374,
+      "durationMs": 4454
+    },
+    {
+      "id": "memory",
+      "phase": "planning",
+      "repeat": 1,
+      "failure": null,
+      "bodyChars": 42,
+      "bodyUrls": 0,
+      "inputChars": 12372,
+      "durationMs": 2663
+    },
+    {
+      "id": "events",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 104,
+      "bodyUrls": 0,
+      "inputChars": 2171,
+      "durationMs": 1372
+    },
+    {
+      "id": "overview",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 56,
+      "bodyUrls": 0,
+      "inputChars": 2300,
+      "durationMs": 1646
+    },
+    {
+      "id": "daily",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 71,
+      "bodyUrls": 0,
+      "inputChars": 2301,
+      "durationMs": 1420
+    },
+    {
+      "id": "missing",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 76,
+      "bodyUrls": 0,
+      "inputChars": 2166,
+      "durationMs": 2457
+    },
+    {
+      "id": "typhoon-followup",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 182,
+      "bodyUrls": 0,
+      "inputChars": 3339,
+      "durationMs": 7436
+    },
+    {
+      "id": "unavailable",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 122,
+      "bodyUrls": 0,
+      "inputChars": 1666,
+      "durationMs": 958
+    },
+    {
+      "id": "conflict",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 105,
+      "bodyUrls": 0,
+      "inputChars": 2113,
+      "durationMs": 1132
+    },
+    {
+      "id": "injection",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 14,
+      "bodyUrls": 0,
+      "inputChars": 1841,
+      "durationMs": 1017
+    },
+    {
+      "id": "action-link",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 72,
+      "bodyUrls": 1,
+      "inputChars": 1826,
+      "durationMs": 1631
+    },
+    {
+      "id": "multiple",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 123,
+      "bodyUrls": 0,
+      "inputChars": 2903,
+      "durationMs": 5305
+    },
+    {
+      "id": "empty",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 73,
+      "bodyUrls": 0,
+      "inputChars": 1515,
+      "durationMs": 1157
+    },
+    {
+      "id": "writes",
+      "phase": "synthesis",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 59,
+      "bodyUrls": 0,
+      "inputChars": 1634,
+      "durationMs": 1895
+    },
+    {
+      "id": "chat",
+      "phase": "planning",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 96,
+      "bodyUrls": 0,
+      "inputChars": 12376,
+      "durationMs": 2708
+    },
+    {
+      "id": "range",
+      "phase": "planning",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 23,
+      "bodyUrls": 0,
+      "inputChars": 12379,
+      "durationMs": 1899
+    },
+    {
+      "id": "combo",
+      "phase": "planning",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 47,
+      "bodyUrls": 0,
+      "inputChars": 12387,
+      "durationMs": 2986
+    },
+    {
+      "id": "one-shot",
+      "phase": "planning",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 17,
+      "bodyUrls": 0,
+      "inputChars": 12373,
+      "durationMs": 3046
+    },
+    {
+      "id": "recurring",
+      "phase": "planning",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 62,
+      "bodyUrls": 0,
+      "inputChars": 12374,
+      "durationMs": 4787
+    },
+    {
+      "id": "memory",
+      "phase": "planning",
+      "repeat": 2,
+      "failure": null,
+      "bodyChars": 44,
+      "bodyUrls": 0,
+      "inputChars": 12372,
+      "durationMs": 2299
+    }
+  ]
+}

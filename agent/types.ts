@@ -1,3 +1,5 @@
+import type { AnswerReferences } from "@/lib/answer-references";
+
 import type { Prisma } from "@prisma/client";
 import type { z } from "zod";
 
@@ -89,6 +91,7 @@ export type LLMAnswerRequest = {
 
 export type LLMAnswerResult = {
   text: string;
+  references?: AnswerReferences;
   rawResponse?: unknown;
   usage?: LLMPlanResult["usage"];
 };

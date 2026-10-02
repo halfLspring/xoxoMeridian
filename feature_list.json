@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "updatedAt": "2026-10-02",
-  "featuresNumber": 13,
+  "featuresNumber": 15,
   "priorityPolicy": "P2 以用户体验为首要指标：综合核心操作受阻或结果失真程度、当前产品入口的影响范围、触发频率与恢复成本排序；同等影响时优先已有直接行为证据的问题。priorityRank 表示本批 P2 的执行建议顺序，数字越小越优先，不改变 QAM 严重级别；频率是基于代码路径与触发条件的定性判断，不是线上统计。dependencies 只表达实现前置条件，不用依赖链代替排名。本批登记前 10 项，按 priorityRank 逐项实施；当前状态与验收证据以各 feature 为准。",
   "archivedFeatureFiles": [
     "docs/harness/archive/features-001-053.json",
@@ -253,6 +253,54 @@
         "运行 ./scripts/run-node22.sh ./init.sh、标准门禁及风险匹配的真实生产 Playwright 回归，验证按钮样式、鼠标/键盘编辑、自动保存恢复及既有草稿行为；记录实际命令、结果与状态并清理本轮临时工件后标记 done。"
       ],
       "evidence": "2026-10-02 已核对根列表与两份归档，全局最大 ID 为 feat-106；依赖 feat-091、feat-103 均为 done。现有 WorkCanvas 仅以标题打开博文，PostCard 的 Edit 为底部灰色 12px 入口；本项复用现有 WorkEditor 编辑与自动保存流程，保留既有未提交改动。 用户补充明确仅编辑状态显示；WorkCanvas 的 editing 分支控制入口，组件回归已覆盖非编辑状态隐藏。起始 ./scripts/run-node22.sh ./init.sh exit 0，Node/组件 106 文件/1007 项。 已实现：PostCard 和 WorkCanvas 的 Edit 共用 post-card-edit 样式；新增按钮仅在 editing && status=draft && canManage 时显示，disabled 沿用锁定状态，直接 onPost 打开既有弹窗。./scripts/run-node22.sh npm run test:component -- tests/component/blog-presentation.test.tsx exit 0（1 文件/3 项）。首次 ./scripts/run-node22.sh npm run typecheck exit 2：新增组件断言误用了 Playwright 的 exact 选项（TS2769），新 E2E 的 posts 数组及计算样式返回值推导不足（TS7034/TS7005/TS2339）；已移除错误选项并补齐类型，原命令重跑 exit 0。首次 LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true E2E_APP_MODE=production ./scripts/run-node22.sh npx playwright test tests/e2e/blog-presentation.spec.ts --grep '草稿 Edit' exit 1（同一新增测试类型问题使生产构建 Failed to type check，浏览器未启动）；修正后同命令 exit 0，2/2 passed（含 setup，49.3 秒）。生产浏览器比较 Edit 普通/悬停计算样式，验证鼠标打开首篇、已选择端点时以 Tab/Enter 编辑第二篇、自动保存、首篇不变且未创建连线、390px 窄屏刷新恢复；组件覆盖只读/已发布/非管理者隐藏及禁用按钮。完整门禁：在独立副本与独立 node_modules 中运行 LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run check:full exit 0，标准 check（类型/lint、106 文件/1007 项 Node/组件、生产构建、覆盖率基线）、44 文件/193 项真实 PostgreSQL 集成测试及生产 Playwright 113/113 passed（13.3 分钟，无跳过或重试）。Statements/Branches/Functions/Lines 为 54.07%/48.61%/57.98%/55.26%。新增 Edit 浏览器用例在完整序列中再次通过（6.1 秒），既有双标签页冲突用例通过（6.6 秒）；不改变 feat-106 的待办状态。585 份交付文件与验证副本逐字节一致；next-env.d.ts 仅因 Next 自动生成而存在 .next/dev/types 与 .next/types 的模式差异，保留主工作区开发文件。首次未排除该生成文件的逐字节检查报 AssertionError: next-env.d.ts，核对上述两行路径差异后排除生成物，其余全部一致。未改依赖、数据库、认证或启动/部署路径；check:full 已含 check，不另行重复；未运行 npm run test:compose-smoke、npm run dev，生产启动由完整门禁验证，开发基线由起始 init 建立。验证细节位于 tests/component/blog-presentation.test.tsx、tests/e2e/blog-presentation.spec.ts 及 docs/testing-standards.md。 收尾：本轮隔离副本、独立依赖、构建、覆盖率、浏览器报告、认证状态和全部成功/失败临时日志已清理；Testcontainers/Ryuk 自动回收，E2E 临时目录为 0，仅保留原有 PostgreSQL 容器、网络、镜像与卷。git diff --check 通过，git status --short 已检查，既有未提交改动和参考图片保留。根 featuresNumber=13，未超过 40，跳过归档；全局 107 个唯一 ID，跨归档依赖及状态核验通过。session-handoff.md 已重写，feat-092 与 feat-106 继续 not-started。 2026-10-02 用户反馈重启后仍未看到 Edit，本项重新打开排查。重启后的本地开发服务运行在 3000 端口，开发构建已含新按钮；当前额外的 status=draft 条件会把已发布作品的编辑状态排除，正在核对用户所指入口。 用户已确认看不到按钮的位置为“home 中已发布作品的编辑状态”。根因是上一轮把 editing 误收窄为 editing && status=draft，已发布作品即使 canManage=true 也不渲染 Edit；开发服务工作目录和编译模块已核对为当前工作区及新版本，因此不是重启未加载。按原 feature 重新打开并修正验收，不将上轮通过证据作为修正后验收。补充 published 场景的组件与真实生产浏览器回归，保留其他用户和浏览态隐藏边界。 本轮起始 ./scripts/run-node22.sh ./init.sh exit 0（106 文件/1007 项）；新增已发布编辑场景后 ./scripts/run-node22.sh npm run test:component -- tests/component/blog-presentation.test.tsx 在旧实现 exit 1（1 failed/2 passed，Unable to find an accessible element with the role button and name Edit）。真实生产复现命令 LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true E2E_APP_MODE=production ./scripts/run-node22.sh npx playwright test tests/e2e/blog-presentation.spec.ts --grep '已发布作品 Edit' exit 1：进入编辑后期望 2 个 Edit，实得 0，5 秒断言超时；1 failed/1 passed（含 setup，1.5 分钟）。修正移除 status 限制，保留 editing && canManage；操作行固定保留 1rem 高度与既有上间距，按钮仅在编辑态渲染，避免切换状态使卡片与锚点跳位。组件定向复核 3/3 passed，类型检查 exit 0； 定向生产复核 LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true E2E_APP_MODE=production ./scripts/run-node22.sh npx playwright test tests/e2e/blog-presentation.spec.ts tests/e2e/blog-drafts.spec.ts --grep ' Edit |作品浏览与编辑保持相同几何|草稿摘要随全文修改重排' exit 0，8/8 passed（含 setup，2.5 分钟）；覆盖草稿与已发布作品 Edit 鼠标/键盘、端点选择独立性、草稿自动保存/发布后显式保存、退出隐藏与窄屏刷新再编辑、非作者隐藏，以及四种视口/裁切的编辑前后几何一致且无写入。 修正后最终 LANG=en_US.UTF-8 TZ=UTC E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run check:full exit 0：类型/lint、106 文件/1007 项 Node/组件、生产构建、覆盖率基线、44 文件/193 项真实 PostgreSQL 集成测试以及生产 Playwright 114/114 passed（14.4 分钟，无跳过或重试）。覆盖率 Statements/Branches/Functions/Lines 为 54.07%/48.61%/57.98%/55.26%。草稿 Edit 与已发布作品 Edit 在完整序列中分别 6.9 秒、9.0 秒通过，既有双标签页冲突用例 12.2 秒通过，feat-106 仍独立待办。对当前 3000 端口开发服务进行无登录 /home GET 返回正常 307；开发构建模块已包含 editing && canManage 与固定操作行，原 status=draft 限制已移除。该运行构建核对只确认加载版本，交互验收以隔离真实浏览器为准。未新增依赖、迁移或启动配置；未重启用户开发服务、未提交推送部署；check:full 已含 check，未另跑 Compose smoke 或新启开发服务，沿用既有 init 与实际运行服务。 本轮收尾：585 份交付文件与完整门禁副本逐字节一致（排除状态文件及 Next 自动生成的开发/生产类型入口差异）。本轮隔离副本、独立依赖、构建、覆盖率、浏览器报告、认证状态及全部成功/失败日志已清理；Testcontainers/Ryuk 自动回收，临时 E2E 目录为 0，仅保留原有 PostgreSQL、网络、镜像与旧卷。JSON、计数、归档引用与跨归档依赖核验通过，featuresNumber 仍为 13，未触发归档；git diff --check 和 git status --short 已核验。session-handoff.md 重写为本次纠正后的恢复说明，feat-107 重新标记 done，feat-092/106 保持 not-started。 2026-10-02 本轮按用户“阅读三份状态文件并完成 feat-107”的要求复核：开始时本项已 done，依赖 feat-091（归档）与 feat-103（根列表）均 done，现有实现及验收测试齐备，未发现需要重新打开的问题。核对 WorkCanvas 的 editing && work.canManage、固定操作行、直接 onPost 回调、WorkEditor 的锁定/身份失效边界和两种保存路径；生产浏览器用例已覆盖草稿/已发布、样式、鼠标/键盘、端点选择、窄屏刷新及非作者隐藏。本轮实际运行 ./scripts/run-node22.sh npm run test:component -- tests/component/blog-presentation.test.tsx exit 0，1 文件/3 项通过（1.79 秒）。本轮仅更新本项 evidence 与 session-handoff.md，不改应用代码、测试、依赖或运行配置，保留 done；按文档/状态门禁例外未运行 ./scripts/run-node22.sh ./init.sh、npm run check、npm run check:full、npm run test:compose-smoke 或 npm run dev，此前 114/114 Playwright 与完整门禁为历史证据，不作为本轮重新执行的结果。JSON、featuresNumber、归档引用、全局唯一 ID 与跨归档依赖已核验：根 13 项（11 done、2 not-started）、归档 94 项、全局 107 项，未触发归档；其他任务和既有未提交改动保留。本轮未创建隔离副本、容器、测试数据或报告。"
+    },
+    {
+      "id": "feat-108",
+      "name": "Agent 回答正文与来源分层及通用提示词优化",
+      "description": "按用户选择 A，让工具查询答复以自然正文回应当前问题，来源在消息底部默认折叠；同步抽象或删除天气、台风、旅游等场景化提示，将通用判断交给模型，将工具契约、实际证据状态与程序校验分别维护。复用现有后置综合与恢复链路，保留 feat-083 的结果完整性和真实性保障。",
+      "priority": "P2",
+      "priorityReason": "用户提供的真实回复存在密集链接、核验说明和固定场景段落，增加日常 Agent 查询的阅读负担；用户已确认来源折叠方向并要求结合官方实践优化提示词。用户于 2026-10-02 授权按计划实施。",
+      "sourceReport": "docs/plan/2026-10-02-agent-answer-presentation-prompts.md",
+      "status": "done",
+      "dependencies": [
+        "feat-080",
+        "feat-083"
+      ],
+      "acceptanceCriteria": [
+        "正文按用户当前目标与明确范围组织，默认简洁自然；资料型链接、发布日期与工具过程不挤占正文，来源在底部参考来源入口默认折叠；活动日期、关键缺口/冲突及影响行动的不确定性保留在正文，明确要求详细清单或逐日信息时完整覆盖，操作链接与用户明确索取的链接仍可提供",
+        "统一整理规划、无工具回复和后置综合的提示词职责：删除天气/台风/旅游固定组合、前三天等历史场景教程，保留通用目标、证据与结论相符、关键不确定性和阶段输出协议；依据对照评估决定进一步删除通用提醒，不用未经验证的模型能力假设代替证据",
+        "工具用途、覆盖范围、日期字段、一次性/周期计划与记忆作用域等产品知识维护在有效工具契约，核对经 Registry 和 Zod 实际发送给模型的描述；证据构建保留每次调用、原始时间与实际缺口，移除无条件场景警告，不把早于查询日的发布日期直接当成过期，不将全部结果或 warnings 强制呈现",
+        "建立经 Zod 校验的正文与来源标识关联；来源目录由实际工具结果生成，服务端校验并解析安全 URL、去重与持久化，不允许模型编造来源；来源合法性与结论受到来源支持分别验证，引用只包含实际用于答复的资料",
+        "全局 Agent 私聊、共享 Chat 与 Study Mini Chat 使用一致的来源投影与折叠交互，支持短标题链接、已有日期信息、来源与结论关联、键盘及可访问名称；无来源不出现空入口，刷新/历史/快照后关联保持，旧消息继续可读；通过授权 DTO 输出必要来源，不直接暴露 toolResults 或私有执行载荷",
+        "模型综合、综合失败、provider 不支持、无效输出/来源以及预算不足等进入降级的路径遵循同一呈现边界；纯写操作依据真实结果逐项确认，不把未知或失败写成成功；保留身份、权限、输入校验、提示注入边界、审批、预算和 Trace 保障",
+        "复用现有一次规划、工具执行和一次后置综合，不新增润色模型调用或自动补查，不扩大工具能力或修改模型/API 协议；持久化正文与来源并覆盖 checkpoint 恢复和旧记录兼容，恢复不重复工具副作用、最终消息或丢失关联",
+        "使用固定参考时间、上下文和合成/脱敏工具快照，在实际 provider/model 与一致参数下对照旧版、通用精简版及进一步删除通用提醒的版本，区分固定结果综合和完整规划评估；保留独立案例与重复采样，评估相关性、覆盖、证据一致性、关键不确定性、工具/参数/写入正确性、自然度和阅读负担，记录模型与结果而非只比较字数",
+        "回归覆盖普通与非天气查询、概览与逐日请求、多工具及重复调用、追问、无结果、失败/mock、部分覆盖、未知日期、有效期与来源冲突、提前发布仍有效公告、恶意网页、操作链接、纯聊天和写操作；关键错误不得回归，真实模型评估未运行时如实记录未验证，不能用 mock 或提示词字面扫描声称语义质量通过",
+        "补齐行为层 Node/组件、真实 PostgreSQL 的来源持久化/权限/恢复和生产 Playwright 的各聊天入口验证；实施前 ./scripts/run-node22.sh ./init.sh、完成后 ./scripts/run-node22.sh npm run check:full，通过后记录验收证据；修改 Worker 启动或部署时补风险匹配 Compose smoke，沿用独立副本与独立 node_modules",
+        "方案登记时保持 not-started；用户已于 2026-10-02 授权按计划实施。实现启动及完成分别遵守 AGENTS.md 的单 feature、依赖、门禁、工件清理和交接要求，不将文档结构核验或官方指南当作应用和模型效果已经通过的证据"
+      ],
+      "evidence": "2026-10-02：按用户授权完成。正文与 metadata.answerReferences 分离，服务端建立/校验实际来源目录及段落关联，三个聊天入口默认折叠，授权DTO只投影必要来源；历史消息、旧text checkpoint、SSE/刷新/恢复兼容，副作用与最终消息不重复。通用提示词集中维护，删除领域组合教程，工具产品语义迁入实际Zod描述；所有降级按真实结果确认。未增加模型轮次、切换模型/API、改迁移/依赖或Worker部署。实施前独立副本 ./scripts/run-node22.sh ./init.sh exit0（106文件/1007项）；最终 sudo -n --preserve-env=HTTP_PROXY,HTTPS_PROXY,http_proxy,https_proxy,NO_PROXY,no_proxy -g docker -u dadalv ./scripts/run-node22.sh env VITEST_MAX_WORKERS=1 CIRCLE_NODE_TOTAL=4 E2E_SOFTWARE_WEBGL=true npm run check:full exit0：类型/lint/构建通过，108文件/1027项Node组件、45文件/199项真实PostgreSQL、123项生产Playwright通过；覆盖率语句54.55%、分支48.55%、函数58.90%、行55.71%。此前quick并行19项失败（18项超时/连带失败、1项旧英文描述绑定）及首轮浏览器122/123的可访问名称空白匹配失败均已修正/复核；第二轮full在E2E构建因sudo清除代理而字体连接重置、600000ms超时，保留既有代理后定向3/3及最终全量通过，无跳过或放宽检查。真实模型使用本地openai-compatible/deepseek-v4-flash，仅合成数据：旧版、精简与删除原则对照；最终36/36结构有效，冻结后独立8/8验证、12/12合成工具工作流完成，另36条最终匹配消融留存请求快照。正文样本均长246→103字符，正文资料链接移入来源；保留日期转述和措辞强度波动，未将结构通过当作事实100%正确。细节、原始失败摘要、模型输出及限制见sourceReport和docs/plan/evidence/feat-108/application-verification.json，以及同目录semantic-review.json和matched-ablation.json。最终34个改动代码/测试文件与副本SHA-256一致；31项临时工件、E2E临时目录及Testcontainers已回收。收尾发现并行登记的feat-109及新增PNG，均保留；根15项、归档94项、全局109项，未达归档阈值，原有13项feature不变。未提交/推送/部署，未改Worker启动/部署故未加Compose smoke，未启动或重启用户dev。 收尾 ./scripts/run-node22.sh node --input-type=module 只读核验exit0：根15项、归档94项、全局109个唯一ID，状态/依赖、30个相对链接、评估JSON、34份源码指纹与匹配消融参数通过；git diff --check exit0，git status --short已复核，无本轮临时路径残留。 2026-10-02 提交轮：用户要求将工作区除 PNG 外的全部改动提交为一个本地 commit。提交前核对 application-verification.json 的 34 份源码 SHA-256 全部匹配，既有完整门禁 exit 0（1027 项 Node/组件、199 项 PostgreSQL、123 项生产 Playwright）为此前实际执行结果；本轮只核验提交内容、18 份变更 JSON、15/94/109 账本计数及依赖、diff/status，不修改应用实现，不重复运行 ./init.sh、npm run check、npm run check:full 或 Compose smoke。feat-109 仅登记并保持 not-started；两张 PNG 排除在提交外，未推送或部署。"
+    },
+    {
+      "id": "feat-109",
+      "name": "首页时间轴移除 Agent 工具调用记录展示并保留执行日志",
+      "description": "用户在排查生产时间轴日志居中与分侧混用后，明确选择从 /home 时间轴移除工具调用产生的 agent_log 展示。只调整首页展示及其专用内容列表，已有和后续执行日志继续按原链路完整保存；不实施此前提出的发起者快照与历史归属修复。本轮按先讨论再登记的要求记录方案，暂不实施。",
+      "priority": "P2",
+      "priorityReason": "用户已明确选择移除首页工具调用日志展示，消除清空会话后旧日志居中、新日志分侧的视觉混用，同时要求完整保留执行记录。属于首页呈现范围调整，日志写入、追踪与读取能力必须保持。",
+      "status": "not-started",
+      "dependencies": [
+        "feat-085"
+      ],
+      "acceptanceCriteria": [
+        "/home 首屏、刷新、站内返回、搜索及加载更多均不展示 type=agent_log 的工具调用记录，覆盖新旧日志、不同发起者、缺失任务关联和无发起者记录；移除对应卡片、时间轴节点及占位，不以透明或隐藏样式留下空白行或可访问树中的日志内容",
+        "首页专用 queryBlogFeed /api/blog/feed 在分页与游标计算前排除 agent_log，前端各入口沿用一致的可见集合；隐藏日志不占可见内容的分页名额、不造成空页循环或漏掉更早文章/作品；只含日志或搜索只命中日志时显示正确空态，空态不再提示等待 Agent 日志；普通文章即使包含工具名或 agent.log 文本也不得误隐藏",
+        "仅移除首页展示，不删除、截断、改写已有 AgentTask、AgentStep、ToolCall、LLMCall、EventLog、最终消息及 agent_log Post/metadata；后续任务继续走既有 tracer、完成事务、日志投影与恢复链路，保留输入/输出、状态、错误和关联等原有记录，不通过停用日志写入、停止 Worker 投影或清理数据库达成隐藏",
+        "普通文章、空间作品、照片、连线及草稿发布的既有首页行为保持；现有受权限约束的日志 API 与详情/追踪读取入口保持，不全局修改 Post 可见性规则以连带隐藏执行日志，不新增替代日志页面",
+        "范围限定于 /home 呈现及其专用读取，不新增归属快照或历史数据回填，不修改 schema、迁移、工具执行、日志保留政策和用户主动清空/删除会话的既有语义；完整保存指本次隐藏展示不得影响日志存储，清空后也永久保留执行日志属于另一个需求",
+        "补充行为回归：组件覆盖混合内容及纯日志空态；真实 PostgreSQL 覆盖大量日志穿插下的首页列表/搜索/分页、普通内容无漏无重，并验证读取首页前后日志行与载荷不变、正常任务仍生成完整执行记录；生产 Playwright 覆盖首页/刷新/搜索/加载更多实际不出现日志及普通内容仍可操作。同步调整原首页按发起者分侧和首页/API 集合相等的旧断言，继续保留独立日志读取与权限验证，不以源码字符串或 mock 代替数据库与浏览器证据",
+        "实施启动前核对依赖与当前单 feature 状态，在独立副本及独立 node_modules 建立 ./scripts/run-node22.sh ./init.sh 基线，完成后运行 ./scripts/run-node22.sh npm run check:full 并记录真实结果；不改部署路径时无需 Compose smoke。登记轮保持 not-started，文档结构核验不代表应用验收通过"
+      ],
+      "evidence": "2026-10-02 方案登记：用户先要求讨论再登记，排查后明确选择仅移除 /home 工具调用记录展示、执行日志完整保留。根因：Timeline.tsx:156 按 agentRequesterId 分侧，post-timeline-projection.ts:18 实时从 AgentTask 解析归属；共享会话清空接口删除 AgentTask，Post.agentTaskId 的 onDelete SetNull 保留日志但失去任务，metadata.taskId 仅保留 trace 文本。用户确认前后使用过清空聊天。前一排查轮以 ./scripts/run-node22.sh node --import tsx --input-type=module 的 stdin 探针连接专用 PostgreSQL Testcontainer 并 migrate deploy，调用现有投影函数、执行与清空接口相同的删除事务：两条新/旧格式日志的发起者由有效变 null，日志与 trace 文本仍在，新任务日志又有有效归属；最终 exit 0，容器已清理。首轮探针误用 ToolCallStatus=succeeded 导致 PrismaClientValidationError/exit 1，改用 schema 中 completed 后上述断言全部通过；未访问生产库，也未将该数据链路实验称为真实 HTTP/浏览器验证。此次登记只修改 feature_list.json 与 session-handoff.md，未实施应用变更；核验 JSON、根计数、全局 ID/依赖、归档只含 done、链接及 git diff --check/status，原有 14 项与归档内容保留。根列表 15 项，不触发归档。按纯文档例外未运行 ./init.sh、npm run check、npm run check:full 或 Compose smoke，不作为应用门禁证据。"
     }
   ]
 }

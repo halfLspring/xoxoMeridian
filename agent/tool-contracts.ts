@@ -17,8 +17,8 @@ const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 }, "Expected a valid calendar date (YYYY-MM-DD).");
 
 export const weatherInputSchema = z.object({
-  city: z.string().trim().min(1).max(200).optional(),
-  includeForecast: z.boolean().optional(),
+  city: z.string().trim().min(1).max(200).optional().describe("查询城市。省略时使用伙伴城市，不能由参与者数组顺序推断身份。"),
+  includeForecast: z.boolean().optional().describe("不指定日期时可请求三天预报；指定起止日期时自动请求最多七天预报。"),
   startDate: calendarDate.optional().describe("First destination date, inclusive; supply with endDate. The range may contain at most 31 dates."),
   endDate: calendarDate.optional().describe("Last destination date, inclusive. The provider can supply at most seven days from the reference date; later dates are reported missing.")
 }).strict().refine((input) => Boolean(input.startDate) === Boolean(input.endDate), {
@@ -29,11 +29,11 @@ export const weatherInputSchema = z.object({
 ), { message: "Weather date range must contain 1–31 calendar dates." });
 
 export const searchInputSchema = z.object({
-  query: z.string().trim().min(1).max(400),
+  query: z.string().trim().min(1).max(400).describe("围绕当前问题的具体检索关键词，包含需要的地点与适用时间。"),
   maxResults: z.number().int().min(1).max(10).optional(),
   searchDepth: z.enum(["basic", "advanced"]).optional(),
   topic: z.enum(["general", "news"]).optional(),
-  timeRange: z.enum(["day", "week", "month", "year"]).optional(),
+  timeRange: z.enum(["day", "week", "month", "year"]).optional().describe("相对当前时间的发布/更新窗口；与 startDate/endDate 互斥。"),
   startDate: calendarDate.optional().describe("Earliest publication/update date, not the future travel date."),
   endDate: calendarDate.optional().describe("Latest publication/update date, not the event validity date."),
   includeDomains: z.array(z.string().trim().max(253).regex(
@@ -93,9 +93,9 @@ export const BUILT_IN_TOOL_CONTRACTS = {
   },
   "memory.set": {
     inputSchema: z.object({
-      key: z.string().min(1).max(80).regex(/^[a-z0-9._-]+$/i),
-      value: z.string().min(1).max(1000),
-      scope: z.enum(["shared", "me", "her"]).optional(),
+      key: z.string().min(1).max(80).regex(/^[a-z0-9._-]+$/i).describe("稳定的点分小写键，以 me.（本人）、her.（伙伴）或 shared.（房间）开头；同键更新既有事实。"),
+      value: z.string().min(1).max(1000).describe("明确的持久事实，写成陈述句；不保存临时情绪、猜测或操作指令。"),
+      scope: z.enum(["shared", "me", "her"]).optional().describe("记忆归属，与 key 前缀一致，私聊不能推断伙伴。"),
       source: z.string().max(200).optional()
     }).strict(),
     outputSchema: z.object({
@@ -121,12 +121,12 @@ export const BUILT_IN_TOOL_CONTRACTS = {
   },
   "schedule.create": {
     inputSchema: z.object({
-      cron: z.string().min(1).max(200).optional(),
-      fireAt: scheduledJobFireAtSchema.optional(),
-      timezone: z.string().min(1).max(200),
-      prompt: z.string().min(1).max(500),
+      cron: z.string().min(1).max(200).optional().describe("重复周期使用五段 cron，与 fireAt 互斥；修改已有任务优先 schedule.update。"),
+      fireAt: scheduledJobFireAtSchema.optional().describe("一次性绝对时间点，ISO-8601 含时区偏移；自动单次执行，与 cron 互斥。"),
+      timezone: z.string().min(1).max(200).describe("计划所属 IANA 时区。"),
+      prompt: z.string().min(1).max(500).describe("到时助手执行的动作，不是再次创建计划的指令。"),
       description: scheduleDescriptionSchema.optional(),
-      runOnce: z.boolean().optional()
+      runOnce: z.boolean().optional().describe("true 为下次执行后停用；false 为重复执行；fireAt 路径始终单次。")
     }).strict().refine(hasExactlyOneScheduledJobTrigger, {
       message: "Exactly one of fireAt or cron is required",
     }),
@@ -146,12 +146,12 @@ export const BUILT_IN_TOOL_CONTRACTS = {
   "schedule.update": {
     inputSchema: z.object({
       jobId: id,
-      cron: z.string().min(1).max(200).optional(),
-      fireAt: scheduledJobFireAtSchema.optional(),
+      cron: z.string().min(1).max(200).optional().describe("重复周期使用五段 cron，与 fireAt 互斥；修改已有任务优先 schedule.update。"),
+      fireAt: scheduledJobFireAtSchema.optional().describe("一次性绝对时间点，ISO-8601 含时区偏移；自动单次执行，与 cron 互斥。"),
       timezone: z.string().min(1).max(200).optional(),
       prompt: z.string().min(1).max(500).optional(),
       description: scheduleDescriptionSchema.optional(),
-      runOnce: z.boolean().optional()
+      runOnce: z.boolean().optional().describe("true 为下次执行后停用；false 为重复执行；fireAt 路径始终单次。")
     }).strict().refine(hasAtMostOneScheduledJobTrigger, {
       message: "fireAt and cron cannot be provided together",
     }),
@@ -201,7 +201,7 @@ export const BUILT_IN_TOOL_CONTRACTS = {
       fetchedAt: z.string().optional(),
       constraints: z.object({
         topic: z.enum(["general", "news"]).optional(),
-        timeRange: z.enum(["day", "week", "month", "year"]).optional(),
+        timeRange: z.enum(["day", "week", "month", "year"]).optional().describe("相对当前时间的发布/更新窗口；与 startDate/endDate 互斥。"),
         startDate: calendarDate.optional(),
         endDate: calendarDate.optional(),
         includeDomains: z.array(z.string()).optional()
