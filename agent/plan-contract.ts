@@ -27,6 +27,12 @@ const MAX_ISSUES = 8;
 export class AgentPlanValidationError extends Error {
   readonly category = "validation";
   readonly issues: ContractIssue[];
+  /**
+   * 解析失败时模型的原始返回，仅供失败日志排查。
+   * 刻意用不可枚举属性承载（见 attachRawResponse）：不进入 JSON.stringify(error)，
+   * 避免任意工具名/输入值随错误对象的序列化泄漏——这正是本契约的边界不变量。
+   */
+  declare rawResponse?: unknown;
 
   constructor(readonly source: PlanSource, issues: ContractIssue[]) {
     const boundedIssues = issues.slice(0, MAX_ISSUES);
@@ -108,17 +114,39 @@ export function parsePlannerResponse(
   try {
     raw = JSON.parse(content);
   } catch {
-    throw new AgentPlanValidationError("planner", [{ code: "invalid_json", path: "plan" }]);
+    const error = new AgentPlanValidationError("planner", [{ code: "invalid_json", path: "plan" }]);
+    attachRawResponse(error, { content });
+    throw error;
   }
   const value = typeof raw === "object" && raw !== null && !Array.isArray(raw)
     ? raw as Record<string, unknown> : {};
-  return parseAgentPlan({
-    intent: value.intent,
-    confidence: value.confidence,
-    requiredTools: value.required_tools,
-    taskSteps: value.task_steps,
-    finalResponsePlan: value.final_response_plan,
-    finalResponseText: value.final_response_text,
-    toolInputs: value.tool_inputs
-  }, registry, allowedToolNames, "planner");
+  try {
+    return parseAgentPlan({
+      intent: value.intent,
+      confidence: value.confidence,
+      requiredTools: value.required_tools,
+      taskSteps: value.task_steps,
+      finalResponsePlan: value.final_response_plan,
+      finalResponseText: value.final_response_text,
+      // tool_inputs 可省略：无工具对话时模型常直接省略该字段（或给 null），
+      // 归一为 {} 避免结构校验把可省略字段误判为失败；数组/字符串等非法形态仍照常拦截。
+      toolInputs: value.tool_inputs ?? {}
+    }, registry, allowedToolNames, "planner");
+  } catch (error) {
+    if (error instanceof AgentPlanValidationError) attachRawResponse(error, raw);
+    throw error;
+  }
+}
+
+/**
+ * 把模型原始返回挂到错误上，但设为不可枚举：调用方可读 error.rawResponse 写调试日志，
+ * 而 JSON.stringify(error) / 展开 / 逐属性拷贝都不会带出原始内容，守住"错误对象不泄漏输入"的边界。
+ */
+function attachRawResponse(error: AgentPlanValidationError, rawResponse: unknown): void {
+  Object.defineProperty(error, "rawResponse", {
+    value: rawResponse,
+    enumerable: false,
+    writable: true,
+    configurable: true
+  });
 }
