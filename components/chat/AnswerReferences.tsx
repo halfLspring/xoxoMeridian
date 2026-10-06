@@ -6,7 +6,7 @@ export function AnswerReferences({ content, references }: { content: string; ref
   if (!references?.sources.length) return null;
   return (
     <details className="mt-2 rounded-lg border border-black/10 bg-white/60 p-2 text-xs text-black/60">
-      <summary className="cursor-pointer rounded px-1 py-0.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage-600">
+      <summary className="cursor-pointer rounded-sm px-1 py-0.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage-600">
         参考来源（{references.sources.length}）
       </summary>
       <ul className="mt-2 space-y-3 px-1">

@@ -1,11 +1,7 @@
+import typography from "@tailwindcss/typography";
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: [
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./lib/**/*.{js,ts,jsx,tsx,mdx}"
-  ],
   theme: {
     extend: {
       fontFamily: {
@@ -58,8 +54,16 @@ const config: Config = {
             maxWidth: "none",
             "--tw-prose-body": "#332B25",
             "--tw-prose-headings": "#2C3E50",
+            "--tw-prose-lead": "#4b5563",
             "--tw-prose-links": "#2C3E50",
             "--tw-prose-bold": "#2C3E50",
+            "--tw-prose-counters": "#6b7280",
+            "--tw-prose-bullets": "#d1d5db",
+            "--tw-prose-captions": "#6b7280",
+            "--tw-prose-kbd": "#111827",
+            "--tw-prose-kbd-shadows": "rgb(17 24 39 / 10%)",
+            "--tw-prose-th-borders": "#d1d5db",
+            "--tw-prose-td-borders": "#e5e7eb",
             "--tw-prose-code": "#1E1E1E",
             "--tw-prose-pre-bg": "#1E1E1E",
             "--tw-prose-pre-code": "#E0E0E0",
@@ -78,7 +82,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [require("@tailwindcss/typography")],
+  plugins: [typography],
 };
 
 export default config;

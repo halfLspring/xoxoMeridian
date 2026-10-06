@@ -656,14 +656,16 @@ test("renders the authenticated home navigation", async ({ page }) => {
   await expect(page.getByRole("link", { name: E2E_USERS[0].displayName })).toBeVisible();
 });
 
-test("Agent 日志在首页与搜索中跟随任务发起者的文章分侧", async ({ page }) => {
+test("首页刷新、站内返回与搜索均排除新旧 Agent 日志，独立日志详情仍可读取", async ({ page }) => {
   const databaseUrl = process.env.E2E_DATABASE_URL
     ?? (await readFile(resolve("test-results/.e2e-database-url"), "utf8")).trim();
   const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
-  const prefix = `e2e-agent-side-${Date.now().toString(36)}`;
+  const prefix = `e2e-agent-hidden-${Date.now().toString(36)}`;
   const roomId = `${prefix}-room`;
-  const postIds = ["article-owner", "article-partner", "log-owner-new", "log-owner-old", "log-partner", "log-scheduled", "article-unmatched"]
-    .map((name) => `${prefix}-${name}`);
+  const names = ["article-owner", "article-partner", "log-owner-new", "log-owner-old", "log-partner", "log-scheduled", "log-missing", "log-orphan", "article-unmatched"];
+  const postIds = names.map(name => `${prefix}-${name}`);
+  const titles = [`${prefix} 我的文章 weather.get agent.log`, `${prefix} 伙伴文章`];
+  const payload = `${prefix} 隐藏工具载荷`;
 
   try {
     const [owner, partner, agent] = await Promise.all([
@@ -672,7 +674,7 @@ test("Agent 日志在首页与搜索中跟随任务发起者的文章分侧", as
       db.agent.findUniqueOrThrow({ where: { slug: "life-assistant" } }),
     ]);
     await db.room.create({ data: {
-      id: roomId, slug: roomId, name: "Agent 日志分侧回归",
+      id: roomId, slug: roomId, name: "首页日志隐藏回归",
       participants: { create: [{ userId: owner.id }, { userId: partner.id }] },
     } });
     const createTask = (requestedById: string | null) => db.agentTask.create({ data: {
@@ -682,55 +684,154 @@ test("Agent 日志在首页与搜索中跟随任务发起者的文章分侧", as
       createTask(owner.id), createTask(owner.id), createTask(partner.id), createTask(null),
     ]);
     const baseTime = Date.UTC(2098, 8, 23);
+    const taskLinks = [
+      { agentTaskId: ownerNew.id, metadata: { taskId: ownerNew.id } },
+      { metadata: { taskId: ownerOld.id } },
+      { agentTaskId: partnerTask.id, metadata: { taskId: partnerTask.id } },
+      { agentTaskId: scheduledTask.id, metadata: { taskId: scheduledTask.id } },
+      { metadata: { taskId: "deleted-task" } },
+      { metadata: { taskId: "orphan-task" } },
+    ];
     await db.post.createMany({ data: [
-      { id: postIds[0], slug: postIds[0], title: `${prefix} 我的文章`, content: "同一发起者左侧", type: "user_post", authorId: owner.id, publishedAt: new Date(baseTime) },
-      { id: postIds[1], slug: postIds[1], title: `${prefix} 伙伴文章`, content: "另一发起者右侧", type: "user_post", authorId: partner.id, publishedAt: new Date(baseTime + 1_000) },
-      { id: postIds[2], slug: postIds[2], title: `${prefix} 新日志`, content: "新任务关联", type: "agent_log", roomId, agentTaskId: ownerNew.id, metadata: { taskId: ownerNew.id }, publishedAt: new Date(baseTime + 2_000) },
-      { id: postIds[3], slug: postIds[3], title: `${prefix} 旧日志`, content: "旧任务 metadata", type: "agent_log", roomId, metadata: { taskId: ownerOld.id }, publishedAt: new Date(baseTime + 3_000) },
-      { id: postIds[4], slug: postIds[4], title: `${prefix} 伙伴日志`, content: "伙伴任务", type: "agent_log", roomId, agentTaskId: partnerTask.id, metadata: { taskId: partnerTask.id }, publishedAt: new Date(baseTime + 4_000) },
-      { id: postIds[5], slug: postIds[5], title: `${prefix} 定时日志`, content: "无发起者", type: "agent_log", roomId, agentTaskId: scheduledTask.id, metadata: { taskId: scheduledTask.id }, publishedAt: new Date(baseTime + 5_000) },
-      { id: postIds[6], slug: postIds[6], title: "搜索前附加文章", content: "搜索结果应排除这张卡片", type: "user_post", authorId: owner.id, publishedAt: new Date(baseTime + 6_000) },
+      { id: postIds[0], slug: postIds[0], title: titles[0], content: "普通文章仍可阅读与编辑", type: "user_post", authorId: owner.id, publishedAt: new Date(baseTime) },
+      { id: postIds[1], slug: postIds[1], title: titles[1], content: "伙伴的普通文章", type: "user_post", authorId: partner.id, publishedAt: new Date(baseTime + 1_000) },
+      ...taskLinks.map((link, i) => ({ id: postIds[i + 2], slug: postIds[i + 2], title: `${prefix} ${names[i + 2]}`, content: payload, type: "agent_log" as const, roomId: i === 5 ? null : roomId, ...link, publishedAt: new Date(baseTime + (i + 2) * 1_000) })),
+      { id: postIds[8], slug: postIds[8], title: "搜索前附加文章", content: "搜索结果应排除这张卡片", type: "user_post", authorId: owner.id, publishedAt: new Date(baseTime + 8_000) },
     ] });
-
-    const unmatchedCard = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "搜索前附加文章", exact: true }) });
-    const cards = ["我的文章", "伙伴文章", "新日志", "旧日志", "伙伴日志", "定时日志"]
-      .map((label) => page.getByRole("article").filter({ has: page.getByRole("heading", { name: `${prefix} ${label}`, exact: true }) }));
-    const assertSides = async () => {
-      for (const card of cards) await expect(card).toBeVisible();
-      const centers = await Promise.all(cards.map(async (card) => {
-        const box = await card.boundingBox();
-        expect(box).not.toBeNull();
-        return box!.x + box!.width / 2;
-      }));
-      const axis = page.viewportSize()!.width / 2;
-      expect(centers[0]).toBeLessThan(axis);
-      expect(centers[1]).toBeGreaterThan(axis);
-      expect(centers[2]).toBeLessThan(axis);
-      expect(centers[3]).toBeLessThan(axis);
-      expect(centers[4]).toBeGreaterThan(axis);
-      expect(Math.abs(centers[5] - axis)).toBeLessThan(24);
+    const logsBefore = await db.post.findMany({ where: { id: { in: postIds.slice(2, 8) } }, orderBy: { id: "asc" } });
+    const assertNoLogs = async () => {
+      for (const id of postIds.slice(2, 8)) {
+        await expect(page.getByRole("heading", { name: `${prefix} ${names[postIds.indexOf(id)]}`, exact: true })).toHaveCount(0);
+        await expect(page.locator(`a[href="/posts/${id}"]`)).toHaveCount(0);
+      }
+      await expect(page.getByRole("main").getByText(payload, { exact: true })).toHaveCount(0);
     };
-
     await page.goto("/home");
-    await expect(unmatchedCard).toBeVisible();
-    await assertSides();
-    const search = page.waitForResponse((response) => {
-      const url = new URL(response.url());
-      return url.pathname === "/api/blog/feed" && url.searchParams.get("q") === prefix;
-    });
-    await page.getByRole("textbox", { name: "Search posts", exact: true }).fill(prefix);
-    const searchResponse = await search;
-    expect(searchResponse.status()).toBe(200);
-    const results = await searchResponse.json() as { entries: Array<{ post: { id: string } }> };
-    expect(results.entries.map(({ post }) => post.id).sort()).toEqual(postIds.slice(0, 6).sort());
-    await expect(unmatchedCard).toHaveCount(0);
-    await expect(page.getByRole("main").getByRole("article")).toHaveCount(6);
-    await assertSides();
+    for (const title of titles) await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+    const centers = await Promise.all(titles.map(async title => {
+      const box = await page.getByRole("article").filter({ has: page.getByRole("heading", { name: title, exact: true }) }).boundingBox();
+      expect(box).not.toBeNull();
+      return box!.x + box!.width / 2;
+    }));
+    expect(centers[0]).toBeLessThan(page.viewportSize()!.width / 2);
+    expect(centers[1]).toBeGreaterThan(page.viewportSize()!.width / 2);
+    await expect(page.getByRole("heading", { name: "搜索前附加文章", exact: true })).toBeVisible();
+    await assertNoLogs();
+    await page.reload();
+    await expect(page.getByRole("heading", { name: titles[0], exact: true })).toBeVisible();
+    await assertNoLogs();
+    const articleLink = page.getByRole("link", { name: titles[0], exact: true });
+    await articleLink.focus();
+    await articleLink.press("Enter");
+    await expect(page).toHaveURL(new RegExp(`/posts/${postIds[0]}$`));
+    await expect(page.getByRole("heading", { level: 1, name: titles[0] })).toBeVisible();
+    await page.getByRole("link", { name: "Back to Blog", exact: true }).click();
+    await expect(page).toHaveURL(/\/home$/);
+    await expect(page.getByRole("heading", { name: titles[0], exact: true })).toBeVisible();
+    await assertNoLogs();
+
+    const search = async (query: string) => {
+      const received = page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/blog/feed" && url.searchParams.get("q") === query;
+      });
+      await page.getByRole("textbox", { name: "Search posts", exact: true }).fill(query);
+      const response = await received;
+      expect(response.status()).toBe(200);
+      return response.json();
+    };
+    const results = await search(prefix);
+    expect(results.entries.map(({ post }: { post: { id: string } }) => post.id).sort()).toEqual(postIds.slice(0, 2).sort());
+    await expect(page.getByRole("heading", { name: "搜索前附加文章", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("main").getByRole("article")).toHaveCount(2);
+    await assertNoLogs();
+    expect(await search(payload)).toEqual({ entries: [], nextCursor: null });
+    await expect(page.getByText("No posts match your search.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("article")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "加载更早的作品", exact: true })).toHaveCount(0);
+    await expect(page.getByText(/wait for the agent/i)).toHaveCount(0);
+    await assertNoLogs();
+
+    // 首页呈现不改变独立日志读取和详情权限。
+    const logsResponse = await page.request.get(`/api/posts?type=agent_log&q=${encodeURIComponent(prefix)}`);
+    expect(logsResponse.status()).toBe(200);
+    expect((await logsResponse.json()).posts.map((post: { id: string }) => post.id).sort()).toEqual(postIds.slice(2, 7).sort());
+    await page.goto(`/posts/${postIds[2]}`);
+    await expect(page.getByRole("heading", { level: 1, name: `${prefix} log-owner-new`, exact: true })).toBeVisible();
+    await expect(page.getByText(payload, { exact: true })).toBeVisible();
+    expect(await db.post.findMany({ where: { id: { in: postIds.slice(2, 8) } }, orderBy: { id: "asc" } })).toEqual(logsBefore);
   } finally {
     await page.goto("about:blank").catch(() => undefined);
     try {
       await db.post.deleteMany({ where: { id: { in: postIds } } });
       await db.agentTask.deleteMany({ where: { roomId } });
+      await db.room.deleteMany({ where: { id: roomId } });
+    } finally {
+      await db.$disconnect();
+    }
+  }
+});
+
+test("首页与搜索加载更多跳过大量穿插日志，普通文章无漏无重并可键盘阅读", async ({ page }) => {
+  const databaseUrl = process.env.E2E_DATABASE_URL
+    ?? (await readFile(resolve("test-results/.e2e-database-url"), "utf8")).trim();
+  const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+  const prefix = `e2e-feed-pages-${Date.now().toString(36)}`;
+  const roomId = `${prefix}-room`;
+  const articleIds = Array.from({ length: 56 }, (_, i) => `${prefix}-article-${i}`);
+  const logIds = Array.from({ length: 180 }, (_, i) => `${prefix}-log-${i}`);
+  try {
+    const owner = await db.user.findUniqueOrThrow({ where: { email: E2E_USERS[0].email } });
+    await db.room.create({ data: { id: roomId, slug: roomId, name: "首页日志分页回归", participants: { create: { userId: owner.id } } } });
+    const at = Date.UTC(2099, 0, 1);
+    await db.post.createMany({ data: [
+      ...articleIds.map((id, i) => ({ id, slug: id, title: `${prefix} 文章 ${i}`, content: "普通分页内容 weather.get agent.log", type: "user_post" as const, authorId: owner.id, publishedAt: new Date(at + i * 1_000) })),
+      ...logIds.map((id, i) => ({ id, slug: id, title: `${prefix} 日志 ${i}`, content: "隐藏分页载荷", type: "agent_log" as const, roomId, metadata: { taskId: `lost-${i}` }, publishedAt: new Date(at + (i - 60) * 500) })),
+    ] });
+    const articleLinks = page.locator(`main h2 a[href^="/posts/${prefix}-article-"]`);
+    const assertArticles = async (ids: string[]) => {
+      await expect(articleLinks).toHaveCount(ids.length);
+      expect((await articleLinks.evaluateAll(nodes => nodes.map(node => node.getAttribute("href")!.split("/").at(-1)))).sort()).toEqual([...ids].sort());
+      await expect(page.locator(`main a[href^="/posts/${prefix}-log-"]`)).toHaveCount(0);
+      await expect(page.getByRole("main").getByText("隐藏分页载荷", { exact: true })).toHaveCount(0);
+    };
+    const loadMore = async (query: string) => {
+      const reply = page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/blog/feed" && url.searchParams.get("q") === query && url.searchParams.has("cursor");
+      });
+      await page.getByRole("button", { name: "加载更早的作品", exact: true }).click();
+      const response = await reply;
+      expect(response.status()).toBe(200);
+      const data = await response.json();
+      expect(data.entries.every((entry: { kind: string; post?: { type: string } }) => entry.kind !== "post" || entry.post?.type === "user_post")).toBe(true);
+      return data;
+    };
+    await page.goto("/home");
+    await assertArticles(articleIds.slice(6));
+    await loadMore("");
+    await assertArticles(articleIds);
+    const firstSearch = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/blog/feed" && url.searchParams.get("q") === prefix && !url.searchParams.has("cursor");
+    });
+    await page.getByRole("textbox", { name: "Search posts", exact: true }).fill(prefix);
+    expect((await firstSearch).status()).toBe(200);
+    await assertArticles(articleIds.slice(6));
+    const lastPage = await loadMore(prefix);
+    expect(lastPage.entries.map((entry: { post: { id: string } }) => entry.post.id).sort()).toEqual(articleIds.slice(0, 6).sort());
+    expect(lastPage.nextCursor).toBeNull();
+    await assertArticles(articleIds);
+    await expect(page.getByRole("button", { name: "加载更早的作品", exact: true })).toHaveCount(0);
+    const earlierArticle = page.getByRole("link", { name: `${prefix} 文章 0`, exact: true });
+    await earlierArticle.focus();
+    await earlierArticle.press("Enter");
+    await expect(page.getByRole("heading", { level: 1, name: `${prefix} 文章 0`, exact: true })).toBeVisible();
+    expect(await db.post.count({ where: { id: { in: logIds } } })).toBe(180);
+  } finally {
+    await page.goto("about:blank").catch(() => undefined);
+    try {
+      await db.post.deleteMany({ where: { id: { in: [...articleIds, ...logIds] } } });
       await db.room.deleteMany({ where: { id: roomId } });
     } finally {
       await db.$disconnect();

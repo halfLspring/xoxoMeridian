@@ -70,6 +70,21 @@ describe("空间草稿真实数据库生命周期", () => {
     await command(w.workId, { operation: "photo.delete", id: p.resourceId! }, other);
     expect((await readWork(other, w.workId)).elements).toHaveLength(0);
   });
+  it("图片保存原子推进版本，陈旧和越权变换不改位置、尺寸或角度", async () => {
+    const w = await draft();
+    const photo = await prisma.atlasElement.create({ data: { workId: w.workId, boardId: "home-board", type: "photo", imageUrl: "/fixture.svg", x: 80, y: 350, width: 240, height: 180 } });
+    const input = { mutationId: randomUUID(), baseRevision: 0, expectedStatus: "draft" as const };
+    const change: WorkCommand = { operation: "photo.update", id: photo.id, data: { x: 161.35, y: 390.68, width: 273, height: 205, rotation: 20 } };
+    const result = await mutateWork(owner, w.workId, input, change);
+    expect(result.revision).toBe(1);
+    const saved = await prisma.atlasElement.findUniqueOrThrow({ where: { id: photo.id } });
+    expect(saved).toMatchObject(change.data);
+    expect(await mutateWork(owner, w.workId, input, change)).toEqual(result);
+    await expect(mutateWork(owner, w.workId, { ...input, mutationId: randomUUID() }, { ...change, data: { x: 900 } })).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    await expect(mutateWork(other, w.workId, { ...input, mutationId: randomUUID(), baseRevision: 1 }, change)).rejects.toMatchObject({ status: 404 });
+    expect(await prisma.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(saved);
+    expect((await readWork(owner, w.workId)).revision).toBe(1);
+  });
   it("并发 CAS 只有一个提交，重试不重复创建", async () => {
     const w = await draft(), input = { mutationId: randomUUID(), baseRevision: 0, expectedStatus: "draft" as const };
     const result = await Promise.allSettled([mutateWork(owner, w.workId, input, { operation: "post.create", data: { title: "A", content: "A" } }), mutateWork(owner, w.workId, { ...input, mutationId: randomUUID() }, { operation: "post.create", data: { title: "B", content: "B" } })]);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
@@ -15,6 +15,11 @@ const composeFile = join(repositoryRoot, "docker-compose.yml");
 const smokeComposeFile = join(repositoryRoot, "docker-compose.smoke.yml");
 const configOnly = process.argv.includes("--config-only");
 const unexpectedArguments = process.argv.slice(2).filter((argument) => argument !== "--config-only");
+const manualEvaluationScripts = [
+  "scripts/eval-agent-answers.ts",
+  "scripts/eval-agent-workflow.ts",
+  "scripts/summarize-agent-eval.ts"
+];
 
 if (unexpectedArguments.length > 0) {
   throw new Error(`不支持的参数：${unexpectedArguments.join(", ")}`);
@@ -342,6 +347,124 @@ async function validateComposeConfig(context: SmokeContext, expectedTheme = "def
   console.log(
     `[compose-config] 已验证 ${context.projectName}：theme=${expectedTheme}、4 个服务、隔离卷/目录、production runner target 与 inline=false。`
   );
+}
+
+async function assertBuildContextIsolation(context: SmokeContext) {
+  const inputRoot = join(context.temporaryRoot, "build-context-input");
+  const outputRoot = join(context.temporaryRoot, "build-context-output");
+  const requiredFiles = [
+    ".env.example",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "app/api/health/route.ts",
+    "agent/agent-worker.ts",
+    "lib/env.ts",
+    "prisma/schema.prisma",
+    "prisma/seed.ts",
+    "scripts/cleanup-blog-assets.ts",
+    "scripts/agent-entry-assets.ts"
+  ];
+  const excludedFiles = [
+    ".env",
+    ".env.local",
+    ".env.production.local",
+    "tests/evals/agent-answer/cases.ts",
+    "tests/evals/agent-answer/validation-cases.ts",
+    "tests/evals/agent-answer/legacy-requests.json",
+    "test-results/.auth/user-one.json",
+    "playwright-report/index.html",
+    "playwright-report/data/auth.json",
+    ...manualEvaluationScripts
+  ];
+
+  // 用合成文件交给 Docker 实际筛选，避免读取真实配置或把认证工件复制到探针中。
+  await mkdir(inputRoot, { recursive: true });
+  await writeFile(join(inputRoot, ".dockerignore"), await readFile(join(repositoryRoot, ".dockerignore")));
+  await writeFile(join(inputRoot, "Dockerfile"), "FROM scratch\nCOPY . /context/\n");
+  await Promise.all([...requiredFiles, ...excludedFiles].map(async (path) => {
+    const destination = join(inputRoot, path);
+    await mkdir(dirname(destination), { recursive: true });
+    await writeFile(destination, "compose-smoke-synthetic-input\n");
+  }));
+  await captureDocker([
+    "build", "--network=none", "--output", `type=local,dest=${outputRoot}`, inputRoot
+  ]);
+  for (const path of requiredFiles) {
+    await access(join(outputRoot, "context", path));
+  }
+  for (const path of excludedFiles) {
+    await assert.rejects(
+      access(join(outputRoot, "context", path)),
+      { code: "ENOENT" },
+      `Docker 构建上下文不得包含 ${path}。`
+    );
+  }
+  console.log("[compose-smoke] Docker 实际上下文保留生产入口，隔离手动评估、fixture、环境配置与测试认证/报告工件。");
+}
+
+async function assertProductionImageIsolation(context: SmokeContext) {
+  for (const service of ["web", "agent-worker"]) {
+    const container = await inspectContainer(context, service);
+    const imageId = asString(container.Image, `${service} inspect.Image 缺失。`);
+    const unexpectedPaths = JSON.parse(await captureDocker([
+      "run", "--rm", "--network=none", "--read-only", "--entrypoint", "node", imageId,
+      "--input-type=module", "-e",
+      `import { existsSync, readdirSync } from "node:fs";
+       import { join } from "node:path";
+       const excluded = ${JSON.stringify(["tests", "test-results", "playwright-report", ...manualEvaluationScripts])};
+       const environmentFiles = readdirSync("/app").filter((name) =>
+         (name === ".env" || name.startsWith(".env.")) && name !== ".env.example");
+       console.log(JSON.stringify([
+         ...environmentFiles,
+         ...excluded.filter((path) => existsSync(join("/app", path)))
+       ]));`
+    ])) as unknown;
+    assert.deepEqual(unexpectedPaths, [], `${service} 生产镜像包含非生产输入。`);
+  }
+  console.log("[compose-smoke] Web/Worker 原始镜像均不含环境配置、手动评估或测试认证/报告工件。");
+}
+
+async function inspectImageDependencies(context: SmokeContext) {
+  for (const service of ["web", "agent-worker"]) {
+    const container = await inspectContainer(context, service);
+    const imageId = asString(container.Image, `${service} inspect.Image 缺失。`);
+    const report = JSON.parse(await captureDocker([
+      "run", "--rm", "--network=none", "--read-only", "--entrypoint", "node", imageId,
+      "--input-type=module", "-e",
+      `import { readdirSync, readFileSync } from "node:fs";
+       import { join, relative } from "node:path";
+       const names = new Set(["braces", "micromatch", "fast-glob", "chokidar", "tailwindcss",
+         "@tailwindcss/postcss", "@tailwindcss/typography", "@next/eslint-plugin-next", "@gltf-transform/cli",
+         "source-map-js", "source-map", "source-map08", "postcss", "@tailwindcss/node", "css-tree", "magicast", "postcss-selector-parser"]);
+       const packages = [];
+       function visit(directory) {
+         for (const entry of readdirSync(directory, { withFileTypes: true })) {
+           const path = join(directory, entry.name);
+           if (entry.isDirectory()) visit(path);
+           else if (entry.name === "package.json") {
+             const pkg = JSON.parse(readFileSync(path, "utf8"));
+             if (names.has(pkg.name)) packages.push({ path: relative("/app", path),
+               name: pkg.name, version: pkg.version ?? null, dependencies: pkg.dependencies ?? {} });
+           }
+         }
+       }
+       visit("/app/node_modules");
+       packages.sort((a, b) => a.path.localeCompare(b.path));
+       console.log(JSON.stringify({ node: process.version, packages }));`
+    ])) as { node: string; packages: Array<{ path: string; name: string; version: string | null; dependencies: Record<string, string> }> };
+    const tailwind = report.packages.filter((pkg) => pkg.name === "tailwindcss");
+    assert(tailwind.every((pkg) => pkg.version?.startsWith("4.")), `${service} 不得残留 Tailwind 3。`);
+    if (service === "agent-worker") {
+      assert.equal(tailwind.length, 1, "Worker 完整安装图应包含唯一 Tailwind 4。 ");
+      for (const pkg of report.packages.filter((pkg) => ["tailwindcss", "@tailwindcss/postcss"].includes(pkg.name))) {
+        assert.equal(["braces", "micromatch", "fast-glob", "chokidar"].some((name) => name in pkg.dependencies), false,
+          `${pkg.name} 不得重新引入旧 Tailwind 的易受影响链。`);
+      }
+    }
+    // Worker 仍含上游未修复的开发工具链，完整记录，不能按 dev 标记声称镜像不存在。
+    console.log(`[compose-smoke:dependencies] ${JSON.stringify({ service, imageId, ...report })}`);
+  }
 }
 
 async function serviceContainerId(context: SmokeContext, serviceName: string) {
@@ -802,6 +925,7 @@ async function runSmoke(context: SmokeContext) {
   let failure: unknown;
 
   try {
+    await assertBuildContextIsolation(context);
     await runCompose(context, ["build", "web", "agent-worker"]);
     await runCompose(context, ["up", "--detach", "--no-build", "init"]);
     await runCompose(context, ["wait", "init"]);
@@ -809,6 +933,8 @@ async function runSmoke(context: SmokeContext) {
     await runCompose(context, ["up", "--detach", "--no-build", "web", "agent-worker"]);
     await waitForHealthyWeb(context);
     await assertProductionProcesses(context);
+    await assertProductionImageIsolation(context);
+    await inspectImageDependencies(context);
     await assertWebImageAssets(context);
     await exerciseWorkerThroughWeb(context);
   } catch (error) {

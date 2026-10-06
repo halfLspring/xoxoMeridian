@@ -52,7 +52,7 @@ function MessageBubble({
     <div className={cn("flex", isMine ? "justify-end" : "justify-start")}>
       <article
         className={cn(
-          "max-w-[82%] rounded-[10px] border px-4 py-3 shadow-sm",
+          "max-w-[82%] rounded-[10px] border px-4 py-3 shadow-xs",
           isMine && "border-ink/10 bg-ink text-white",
           isAgent && "border-[#e8e8e8] bg-[#fafbfc] text-ink",
           isSystem && "border-[#e8e8e8] bg-white text-ink/60",

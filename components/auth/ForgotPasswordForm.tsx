@@ -69,7 +69,7 @@ export function ForgotPasswordForm() {
         placeholder="邮箱"
         autoComplete="email"
         required
-        className="w-full rounded-lg border border-warm-200 bg-white px-4 py-3 text-sm text-ink placeholder-ink/40 focus:border-sage-400 focus:outline-none"
+        className="w-full rounded-lg border border-warm-200 bg-white px-4 py-3 text-sm text-ink placeholder:text-ink/40 focus:border-sage-400 focus:outline-hidden"
         disabled={submitting}
       />
       <button

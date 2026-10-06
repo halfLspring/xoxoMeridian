@@ -25,13 +25,13 @@ export function NoteCard({
 
   return (
     <div
-      className="relative rounded-[6px] border border-amber-200/60 bg-amber-50 shadow-sm"
+      className="relative rounded-[6px] border border-amber-200/60 bg-amber-50 shadow-xs"
       style={{ minHeight: 80, padding: "12px 14px 24px" }}
     >
       {editing ? (
         <textarea
           ref={textareaRef}
-          className="w-full resize-none bg-transparent text-sm text-ink outline-none break-words"
+          className="w-full resize-none bg-transparent text-sm text-ink outline-hidden break-words"
           data-note-area
           value={text}
           onChange={(e) => setText(e.target.value)}

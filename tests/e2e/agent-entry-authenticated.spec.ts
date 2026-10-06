@@ -1,13 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import type { AgentConversationSendResult, AgentConversationSnapshot } from "@/lib/agent-conversation-types";
 import { entryChunks, entryName, expectReady, hostInteraction, modelPath, observeEntry, settleHydration } from "./support/agent-entry";
 import { expectModelSettled, modelMeasurements, observeModelFrames, privateDatabaseUrl, runPrivateTask, type EntryFrame } from "./support/agent-conversation";
 import { e2eAgentEntryTheme, e2eAppMode } from "./support/app-mode";
 import { E2E_PASSWORD, E2E_USERS } from "./support/credentials";
 import { entryBox, entryPositionKey, expectEntryAt, moveEntryWithMouse, moveEntryWithTouch, savedEntryPosition } from "./support/agent-entry-drag";
+import { cleanupPrivateConversation, type PrivateCleanupEvent } from "./support/private-conversation-cleanup";
 
 // 完整 Chromium 支持原生窗口焦点；默认 headless shell 的 bringToFront 不产生 focus。
 test.use({ channel: "chromium" });
@@ -801,86 +802,104 @@ test.describe("入口身份生命周期", () => {
   });
 });
 
-test("两位用户的私聊持久隔离，关闭后任务完成、重新打开回复，审批后继续且 Chat 保持共享", async ({ page, browser, baseURL }) => {
-  test.setTimeout(120_000);
-  const databaseUrl = await privateDatabaseUrl();
-  const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
-  const second = await secondUserContext(browser, baseURL);
+const privateConversationTest = test.extend<{
+  privateConversation: { databaseUrl: string; db: PrismaClient; second: BrowserContext; createdRooms: string[] };
+}>({
+  privateConversation: async ({ page, browser, baseURL }, runFixture, testInfo) => {
+    if (!baseURL) throw new Error("私聊夹具需要隔离 E2E baseURL");
+    const databaseUrl = await privateDatabaseUrl();
+    const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+    const createdRooms: string[] = [];
+    let second: BrowserContext | undefined;
+    const events: PrivateCleanupEvent[] = [];
+    try {
+      second = await secondUserContext(browser, baseURL);
+      await runFixture({ databaseUrl, db, second, createdRooms });
+    } finally {
+      try {
+        await cleanupPrivateConversation({ page, second, database: db, roomIds: createdRooms, baseURL, onEvent: (event) => events.push(event) });
+      } finally {
+        await testInfo.attach("private-conversation-cleanup", { contentType: "application/json", body: JSON.stringify(events) });
+      }
+    }
+  },
+});
+
+privateConversationTest("两位用户的私聊持久隔离，关闭后任务完成、重新打开回复，审批后继续且 Chat 保持共享", async ({ page, privateConversation }) => {
+  privateConversationTest.setTimeout(120_000);
+  const { databaseUrl, db, second, createdRooms } = privateConversation;
   const other = await second.newPage();
   const markerA = `仅属于A-${randomUUID()}`;
   const markerB = `仅属于B-${randomUUID()}`;
-  const createdRooms: string[] = [];
-  try {
-    const users = await db.user.findMany({ where: { email: { in: E2E_USERS.map((user) => user.email) } } });
-    await db.room.deleteMany({ where: { kind: "agent_private", privateOwnerId: { in: users.map((user) => user.id) } } });
-    await page.goto("/home");
-    await expectReady(page);
-    await openDialog(page);
-    const sentA = await sendPrivateMessage(page, `备忘录：${markerA}`);
-    createdRooms.push(sentA.roomId);
-    await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("小助手正在思考…");
-    await closeDialog(page);
-    await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("小助手正在思考…");
-    await runPrivateTask(sentA.task.id, databaseUrl);
-    const completedA = await db.agentTask.findUniqueOrThrow({ where: { id: sentA.task.id } });
-    expect(completedA.status).toBe("completed");
-    const replyA = await db.message.findUniqueOrThrow({ where: { id: completedA.finalMessageId! } });
-    await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("回复准备好啦。");
-    await openDialog(page);
-    await expect(page.getByRole("dialog").getByText(replyA.content, { exact: true })).toBeVisible();
-    const memo = await db.memo.findFirstOrThrow({ where: { roomId: sentA.roomId } });
-    expect(memo.content).toContain(markerA);
-    expect(await db.post.count({ where: { agentTaskId: sentA.task.id } })).toBe(0);
-
-    await other.goto("/about");
-    await openDialog(other);
-    await expect(other.getByRole("dialog").getByText(markerA, { exact: false })).toHaveCount(0);
-    const sentB = await sendPrivateMessage(other, markerB);
-    createdRooms.push(sentB.roomId);
-    expect(sentB.roomId).not.toBe(sentA.roomId);
-    await runPrivateTask(sentB.task.id, databaseUrl);
-    await expect.poll(async () => (await db.agentTask.findUniqueOrThrow({ where: { id: sentB.task.id } })).status).toBe("completed");
-    const replyB = await db.message.findFirstOrThrow({ where: { roomId: sentB.roomId, senderType: "agent" } });
-    await expect(other.getByRole("dialog").getByText(replyB.content, { exact: true })).toBeVisible();
-    const forbidden = await second.request.get(`/api/agent/tasks/${sentA.task.id}`);
-    expect(forbidden.status()).toBe(403);
-
-    const approvalSend = await sendPrivateMessage(page, `删除刚才记录的 ${markerA}`);
-    // 只控制模型决策；真实 API、持久任务、工具治理、审批和恢复均走应用链路。
-    await db.agentTask.update({ where: { id: approvalSend.task.id }, data: { plan: {
-      intent: "delete_memo", confidence: 0.95, requiredTools: ["memo.delete"],
-      taskSteps: ["经批准删除备忘录"], finalResponsePlan: "确认删除结果",
-      finalResponseText: "这条私人备忘录已经删除。", toolInputs: { "memo.delete": { memoId: memo.id } },
-    } } });
-    await runPrivateTask(approvalSend.task.id, databaseUrl);
-    expect((await db.agentTask.findUniqueOrThrow({ where: { id: approvalSend.task.id } })).status).toBe("waiting_approval");
-    const approve = page.getByRole("button", { name: "批准并执行", exact: true });
-    await expect(approve).toBeVisible();
-    const approved = page.waitForResponse((response) => new URL(response.url()).pathname === `/api/agent/tasks/${approvalSend.task.id}/approvals` && response.request().method() === "POST");
-    await approve.click();
-    expect((await approved).status()).toBe(200);
-    await runPrivateTask(approvalSend.task.id, databaseUrl);
-    await expect(page.getByRole("dialog").getByText("备忘录已删除。", { exact: true })).toBeVisible();
-    await expect(page.getByRole("dialog").getByText("这条私人备忘录已经删除。", { exact: true })).toHaveCount(0);
-    expect(await db.memo.findUnique({ where: { id: memo.id } })).toBeNull();
-    await page.reload();
-    await openDialog(page);
-    await expect(page.getByRole("dialog").getByText(`备忘录：${markerA}`, { exact: true })).toBeVisible();
-    await expect(page.getByRole("dialog").getByText(markerB, { exact: true })).toHaveCount(0);
-    await closeDialog(page);
-    await page.getByRole("link", { name: "Chat", exact: true }).click();
-    await expect(page).toHaveURL(/\/chat\/[^/]+$/);
-    expect(new URL(page.url()).pathname).not.toBe(`/chat/${sentA.roomId}`);
-    await expect(page.getByRole("button", { name: "发送", exact: true })).toBeVisible();
-    await expect(page.getByText(markerA, { exact: false })).toHaveCount(0);
-    await expect(page.getByText(markerB, { exact: false })).toHaveCount(0);
-  } finally {
-    await page.close();
-    await second.request.post("/api/auth/logout", { headers: { origin: baseURL! } }).catch(() => undefined);
-    await second.close();
-    await db.room.deleteMany({ where: { id: { in: createdRooms } } });
-    await db.$disconnect();
+  const users = await db.user.findMany({ where: { email: { in: E2E_USERS.map((user) => user.email) } } });
+  await db.room.deleteMany({ where: { kind: "agent_private", privateOwnerId: { in: users.map((user) => user.id) } } });
+  await page.goto("/home");
+  await expectReady(page);
+  await openDialog(page);
+  const sentA = await sendPrivateMessage(page, `备忘录：${markerA}`);
+  createdRooms.push(sentA.roomId);
+  await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("小助手正在思考…");
+  await closeDialog(page);
+  await expect(page.locator("[data-agent-entry]").getByRole("tooltip")).toContainText("小助手正在思考…");
+  await runPrivateTask(sentA.task.id, databaseUrl);
+  const completedA = await db.agentTask.findUniqueOrThrow({ where: { id: sentA.task.id } });
+  expect(completedA.status).toBe("completed");
+  const replyA = await db.message.findUniqueOrThrow({ where: { id: completedA.finalMessageId! } });
+  // 默认主题发布完成反馈；生日主题静态呈现，仅清除任务进行中的提示。
+  const taskTooltip = page.locator("[data-agent-entry]").getByRole("tooltip");
+  if (e2eAgentEntryTheme() === "default") {
+    await expect(taskTooltip).toContainText("回复准备好啦。");
+  } else {
+    await expect(taskTooltip).toHaveCount(0);
   }
+  await openDialog(page);
+  await expect(page.getByRole("dialog").getByText(replyA.content, { exact: true })).toBeVisible();
+  const memo = await db.memo.findFirstOrThrow({ where: { roomId: sentA.roomId } });
+  expect(memo.content).toContain(markerA);
+  expect(await db.post.count({ where: { agentTaskId: sentA.task.id } })).toBe(0);
+
+  await other.goto("/about");
+  await openDialog(other);
+  await expect(other.getByRole("dialog").getByText(markerA, { exact: false })).toHaveCount(0);
+  const sentB = await sendPrivateMessage(other, markerB);
+  createdRooms.push(sentB.roomId);
+  expect(sentB.roomId).not.toBe(sentA.roomId);
+  await runPrivateTask(sentB.task.id, databaseUrl);
+  await expect.poll(async () => (await db.agentTask.findUniqueOrThrow({ where: { id: sentB.task.id } })).status).toBe("completed");
+  const replyB = await db.message.findFirstOrThrow({ where: { roomId: sentB.roomId, senderType: "agent" } });
+  await expect(other.getByRole("dialog").getByText(replyB.content, { exact: true })).toBeVisible();
+  const forbidden = await second.request.get(`/api/agent/tasks/${sentA.task.id}`);
+  expect(forbidden.status()).toBe(403);
+
+  const approvalSend = await sendPrivateMessage(page, `删除刚才记录的 ${markerA}`);
+  // 只控制模型决策；真实 API、持久任务、工具治理、审批和恢复均走应用链路。
+  await db.agentTask.update({ where: { id: approvalSend.task.id }, data: { plan: {
+    intent: "delete_memo", confidence: 0.95, requiredTools: ["memo.delete"],
+    taskSteps: ["经批准删除备忘录"], finalResponsePlan: "确认删除结果",
+    finalResponseText: "这条私人备忘录已经删除。", toolInputs: { "memo.delete": { memoId: memo.id } },
+  } } });
+  await runPrivateTask(approvalSend.task.id, databaseUrl);
+  expect((await db.agentTask.findUniqueOrThrow({ where: { id: approvalSend.task.id } })).status).toBe("waiting_approval");
+  const approve = page.getByRole("button", { name: "批准并执行", exact: true });
+  await expect(approve).toBeVisible();
+  const approved = page.waitForResponse((response) => new URL(response.url()).pathname === `/api/agent/tasks/${approvalSend.task.id}/approvals` && response.request().method() === "POST");
+  await approve.click();
+  expect((await approved).status()).toBe(200);
+  await runPrivateTask(approvalSend.task.id, databaseUrl);
+  await expect(page.getByRole("dialog").getByText("备忘录已删除。", { exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("这条私人备忘录已经删除。", { exact: true })).toHaveCount(0);
+  expect(await db.memo.findUnique({ where: { id: memo.id } })).toBeNull();
+  await page.reload();
+  await openDialog(page);
+  await expect(page.getByRole("dialog").getByText(`备忘录：${markerA}`, { exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog").getByText(markerB, { exact: true })).toHaveCount(0);
+  await closeDialog(page);
+  await page.getByRole("link", { name: "Chat", exact: true }).click();
+  await expect(page).toHaveURL(/\/chat\/[^/]+$/);
+  expect(new URL(page.url()).pathname).not.toBe(`/chat/${sentA.roomId}`);
+  await expect(page.getByRole("button", { name: "发送", exact: true })).toBeVisible();
+  await expect(page.getByText(markerA, { exact: false })).toHaveCount(0);
+  await expect(page.getByText(markerB, { exact: false })).toHaveCount(0);
 });
 
 test("小助手清空按钮删除数据库私聊记录，刷新后为空且可重新发送", async ({ page }) => {

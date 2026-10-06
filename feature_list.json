@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-02",
-  "featuresNumber": 15,
+  "updatedAt": "2026-10-06",
+  "featuresNumber": 32,
   "priorityPolicy": "P2 以用户体验为首要指标：综合核心操作受阻或结果失真程度、当前产品入口的影响范围、触发频率与恢复成本排序；同等影响时优先已有直接行为证据的问题。priorityRank 表示本批 P2 的执行建议顺序，数字越小越优先，不改变 QAM 严重级别；频率是基于代码路径与触发条件的定性判断，不是线上统计。dependencies 只表达实现前置条件，不用依赖链代替排名。本批登记前 10 项，按 priorityRank 逐项实施；当前状态与验收证据以各 feature 为准。",
   "archivedFeatureFiles": [
     "docs/harness/archive/features-001-053.json",
@@ -284,10 +284,10 @@
     {
       "id": "feat-109",
       "name": "首页时间轴移除 Agent 工具调用记录展示并保留执行日志",
-      "description": "用户在排查生产时间轴日志居中与分侧混用后，明确选择从 /home 时间轴移除工具调用产生的 agent_log 展示。只调整首页展示及其专用内容列表，已有和后续执行日志继续按原链路完整保存；不实施此前提出的发起者快照与历史归属修复。本轮按先讨论再登记的要求记录方案，暂不实施。",
+      "description": "用户明确选择从 /home 时间轴移除工具调用产生的 agent_log 展示。已完成首页展示及其专用内容列表调整，已有和后续执行日志继续按原链路完整保存；不新增发起者快照或修复历史归属。",
       "priority": "P2",
       "priorityReason": "用户已明确选择移除首页工具调用日志展示，消除清空会话后旧日志居中、新日志分侧的视觉混用，同时要求完整保留执行记录。属于首页呈现范围调整，日志写入、追踪与读取能力必须保持。",
-      "status": "not-started",
+      "status": "done",
       "dependencies": [
         "feat-085"
       ],
@@ -300,7 +300,309 @@
         "补充行为回归：组件覆盖混合内容及纯日志空态；真实 PostgreSQL 覆盖大量日志穿插下的首页列表/搜索/分页、普通内容无漏无重，并验证读取首页前后日志行与载荷不变、正常任务仍生成完整执行记录；生产 Playwright 覆盖首页/刷新/搜索/加载更多实际不出现日志及普通内容仍可操作。同步调整原首页按发起者分侧和首页/API 集合相等的旧断言，继续保留独立日志读取与权限验证，不以源码字符串或 mock 代替数据库与浏览器证据",
         "实施启动前核对依赖与当前单 feature 状态，在独立副本及独立 node_modules 建立 ./scripts/run-node22.sh ./init.sh 基线，完成后运行 ./scripts/run-node22.sh npm run check:full 并记录真实结果；不改部署路径时无需 Compose smoke。登记轮保持 not-started，文档结构核验不代表应用验收通过"
       ],
-      "evidence": "2026-10-02 方案登记：用户先要求讨论再登记，排查后明确选择仅移除 /home 工具调用记录展示、执行日志完整保留。根因：Timeline.tsx:156 按 agentRequesterId 分侧，post-timeline-projection.ts:18 实时从 AgentTask 解析归属；共享会话清空接口删除 AgentTask，Post.agentTaskId 的 onDelete SetNull 保留日志但失去任务，metadata.taskId 仅保留 trace 文本。用户确认前后使用过清空聊天。前一排查轮以 ./scripts/run-node22.sh node --import tsx --input-type=module 的 stdin 探针连接专用 PostgreSQL Testcontainer 并 migrate deploy，调用现有投影函数、执行与清空接口相同的删除事务：两条新/旧格式日志的发起者由有效变 null，日志与 trace 文本仍在，新任务日志又有有效归属；最终 exit 0，容器已清理。首轮探针误用 ToolCallStatus=succeeded 导致 PrismaClientValidationError/exit 1，改用 schema 中 completed 后上述断言全部通过；未访问生产库，也未将该数据链路实验称为真实 HTTP/浏览器验证。此次登记只修改 feature_list.json 与 session-handoff.md，未实施应用变更；核验 JSON、根计数、全局 ID/依赖、归档只含 done、链接及 git diff --check/status，原有 14 项与归档内容保留。根列表 15 项，不触发归档。按纯文档例外未运行 ./init.sh、npm run check、npm run check:full 或 Compose smoke，不作为应用门禁证据。"
+      "evidence": "2026-10-02 方案登记：用户先要求讨论再登记，排查后明确选择仅移除 /home 工具调用记录展示、执行日志完整保留。根因：Timeline.tsx:156 按 agentRequesterId 分侧，post-timeline-projection.ts:18 实时从 AgentTask 解析归属；共享会话清空接口删除 AgentTask，Post.agentTaskId 的 onDelete SetNull 保留日志但失去任务，metadata.taskId 仅保留 trace 文本。用户确认前后使用过清空聊天。前一排查轮以 ./scripts/run-node22.sh node --import tsx --input-type=module 的 stdin 探针连接专用 PostgreSQL Testcontainer 并 migrate deploy，调用现有投影函数、执行与清空接口相同的删除事务：两条新/旧格式日志的发起者由有效变 null，日志与 trace 文本仍在，新任务日志又有有效归属；最终 exit 0，容器已清理。首轮探针误用 ToolCallStatus=succeeded 导致 PrismaClientValidationError/exit 1，改用 schema 中 completed 后上述断言全部通过；未访问生产库，也未将该数据链路实验称为真实 HTTP/浏览器验证。此次登记只修改 feature_list.json 与 session-handoff.md，未实施应用变更；核验 JSON、根计数、全局 ID/依赖、归档只含 done、链接及 git diff --check/status，原有 14 项与归档内容保留。根列表 15 项，不触发归档。按纯文档例外未运行 ./init.sh、npm run check、npm run check:full 或 Compose smoke，不作为应用门禁证据。 2026-10-03 实施完成：首页专用 queryBlogFeed /api/blog/feed 在分页及游标计算前排除 agent_log；HomeTimelineBoard 与 Timeline 防御性过滤旧载荷，纯日志及仅命中日志的搜索显示正确空态且不提示等待 Agent。独立日志列表、详情与权限保持，未修改 schema、迁移、Runtime/tracer/Worker 或清空会话语义。组件验证日志无卡片/节点/占位；真实PG验证180日志穿插25文章+25作品的 limit=1/17/50 首页/API/搜索无漏无重和载荷不变、75纯日志空集合，以及正常任务持久化完整记录；生产浏览器验证新旧/无归属日志的首屏/刷新/返回/搜索隐藏与独立详情读取、56文章+180日志完整分页和键盘阅读。独立源码及独立node_modules：实施前 ./scripts/run-node22.sh env VITEST_MAX_WORKERS=1 ./init.sh exit0（108文件1027项）；恢复后同命令 exit0（108文件1031项）。最终 ./scripts/run-node22.sh env VITEST_MAX_WORKERS=1 CIRCLE_NODE_TOTAL=4 E2E_SOFTWARE_WEBGL=true npm run check:full exit0：类型/lint/资产/生产构建/覆盖率、108文件1031项Node/组件、45文件200项真实PostgreSQL、124项生产Playwright全部通过。覆盖率语句54.55%、分支48.55%、函数58.90%、行55.71%。修复前组件5失败/15通过，修复后20全过；旧首页含日志的两项集成期望已调整，独立权限断言保留；第二轮full唯一既有计划澄清用例POST任务run出现socket hang up，保持逻辑不变连续三次无重试复核通过，最终全量也通过；第三轮中断结果不可恢复未算通过，恢复Docker Desktop后重新完整验证。验收映射、全部原命令/失败复核及11份源码SHA-256见 docs/plan/evidence/feat-109/application-verification.json。最终源码与验证副本一致；临时副本、原始日志和测试报告已清理，测试容器/网络/卷已回收，保留用户既有PostgreSQL、卷及两张PNG。最终JSON/ID/依赖/根计数、链接、diff/status核验通过；根15项不触发归档。未改部署路径，未追加Compose smoke，未提交或部署。"
+    },
+    {
+      "id": "feat-110",
+      "name": "测试新增、迁移删除与耗时预算规范",
+      "description": "已在 docs/testing-standards.md 补齐新增理由、迁移/删除证明和耗时软预算：按独立风险与可观察行为选择层级，新增 E2E 说明浏览器或跨层增量价值，历史回归替代须证明检测能力；预算按可比样本中位数与增长缓冲审查，不足3份保持待校准。本项仅改文档，未修改runner、测试、覆盖率或运行配置；feat-111/112尚未开始。",
+      "priority": "P2",
+      "priorityReason": "现有分层规则完整但缺少测试增长和退出审查口径；先统一准入、替代证明与实测预算，能减少后续迭代的重复维护，并避免以数量或耗时直接削弱关键保护。",
+      "status": "done",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "在 docs/testing-standards.md 增加新增理由规则：对应 feature 的验收/evidence 简短记录失败条件、可观察期望、现有遗漏、层级选择与成本；新增 E2E 说明浏览器或跨层独有风险，不要求给全部历史用例建立逐项登记表。",
+        "明确低层覆盖规则组合、高层覆盖关键旅程和真实边界；允许一个缺陷跨层回归但职责不同，参数化减少模板重复且保留独立失败诊断，不将压低数量作为合并长流程的理由。",
+        "明确迁移/删除条件与原风险到替代用例的映射；历史回归须证明替代用例能捕获原故障或隔离注入，证据不足时保留；数据库权限/事务/约束与关键浏览器风险不能由 mock 或源码扫描替代。",
+        "记录耗时预算口径、环境/源码/配置/用例指纹、样本数、各层与单项耗时及失败/跳过/重试；采用计划中的中位数与增长缓冲软审查阈值，未满3个可比样本保持待校准，不把历史单次14.4分钟当作当前稳定预算，不新增硬超时门禁。",
+        "不降低覆盖率门槛、扩大 exclude、用 skip/删断言/固定 sleep/重试/放宽超时实现减量；日常定向反馈与收尾风险匹配门禁一致，check:full 包含 check 时不无故重复执行标准门禁。",
+        "与 AGENTS.md、当前 runner/config 和 docs/plan/2026-10-03-testing-governance.md 核对一致；本项仅改文档时按纯文档例外核验 JSON、状态/依赖、计数、链接和 diff/status，记录未运行 init/应用门禁原因后才能 done。开始前重新核对当前单 feature 状态；feat-109 已 done，feat-092 不作为本计划前置项。"
+      ],
+      "evidence": "2026-10-03 用户要求就“规范三项规则→check重复执行优化→高耗时E2E逐项审查”制定plan并登记执行feature。计划见 docs/plan/2026-10-03-testing-governance.md；本轮仅创建计划、登记和重写交接，本项保持not-started，未实施。按纯文档/状态例外未运行 ./init.sh、npm run check:quick、npm run check、npm run check:full、集成/生产E2E或Compose smoke；登记结构核验不代表应用门禁通过。登记期间同步读取feat-109最新收尾结果，其与feat-106均已done；保留全部既有条目及长期证据。收尾核验：python3 -m json.tool feature_list.json exit 0；./scripts/run-node22.sh node --input-type=module（stdin账本/依赖环/链接核验）exit 0，根18项、全局112个唯一ID、94项归档全部done、新依赖110→111→112及全部验收/链接通过；Python SHA-256摘要核验确认原15项全部字段、归档及范围外614份文件内容保持；git diff --check exit 0并检查git status --short。featuresNumber=18，不触发归档。没有本轮测试/容器工件；原用户代码、测试、图片、长期证据保留。 2026-10-03 本轮依用户要求开始feat-110：已按序读取AGENTS.md、当前账本、交接和测试治理计划，确认无其他in-progress/blocked且本项无依赖；范围仅为测试规范与本项状态/交接，采用纯文档结构门禁，未启动feat-111/112。 2026-10-03 实施完成：docs/testing-standards.md 的“如何选择测试层级”“测试新增理由”“测试迁移与删除”“耗时记录与软预算”覆盖全部验收，并给出分层职责、新增理由、分页规则迁移与预算计算示例。新增理由记录失败/期望、遗漏、层级及待测成本；迁移映射原风险、替代、保留边界和捕获原故障/隔离注入证明，证据不足保留。预算记录环境/未提交源码/配置/用例指纹、各层与单项/整轮耗时及失败/跳过/重试；采用计划中20%增长和5/30/60/2秒缓冲、中位数至少3份、前10名含并列，当前无采样且全部待校准，不设硬超时。保留真实PG/浏览器、覆盖率门槛和禁止减量手段，说明定向反馈与check:full包含check，当前check两轮Vitest及生产E2E独立构建/主题差异仍按现有脚本执行。已逐项核对AGENTS、治理计划、package.json、Vitest/集成/Playwright配置和E2E harness，未实施111/112。验证命令：python3 -m json.tool feature_list.json（输出重定向/dev/null）exit 0；./scripts/run-node22.sh node --input-type=module（stdin账本/依赖环/本地链接/现有脚本核验）exit 0；python3 -（stdin SHA-256摘要与原子临时文件核验）exit 0；git diff --check exit 0，git status --short exit 0并已检查。最终根18项（15done、3not-started）、归档94项全done、112个唯一ID，依赖有效，无in-progress/blocked；featuresNumber=18，不触发归档。其他17项feature全部字段及范围外614份文件摘要保持，含既有代码/测试、归档、计划、feat-109证据及用户PNG；本轮仅改测试标准、110状态证据和重写交接。原子写入临时文件已清理，未创建测试副本/报告/数据/隔离容器网络卷镜像；既有服务资源不动。按纯文档例外未运行./init.sh、npm run check:quick、npm run check、npm run check:full、npm run test:integration、npm run test:e2e:production或npm run test:compose-smoke：本轮未改代码、依赖、构建或运行配置；文档核验不代表本轮应用门禁通过。"
+    },
+    {
+      "id": "feat-111",
+      "name": "标准门禁合并重复 Vitest 执行",
+      "description": "已提取check:static共享资产/类型/lint；check:quick保留普通完整Vitest，check改为一次完整coverage Vitest后生产构建，check:full继续真实PG和独立生产E2E。真实前后命令证明标准Vitest由两轮减为一轮，集合及覆盖率不变，并以真实断言/覆盖率失败验证后续中止；临时工件已清理。",
+      "priority": "P2",
+      "priorityReason": "当前 check 明确通过 check:quick 与 test:coverage 重复执行相同 Vitest 集合；这是可验证的执行成本，不需要先删测试，可在保留所有门禁条件的前提下减少一轮标准测试。",
+      "status": "done",
+      "dependencies": [
+        "feat-110"
+      ],
+      "acceptanceCriteria": [
+        "按计划重组 package.json scripts：check:static 执行资产/类型/lint；check:quick=check:static+普通完整Vitest；check=check:static+一次完整coverage Vitest+生产build；check:full=check+真实PG集成+生产E2E。现有公开入口、npm test、test:coverage 与 init 用途继续可用，同步测试标准说明。",
+        "在相同条件的独立副本中保留改动前原 check 与改动后标准阶段的原始命令、runner用例集合、执行次数、覆盖率和耗时；真实运行输出证明标准阶段由两次Vitest变为一次，两个项目覆盖集合保持，不用源码字符串断言代替执行证据，不承诺未经测量的提速比例。",
+        "保留资产/类型/lint/生产构建/覆盖率各项失败条件，不改变覆盖率include/exclude/门槛、测试选择、超时或并发；不顺带合并E2E独立构建，继续验证隔离测试数据库及不同构建/启动主题。",
+        "在一次性副本用临时真实失败断言和覆盖率失败条件分别验证非零退出及后续阶段中止，记录原始结果并恢复夹具；不新增镜像 scripts 实现的常驻测试。",
+        "实施前建立 ./scripts/run-node22.sh ./init.sh 基线；最终版本再用 init 验证快速入口并运行风险匹配 npm run check:full，真实PG与完整生产浏览器全部通过。check:full 已包含最终 check，不再无故重复标准门禁；未改部署路径时不要求 Compose smoke。",
+        "按 feat-110 预算口径记录可比样本与局限，更新状态和下一步，清理临时失败夹具/独立副本/报告/测试数据/隔离资源并核验 diff/status；失败或环境未运行记原命令与原因，不能称完成。范围外问题另行登记。"
+      ],
+      "evidence": "2026-10-03 用户要求就“规范三项规则→check重复执行优化→高耗时E2E逐项审查”制定plan并登记执行feature。计划见 docs/plan/2026-10-03-testing-governance.md；本轮仅创建计划、登记和重写交接，本项保持not-started，未实施。按纯文档/状态例外未运行 ./init.sh、npm run check:quick、npm run check、npm run check:full、集成/生产E2E或Compose smoke；登记结构核验不代表应用门禁通过。登记期间同步读取feat-109最新收尾结果，其与feat-106均已done；保留全部既有条目及长期证据。收尾核验：python3 -m json.tool feature_list.json exit 0；./scripts/run-node22.sh node --input-type=module（stdin账本/依赖环/链接核验）exit 0，根18项、全局112个唯一ID、94项归档全部done、新依赖110→111→112及全部验收/链接通过；Python SHA-256摘要核验确认原15项全部字段、归档及范围外614份文件内容保持；git diff --check exit 0并检查git status --short。featuresNumber=18，不触发归档。没有本轮测试/容器工件；原用户代码、测试、图片、长期证据保留。 2026-10-03 本轮依用户要求开始feat-111，确认feat-110已done、没有其他in-progress/blocked；实施限于scripts、命令说明及本项证据/交接，将用独立源码和独立node_modules建立init/原check基线、验证失败传播及最终check:full。 阶段验证：独立副本/var/tmp/xoxo-feat111-e_c_6mix/app安装1037包并通过初始init（108文件1031项）；原npm run check exit 0，普通/coverage实际各1031项，总计时85.46秒。已按计划重组scripts并同步规范；临时真实失败断言使npm run check:full exit 1（1031通过/1预期失败），临时statements=100%使同命令exit 1（1031全部通过但覆盖率54.55%未达阈值），两轮实际均未启动build/集成/E2E，夹具和阈值已恢复。最终init exit 0（1031项）；完整check:full正在执行，尚未确认结果。阶段详情见docs/plan/evidence/feat-111/check-verification.json；真实runner JSON仅归一化已定位5个参数化标题的随机fixture UUID，多重用例集合保持。 2026-10-03 完成：最终check:full exit 0，108文件1031项Node/组件、45文件200项真实PostgreSQL、124项生产Playwright全过，零skip/retry；PG runner201.19秒、Playwright runner709.021秒（11.8分钟），全命令单调计时984.383秒、UTC起止1005.473秒。命令统一经./scripts/run-node22.sh运行；npm ci、初始/最终./init.sh、原npm run check均exit 0，最终只执行npm run check:full（其包含最终check），未额外重复标准门禁。使用同一临时JSON报告观察器和LANG=en_US.UTF-8、TZ=UTC、CIRCLE_NODE_TOTAL=4、E2E_SOFTWARE_WEBGL=true；Vitest保持8worker、集成/浏览器1worker，Next实测3构建worker，代理保留。实际原/新标准阶段85.289→71.776秒，仅前后各一份；预算待校准，不声称固定整体提速。源码输入除package.json均相同；标准实际两轮→一轮，1031项多重用例集合归一化指纹一致，覆盖率语句54.55%、分支48.55%、函数58.90%、行55.71%，门槛/include/exclude/超时/选择/并发无持久变更。生产E2E仍独立构建，实测构建default、运行birthday-2026。两种预期失败注入完整命令exit 1及下游未启动证据保留；首次报告集合抽取因5个随机fixture UUID发生AssertionError，定位并仅归一化后通过，未改测试或重跑门禁。生产日志一次destination stream closed early但全部浏览器断言通过，记录观察未顺带修复；init-after及完整轮UTC与单调钟差异另记，feat-112复用前核对口径。长期详情与124项单项耗时见docs/plan/evidence/feat-111/check-verification.json。未改部署，按验收未运行npm run test:compose-smoke。独立副本/node_modules/.next/coverage/认证状态/报告/原始日志/夹具及本轮缓存/锁已清理，无测试进程或上传目录残留；Docker容器/网络/卷/基础镜像前后相同，用户业务库和既有修改/图片/证据保留。收尾核验JSON、全局ID/依赖环、状态/计数、链接、SHA-256范围与git diff --check/status；其他17项feature和范围外613份文件保持。根18项（16done、2not-started），归档94项done，全局112个唯一ID，featuresNumber=18，不触发归档；唯一下一步feat-112仍not-started。"
+    },
+    {
+      "id": "feat-112",
+      "name": "生产 E2E 耗时基线与高成本用例逐项审查",
+      "description": "最终581份输入/133项集合的三份完整生产E2E均通过、无skip/retry，完成业务中位数前10审查与全量/单项软预算校准。CLI中位751.273秒、软阈值901.528秒；8项保留、2项截图成本连同预算异常样本独立登记122。历史全部采样/失败保留，不混算；本轮仅采样与文档状态，工件已清理。",
+      "priority": "P2",
+      "priorityReason": "生产E2E增长已带来分钟级反馈成本；需先用可比数据定位最高成本并核对独有风险，才能决定保留或整改，避免凭文件长度、历史耗时或数量猜测冗余。",
+      "status": "done",
+      "dependencies": [
+        "feat-111"
+      ],
+      "acceptanceCriteria": [
+        "固定Node/npm/浏览器、源码与配置指纹、用例集合、CPU/内存/worker、locale/timezone和生产模式，采集3次无skip/retry的完整有效生产E2E；每轮使用隔离PG/上传目录并顺序执行，保留既有主题验证。feat-111已有样本只有具备完整时长和可比指纹才能复用；失败/环境受阻留原命令和错误，不能伪装成有效基线。",
+        "通过真实runner报告分别统计总墙钟、准备/构建/清理及业务单项时长；按单项中位数排序前10项，第10名并列纳入，setup准备成本单列。每项唯一定位包含project、文件和完整参数化标题；不按源码行数或静态超时推断最慢，不用3次样本宣称长期零偶发失败。",
+        "为每项记录耗时占比、原风险/历史回归、已有低层覆盖、浏览器独有边界、成本归因证据及保留/准备等待优化/部分迁移/完整迁移/删除失效覆盖/证据不足的具体判断；无法归因时保留待诊断，不猜测结论。",
+        "按 feat-110 规则校准生产E2E与单项软预算，在 docs/testing-e2e-cost-review.md 交付当前报告，docs/plan/evidence/feat-112/e2e-cost-baseline.json 保留脱敏环境/命令/样本/排序/预算；本次不直接修改应用、测试断言、fixture或默认配置，不以降低门槛/skip/重试/放宽超时改善指标。",
+        "每个需实际整改的独立问题另登记feature，写明原风险、替代证明、对应真实PG/浏览器验证及门禁并保持not-started；无整改必要时写保留理由，不为了减量制造任务。报告提供唯一建议先处理项，不要求必须删测试或达到固定减量比例。",
+        "3份可比完整样本、预算校准、前10项结论和必要整改登记全部满足后才能done。采样诊断按需定向，局部通过不替代全量基线；未持久修改代码/配置时采用文档结构门禁并单独记录真实采样结果，清理临时副本/报告/账号/容器等，保留必要脱敏证据与既有用户内容。"
+      ],
+      "evidence": "2026-10-03 用户要求就“规范三项规则→check重复执行优化→高耗时E2E逐项审查”制定plan并登记执行feature。计划见 docs/plan/2026-10-03-testing-governance.md；本轮仅创建计划、登记和重写交接，本项保持not-started，未实施。按纯文档/状态例外未运行 ./init.sh、npm run check:quick、npm run check、npm run check:full、集成/生产E2E或Compose smoke；登记结构核验不代表应用门禁通过。登记期间同步读取feat-109最新收尾结果，其与feat-106均已done；保留全部既有条目及长期证据。收尾核验：python3 -m json.tool feature_list.json exit 0；./scripts/run-node22.sh node --input-type=module（stdin账本/依赖环/链接核验）exit 0，根18项、全局112个唯一ID、94项归档全部done、新依赖110→111→112及全部验收/链接通过；Python SHA-256摘要核验确认原15项全部字段、归档及范围外614份文件内容保持；git diff --check exit 0并检查git status --short。featuresNumber=18，不触发归档。没有本轮测试/容器工件；原用户代码、测试、图片、长期证据保留。\n2026-10-03 开始执行：依赖feat-111已done；本项只采样/审查/登记，按文档例外不额外运行init/check/full。111样本UTC与单调计时存在21秒差值且准备/清理边界不完整，本轮不复用为预算样本，改采3轮统一口径生产E2E。\n2026-10-03 执行受阻：在独立源码/node_modules、Node22.23.2/npm10.9.8/Chromium151.0.7922.34/PG16.15中执行3次全量生产Playwright，LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_SOFTWARE_WEBGL=true，单worker/--retries=0，原应用/测试/fixture/配置未改。首轮exit0，124/124、0 skip/retry，命令单调704.289秒；后两轮exit1，各123/124，命令704.799/714.801秒，相同tests/e2e/blog-presentation.spec.ts:93悬停颜色expect.poll 5000ms失败（40%黑≠纯黑）。第三轮与首轮536份逐轮输入摘要一致，549份完整源码/配置与111最终版本相同；第二轮next-env生成引用差异另记，不据此归因。原断言定向production --grep完整标题 --project=authenticated --trace=on exit0，2/2含setup、66.034秒，不替代全量失败。只有1/3有效样本，全部软预算/最终中位数前10待校准；docs/testing-e2e-cost-review.md交付单样本初步前10风险/低层/浏览器边界/成本判断，docs/plan/evidence/feat-112/e2e-cost-baseline.json保留原命令、124项结果、失败、阶段、指纹、时钟异常和测量局限。三轮UTC与单调差值约99/170/291秒，跨跳变步骤作废，不将异常当作Edit根因。首轮采样器即时资源断言exit1已核对为Ryuk约10秒后异步自退出，真实Playwright exit0，资源回到原基线；原错误保留。已仅登记feat-113（not-started，依赖已done107），不顺带修复，不循环凑通过样本，也不制造截图删减任务。按本项文档例外未额外运行init/check:quick/check/check:full、独立PG集成或Compose smoke；采样内真实生产build另记，不能称其他门禁通过、feat112完成或清洁退出。 收尾结构核验exit0：JSON/全局ID/依赖无环/状态/计数/本地链接和证据算术一致；根19项（16 done、2 not-started、1 blocked），归档94项done，全局113个唯一ID，featuresNumber=19，跳过归档。SHA-256确认其他17项原feature全部字段和范围外616份原文件保持；git diff --check exit0，git status --short已检查。本轮副本、独立依赖、构建、认证状态、成功/失败raw报告/视频/trace及观察器已删，清理本轮Playwright缓存/锁与51份含本轮源路径的tsx缓存；测试进程/上传目录为0，Docker前后1容器/3卷/4网络/5镜像集合完全一致，保留原PostgreSQL及用户改动。临时文档生成器一次SyntaxError已修正，详情在脱敏JSON，不影响runner结果。112仍blocked，不称完成或清洁退出；唯一下一步113，之后按新版本恢复112。\n2026-10-04 用户授权恢复新版本采样：依赖111/113均done，仅112改in-progress。以113最终549份源码/配置和125项集合重新采3份完整生产样本；旧112单份/失败/定向与113门禁不混算。只采样/审查/文档，不改应用、测试、fixture、依赖或默认运行配置；按文档例外不另跑init/quick/check/full/集成/Compose smoke。新观察器增加真实runner步骤的单调计时，避免旧UTC跳变损害步骤归因；开销纳入本组条件，不据此比较旧组提速。\n2026-10-04 新版本采样再次受阻：新的独立源码/独立node_modules用锁文件./scripts/run-node22.sh npm ci exit0（1037包/18秒）；Node22.23.2/npm10.9.8/Playwright1.62.1/Chromium及headless shell151.0.7922.34/PG16.15。549份新输入与工作区逐字节一致，仅blog-presentation.spec.ts相较旧112变化；CIRCLE_NODE_TOTAL=4、LANG=en_US.UTF-8、TZ=UTC、production、软件WebGL、单worker/--retries=0，实际default构建/birthday-2026运行，125项（1 setup/7 public/117 authenticated）主题保护保留。附加真实runner步骤单调窗口与独占PWTEST_CACHE_DIR，观察开销纳入新组，不跨旧组混算。原完整CLI（npx --no-install playwright test --retries=0 --reporter=list,json,html,<sampler>/observer.ts，原环境/完整命令见JSON）exit1：124 passed/1 failed，0 skip/retry，CLI单调退出观察716301.180ms、runner 714342.544ms；CLI末边界含1秒轮询退出检测延迟，不作为预算样本。失败在authenticated/tests/e2e/blog-drafts.spec.ts:1008完整标题“窄屏缩放下图片鼠标和触摸位移逆变换，Escape 与 pointercancel 不写入”，原第1039行touchCancel后revision断言Expected1/Received2。第一轮失败后按原策略停止剩余两轮，未循环凑通过。113发布Edit7532ms/新增布局回归3284ms在完整序列通过，不宣称长期零偶发。\n本轮观察UTC前跳约544575ms；该场景Press Escape原wall步骤546986ms、runner接收事件单调窗口约2411.644ms，不能把wall步骤当成本或把时钟跳变当revision失败根因。每秒资源观察最小MemAvailable912044032字节、进程树已观察最大RSS2625396736字节，边界/宿主负载限制见JSON；不凭资源数值归因。原样定向production追加同完整标题、authenticated项目、--trace=on，源码/原断言不变，exit0（2/2含setup、0 skip/retry），命令单调218747.670ms，目标7996ms；构建期间TLS中断/构建内Retrying 1/3原信息保留，最终构建通过，不是Playwright重试，也不能替代全量失败。\n新版本0/3有效样本，全量/单项预算与最终三份中位数前10均待校准；旧1份有效/2失败/定向及113门禁不能混算。docs/testing-e2e-cost-review.md当前报告更新，docs/plan/evidence/feat-112/e2e-cost-baseline.json schema3完整保留historicalSampling旧证据与currentSampling新组（含125项原结果、错误、阶段、指纹、环境、局限及可重建观察器）。只登记feat-114（not-started、独立依赖已done091），不在112内修改应用、断言、fixture或配置；唯一下一步114，之后按最终新版本重采三份。按文档例外未额外运行init/check:quick/check/check:full/独立PG集成/Compose smoke，采样中的生产build/浏览器另记，不声称其他门禁通过、112完成或清洁退出。\n本轮收尾：完整保留旧112证据对象（重序列化后与起始JSON字节摘要一致）；仅当前四份文档/状态工件变更，其他18项原feature全部字段、615份范围外原文件及549份待测输入保持。独立副本/node_modules/.next、全部raw成功/失败报告/error-context/截图/视频/trace/auth、计时驱动和pointer已清理；仅删51份明确引用本轮路径的tsx缓存、5份本轮npm日志，独占PWTEST_CACHE_DIR随副本删除，保留其他缓存和已安装浏览器。采样端口3100关闭，本轮进程/E2E上传目录0，Docker前后1容器/3卷/4网络/5镜像集合完全一致。最终JSON/全局114唯一ID/跨归档依赖无环/状态/计数/链接/证据算术/hash、git diff --check和git status核验通过；根20项（17done、092/114 not-started、112blocked），featuresNumber20<=40跳过归档；交接已重写。112仍blocked，不称完成或清洁退出；未提交/推送/部署或改动开发库。 2026-10-04 feat-114已done，最终生产check:full的126/126（0 skip/retry）只作114门禁，不能充当112成本组。恢复采样需新的550份输入/126项集合，重新执行三份完整有效生产样本；原currentSampling/historicalSampling和预算待校准保持，见docs/plan/evidence/feat-114/diagnosis.json。\n2026-10-04 用户授权恢复feat-112采样：111/113/114均done，确认550份输入与114最终版逐字节一致；只112改in-progress。建立新126项成本组，旧historicalSampling/currentSampling完整保留且不混算；三轮顺序生产、隔离PG/上传、单worker/retries=0，使用精确进程退出及单调步骤观察，未修改应用/测试/fixture/依赖/默认配置。按本项文档例外不额外运行init/quick/check/full/独立集成/Compose smoke。\n2026-10-04 114后新组采样再次受阻：550份输入与114最终版逐字节一致（e946a2aa9f1235e92377d9149f8dc401e103dd28b69345f39a31e2876cca1509），10文件126项逐项集合一致；Node22.23.2/npm10.9.8/Playwright1.62.1/完整Chromium及实际headless shell151.0.7922.34/PG16.15。锁定npm ci exit0（1037包/18秒），独立源码/node_modules/PG/上传；LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 production软件WebGL、default构建/birthday-2026运行、单worker/--retries=0，原应用/动作/断言/fixture/配置未变。原npx --no-install playwright test --retries=0 --reporter=list,json,html,<sampler>/observer.ts exit1：125 passed/1 timedOut、0 skip/retry，CLI单调875119.943ms、runner873422.2ms。authenticated/tests/e2e/agent-entry-authenticated.spec.ts:804完整标题“两位用户的私聊持久隔离，关闭后任务完成、重新打开回复，审批后继续且 Chat 保持共享”，原120000ms超时，错误browserContext.close: Test ended指向第880行await second.close()；case148379ms（含after hooks约28384ms）。末业务断言约20855.435ms完成，无证据声明隔离功能失效或唯一根因。UTC比单调多4101664.583ms，跨跳变toContainText wall4025977ms/单调1291.475ms不用作成本或关闭因果。首轮失败后停止第二/三轮，不循环凑通过，0/3有效。\n原样production定向追加上述文件/authenticated/完整标题grep/--trace=on exit0（2/2含setup、0 skip/retry），CLI81990.215ms，目标21591ms；通过不替代全量失败。首次^标题$筛选导致No tests found及观察器读取已收尾app-info ENOENT（exit1、0项、63348.884ms）原命令/错误另保留，不算目标结果；纠正CLI后执行上述一次诊断，未增加retry。临时环境路径查询/只读检索错误也在JSON保留。仅登记116为not-started，独立依赖done080；115/092保持not-started。docs/testing-e2e-cost-review.md更新，JSON schema4完整保留historicalSampling旧组与previousSamplingGroups的113后组，currentSampling为114后550/126新组；全量/单项预算和最终前10均待校准，不将失败轮通过项或114门禁混算。按文档例外未额外运行init/quick/check/full/独立PG集成/Compose smoke，采样内真实构建/浏览器另记，112仍blocked，不称完成或清洁退出。\n本轮收尾：历史组/post113组完整保持，旧报告全文保留并明确历史状态；仅四份文档/状态工件变更，其他20项原feature全部字段、619份范围外原文件及550份输入摘要保持。独立副本/node_modules/.next、原始报告/HTML/视频/截图/trace/auth、全部观察器/驱动/筛选错误工件和独占PW缓存已清理；仅删51份明确引用本轮路径的tsx缓存和7份本轮npm日志，保留其他缓存/已安装浏览器。Docker前后原1容器/3卷/4网络/5镜像集合完全一致；端口3100关闭，本轮进程/E2E上传目录0。首次收尾审查脚本错误遗漏historicalSampling另列2份失败，python3 stdin exit1/第58行AssertionError；实际总计5份正确，按attemptedFullSampleCount修正核验后exit0，原错误在JSON保留。最终JSON/全局116唯一ID/跨归档依赖无环/状态/计数/链接/旧证据/采样算术/hash、git diff --check及git status核验通过；根22项（18done、092/115/116 not-started、112blocked），featuresNumber22<=40跳过归档，交接已重写。112仍blocked，不称完成或清洁退出；唯一下一步116，本轮未实施它。 2026-10-04 116收尾诊断已取得受控复现并实现适配，但其最终完整门禁因独立118窄屏博文阅读失败而blocked（私聊和新增回归通过）；112仍blocked且未采最终三份。不得把116定向/128项通过/完整失败组纳入基线；116独立验收与117风险整改可能改变最终输入，届时重新按最终源码/配置/集合采三份。详情见docs/plan/evidence/feat-116/verification.json。\n2026-10-05 feat-118与116均已done：标题水合/首次适配竞态已独立定位修复，原私聊视频时钟实现与回归摘要保持，最终check:full exit0（113/1052、45/201 PG、133/133生产E2E、0skip/retry）。见docs/plan/evidence/feat-118/verification.json及source-inputs.json，最终源码/配置581份、用例集合133项；本轮仅完成118及按其验收恢复116收尾，未开始112采样，blocked保留为待恢复入口，原全部采样/失败/前10初步审查与预算待校准记录不改。唯一下一步恢复本项，按最终581/133及当前Node/npm/浏览器/PG固定条件独立采三份有效生产样本；不能将118的首轮失败、定向、完整Chromium对照或最终门禁计入新成本组。\n2026-10-05 用户授权恢复采样：已核对111/113/114/116/118均done，581份输入逐字节匹配118最终版；仅112改in-progress。独立副本/锁定安装，固定production/单worker/0retry，按最终133项重新顺序采三份；旧组与门禁均不混算。仅采样与文档状态，按112验收和AGENTS文档例外不额外运行init/quick/check/full/独立集成/Compose smoke。\n2026-10-05 完成：独立/var/tmp源码与锁定node_modules，npm ci exit0（1016包/18秒）；最终581输入逐字节匹配118，Node22.23.2/npm10.9.8/Next16.3.8/Playwright1.62.1/实际headless shell及完整Chromium151.0.7922.34/PG16.15。LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 production软件WebGL、default构建/birthday-2026运行、单worker/--retries=0；每轮新PG/上传、清构建/独占transform缓存并顺序执行，原应用/测试/fixture/依赖/默认配置不变。三次./scripts/run-node22.sh npx --no-install playwright test --retries=0 --reporter=list,json,html,<sampler>/observer.ts均exit0、133/133、0skip/retry；CLI单调751273.346/742022.441/772619.759ms，输入/完整project-file-title集合/执行顺序相同，资源均恢复。中位751273.346ms，全量软阈值901528.015ms；133项单项预算已校准，setup单列，132业务项前10无并列，合计占业务中位数之和27.80%。8项保留、2项截图等待先独立诊断；另复核9项校准样本超软预算，其中发布时间第3轮22955ms/Screenshot17098.733ms也纳入仅登记not-started的122，不假设同根因、不删保护。\n详情docs/testing-e2e-cost-review.md与docs/plan/evidence/feat-112/e2e-cost-baseline.json（schema5）；旧五份完整尝试/失败/定向对象及原报告保持，118门禁不计新组。UTC与单调差12.307/165.836/-0.056秒，跨跳变wall步骤不作成本或因果；3份只支持初始中位数与范围，不宣称长期零偶发或较旧组提速。首轮采样器标题路径重复文件层级误判为集合不同，规范化后133项逐项一致并按原exit0/计时收录，未重跑首轮；只读next.config.ts路径错误及报告旧describe映射KeyError已纠正，原信息另记，不影响runner。按112与AGENTS文档例外未额外运行./init.sh、check:quick/check/check:full、独立PG集成或Compose smoke，真实三轮build/浏览器另记，不冒称其他门禁本轮通过。\n收尾：副本/node_modules/.next、原始成功报告/HTML/截图/视频/trace/auth、观察器/驱动及独占PW缓存已删，53份专属tsx缓存和8份专属npm日志已清理；Docker原1容器/3卷/4网络/5镜像集合保持，3100关闭，测试进程/上传/视频探针目录0。673份范围外文件、581份输入、其他26项原feature字段和旧证据完整保持；JSON/122全局ID/跨归档依赖无环/状态/计数/链接/采样算术及diff核验通过。根28项、25done/3not-started（092/121/122），featuresNumber28<=40不触发归档，交接重写；唯一下一步122。未提交、推送、部署或操作开发库。"
+    },
+    {
+      "id": "feat-113",
+      "name": "已发布作品 Edit 悬停样式失败的定向诊断与修复",
+      "description": "独立定位并修复 feat-112 已发布作品 Edit 悬停颜色失败中可复现的布局准备缺口：Edit 可见后，真实适配仍会让控件移开指针。已观察晚到居中并用受控真实 resize 复现同一原5000ms颜色失败，为发布态首次编辑、悬停和窄屏刷新再编辑补实际宽度/居中准备，新增延迟适配回归并保留原样式、键盘、端点、保存和权限保护；最终check:full及清理通过。",
+      "priority": "P2",
+      "priorityReason": "连续两次完整生产采样在同一原断言失败，应先查明检测边界和根因，再处理纯耗时优化。单次定向通过不足以证明问题消失。",
+      "status": "done",
+      "dependencies": [
+        "feat-107"
+      ],
+      "acceptanceCriteria": [
+        "使用与feat-112可核对的Node/npm/浏览器、生产模式、单worker、隔离PostgreSQL和合成账号，复核tests/e2e/blog-presentation.spec.ts的authenticated项目完整标题“博文共享展示 › 已发布作品 Edit 与 home 样式一致，仅编辑态可见并保存恢复”；保留首次expect.poll超时5000ms、expected rgb(0, 0, 0)、received rgba(0, 0, 0, 0.4)的原命令和脱敏错误。",
+        "定向观察真实pointer命中、:hover、按钮几何/布局变化、样式与页面就绪，并按需复核完整前置序列；区分产品缺陷与测试准备，不凭CSS源码或一次复跑通过归因。未能定位时记录缺口，不宣称已修复，也不自动加重试、固定sleep、放宽timeout或重复hover掩盖失败。",
+        "修复带可观察回归，证明能捕获已定位的原故障；涉及准备等待时以实际稳定条件为准。保留草稿/发布态Edit与Home样式一致、非编辑态/非作者隐藏、鼠标和键盘激活、连线端点选择独立、自动/显式保存及刷新恢复的原保护；任何迁移先证明替代检测能力再调整原浏览器用例。",
+        "真实浏览器继续验证悬停CSS与用户旅程，实际PostgreSQL验证相关保存和权限；组件仅承担内容/键盘回调和显示条件，不能替代真实布局、CSS或数据库语义。按最终根因补最小必要覆盖，不扩大到整体编辑器重写。",
+        "实施时完成./scripts/run-node22.sh ./init.sh、相关定向验证和风险匹配npm run check:full，保留首次失败与后续结果，核对源码/配置指纹与工件清理，全部验收满足后才done。涉及实际代码修复不能以纯文档门禁替代应用门禁。"
+      ],
+      "evidence": "2026-10-03 feat-112审查发现并仅登记。第二次全量生产采样exit 1：123 passed/1 failed、0 skip/retry；失败在tests/e2e/blog-presentation.spec.ts:93，hover返回后expect.poll样式比对超时5000ms，仅color不同。原样定向生产命令（相同资源环境，CLI选择该完整标题、authenticated项目，--retries=0 --trace=on）exit 0，2/2含setup，命令单调66.034秒；不是修复，也不替代全量失败。详见docs/plan/evidence/feat-112/e2e-cost-baseline.json与docs/testing-e2e-cost-review.md。本项未实施；feat-107保持既有done与历史验收，不改写其证据。 第三次全量采样再次exit1，123 passed/1 failed、0 skip/retry，在同一第93行颜色断言失败。其逐轮输入指纹与首轮相同，未改应用/断言/fixture；问题仍未定位。feat-112因仅1/3有效样本保持blocked，113独立依赖feat-107，避免恢复死锁。 本轮仅登记，未执行本项init/check:full或修复；原失败及定向结果属于112的采样发现。\n2026-10-03 开始执行：已依次读取AGENTS、功能状态与交接，依赖feat-107为done；保留所有既有用户改动。将使用独立源码/依赖和隔离PostgreSQL诊断实际pointer、hover与布局，未扩大超时/重试或改变112状态。\n2026-10-03 定位准备缺口：当前549份源指纹与112一致；起始./scripts/run-node22.sh ./init.sh exit0，108文件/1031项。附加观察的定向2/2和完整前置124/124通过，但发布Edit可见后仍x=141→357（216px）才居中。受控真实resize在原单次hover之后提交适配，按钮x=357→197，pointer仍(368,488)，命中从Edit变为DIV、:hover true→false，原5000ms样式比对再次exit1（expected纯黑/received40%黑）。仅修改tests/e2e/blog-presentation.spec.ts，发布态按真实宿主宽度/居中准备后只hover一次；保留原断言与全部旅程，新增真实延迟适配回归及共享流程故障注入。详细原失败、诊断/命令/局限及早期副本/筛选/TS问题已脱敏写入docs/plan/evidence/feat-113/hover-diagnosis.json。首次typecheck exit2（TS2352），修正临时window字段unknown强转后重跑exit0；首次注入被同一类型错误阻止，不能算检测证明。最终注入、定向和check:full尚待执行，保持in-progress；112仍blocked。\n2026-10-04 完成：仅修改tests/e2e/blog-presentation.spec.ts，发布作品首次编辑点击、Edit单次hover及窄屏刷新再编辑均等待真实宿主宽度/居中；1px容差沿用既有几何验收，不改应用/CSS、配置、重试、原5000ms颜色比对或其他有效断言。新增“已发布作品 Edit 在真实适配就绪前不执行悬停”浏览器回归，在应用初始化前暂扣真实resize通知，未就绪时共享准备+hover必须拒绝，释放后首次hover命中、变黑并打开正确弹窗。新增理由：原可见/动作稳定准备遗漏晚到适配；真实布局/pointer/:hover只能浏览器覆盖，PG和组件保留原分层职责。最终隔离故障注入取消准备等待后exit1（Promise resolved instead of rejected、1 failed/1 passed含setup），恢复后定向exit0（2/2），证明回归实际检测边界。早期TS2352、夹具注册太晚、首次编辑提前点击及既有草稿摘要30秒timeout原错误均在长期JSON保留，不把失败抹掉或用retry/sleep/宽松超时掩盖；最终该既有摘要/发布/非作者用例原样6.3秒通过。\n最终 LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default（CI unset）./scripts/run-node22.sh npm run check:full exit0：标准check含类型/lint/资产检查、108文件1031项Node/组件、生产构建和54.59%/48.58%/58.9%/55.71%覆盖率；45文件200项真实PG集成；production Playwright125/125，0 skip/retry、1 worker，default构建/birthday-2026运行主题。草稿Edit6.0秒、发布Edit8.1秒、新回归3.4秒（runner 0.1秒精度）均在完整前置序列通过，完整CLI单调969842.815ms。新增E2E整体成本增量无可比前后采样，待测；不将此门禁当作112预算基线。check:full含check、不重复quick/check；未运行Compose smoke或新起dev，因未改启动/部署，起始init已成功且完整门禁验证production启动。\n完整549份输入在门禁前后与工作区逐字节一致，副本仅Next自动生成next-env production类型路径差异；早期副本漏10份非运行时3D候选报告，最终已补齐并完整核验，详情如实记录。保留历史112两次原5000ms expected纯黑/received40%黑失败及本轮受控命中/坐标证据；历史raw trace已删除，不能追溯当时确切pointer，不用一次自然通过或CSS源码归因，也不宣称长期零偶发。详情和输入摘要见docs/plan/evidence/feat-113/hover-diagnosis.json。\n收尾：本轮隔离源码/node_modules/.next/覆盖率、成功/失败raw报告/trace/视频/认证状态及专属tsx缓存已删；本轮进程/E2E上传目录为0，Docker前后1容器/3卷/4网络/5镜像集合一致，仅保留原开发PostgreSQL。其他18项全部字段和606份范围外原文件保持；会话中既有未跟踪56f6f7cd参考PNG已不在工作区，本助手未删除/恢复，保留现状与另一张图片。JSON/全局113唯一ID/跨归档依赖/状态/计数/链接核验、git diff --check及git status通过，featuresNumber=19，跳过归档；session-handoff已重写，112仍blocked、092仍not-started。未提交/推送/部署或操作用户开发库；唯一下一步按新源码/125项集合恢复112，重新采3份完整可比有效样本。"
+    },
+    {
+      "id": "feat-114",
+      "name": "草稿窄屏图片取消手势零写入失败的定向诊断与修复",
+      "description": "针对feat-112新版本首轮取消后revision从1变2，独立复现保存响应与Escape事件派发交叠、取消监听器重订阅导致早先鼠标请求迟到提交的机制，并修复稳定订阅、指针归属与capture释放。保留原鼠标/触摸、resize/rotation保护并补充交叠回归和真实PostgreSQL验证；独立浮点脏状态问题另记115。",
+      "priority": "P2",
+      "priorityReason": "新版本首轮完整生产E2E在取消零写入断言失败，阻断三份可比成本基线；尚未证明是产品缺陷或测试准备，需先定位再处理纯耗时优化。",
+      "status": "done",
+      "dependencies": [
+        "feat-091"
+      ],
+      "acceptanceCriteria": [
+        "按112新组可核对的Node/npm/Chromium/PG版本、生产模式、单worker/零重试及隔离账号复核authenticated项目tests/e2e/blog-drafts.spec.ts:1008完整标题“窄屏缩放下图片鼠标和触摸位移逆变换，Escape 与 pointercancel 不写入”；保留首次第1039行touchCancel之后Expected revision 1/Received 2的原命令与脱敏错误。原样定向2/2通过和构建TLS中断后的最终通过单列，不当作修复或全量证明。",
+        "在真实浏览器与隔离PostgreSQL中观察鼠标/Escape/touchStart/touchMove/touchCancel的pointer命中、capture、几何/显示比例、PATCH请求响应和数据库revision提交时序；区分取消动作写入与早先请求迟到提交或准备缺口。记录UTC与单调时间，不能仅凭同时发生约544575ms UTC跳变或静态源码认定根因，未定位时写证据缺口。",
+        "修复带可观察回归，并以历史故障或隔离故障注入证明实际检测能力；保留鼠标和触摸位移逆变换、Escape/pointercancel零写入、取消后新手势可继续、触摸resize预览后只在结束保存及rotation预览/持久化原保护，不靠固定sleep、重试、skip、扩大timeout或删除有效断言掩盖问题。",
+        "真实PostgreSQL验证取消及保存的revision/位置/尺寸/角度、CAS与权限边界，真实Playwright承担实际布局/触摸/capture和保存恢复；低层mock不能替代对应层级。只修改已定位机制，不扩大到编辑器整体重写、测试耗时迁移或112排名/预算整改。",
+        "实施时完成./scripts/run-node22.sh ./init.sh、必要定向及风险匹配npm run check:full，核对输入指纹和工件清理、原失败与后续结果，全部满足后才能done；完成后112须按最终源码/配置/集合重新收集三份完整有效无skip/retry样本，不拼接旧组或局部通过。"
+      ],
+      "evidence": "2026-10-04 从feat-112恢复采样发现并仅登记。新完整生产125项，exit1：124 passed/1 failed，0 skip/retry；第1039行touchCancel后revision Expected1/Received2，命令单调退出观察716301.180ms。未修改源码/断言的原样定向authenticated/完整标题/--trace=on exit0：2/2含setup，命令218747.670ms，目标7996ms，不证明已修复；构建TLS中断最终通过另记。同场景UTC跳变缺乏因果对照，不据此解释写入。详细原错误、全部125项结果、源码/环境/计时边界与局限见docs/plan/evidence/feat-112/e2e-cost-baseline.json currentSampling和docs/testing-e2e-cost-review.md；本项依赖已done091，避免与blocked112形成死锁，未开始init/诊断修复/check:full。 2026-10-04 实施完成：549份原输入与112组逐字节一致，Node22.23.2/npm10.9.8/Playwright1.62.1/Chromium及headless151.0.7922.34/PG16.15、production、单worker、零retry、隔离账号。原目标观察2/2通过单列；浏览器Date.now前跳544575ms单独不复现；真实提交暂扣响应后复现原touchCancel检查Expected1/Received2，第二PATCH来自此前mouse pointerup，触摸cancel无PATCH。记录UTC/hrtime/performance、命中/capture/scale/请求/DB时序，观察同次Escape较早监听器触发重渲染并移除尚未执行的图片监听器。useEffectEvent稳定订阅最新取消回调；移动/resize校验pointerId并释放capture，迟到其他指针不得提交或取消新手势。最终相同3个组件回归在隔离副本恢复原组件后3/3失败，修复后3/3通过；原E2E确认保存响应、零写入/DB/刷新保护保留，新增响应交叠/迟到mouse up/触摸取消后可保存旅程。新增真实PG照片变换幂等、CAS/权限零修改验证。初始init exit0 108文件/1031项，最终./scripts/run-node22.sh ./init.sh exit0 109文件/1034项；最终550份输入一致的隔离副本以LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full exit0（109/1034、生产构建/覆盖率、45文件/201真实PG、126/126生产浏览器，0 skip/retry）。原完整手势8016ms、新交叠6154ms仅单份门禁，成本增量/预算待112。新交叠首次定向2 passed/1 failed的浮点保存状态残留另记115，不覆盖失败；夹具使用精确场景80/40以隔离事件机制，原30/15手势仍保留。历史首轮逐事件唯一因果缺少原trace，定位基于本轮同旧实现的真实响应门控复现，不归因于UTC相关性。全部原失败/后续结果/准备错误/新增测试理由与映射见docs/plan/2026-10-04-draft-pointer-cancellation.md及docs/plan/evidence/feat-114/diagnosis.json。无依赖/schema/迁移/运行或部署配置变更，未运行Compose smoke；check:full匹配风险。原报告/trace/auth/隔离副本/自有缓存已回收，Docker初始集合和无关用户文件保持，diff/JSON/依赖/全局ID/计数通过。112保持blocked，新组0/3须最终源码/126集合重新采样，不拼接本门禁或旧组。"
+    },
+    {
+      "id": "feat-115",
+      "name": "草稿图片在保存响应交叠取消后浮点尾差导致保存状态残留",
+      "description": "feat-114隔离诊断发现：scale=0.36875、30px/15px屏幕位移生成的客户端x=161.35593220338984与PostgreSQL/Prisma回读161.3559322033898存在表示尾差。首次事务已提交、响应晚于新手势准备时，Escape恢复客户端值，被严格比较误判为脏数据。本项仅通过图片几何数值等价和取消回滚采用已确认基线修复，保持实际编辑和保存失败保护。",
+      "priority": "P2",
+      "priorityReason": "已保存且取消的图片可能持续显示保存中、阻止发布或触发离开守卫；限于响应与新手势交叠及非精确缩放位移。",
+      "status": "done",
+      "dependencies": [
+        "feat-114"
+      ],
+      "acceptanceCriteria": [
+        "用真实浏览器和隔离PostgreSQL复现scale=0.36875、首次屏幕移动30/15、事务先提交但响应晚于新手势准备、Escape回滚后无新PATCH且保存状态残留；不得把浮点尾差当实际编辑重新保存。",
+        "只针对数值等价及回滚基线定位修复，保持真正的位置/尺寸/角度修改可被脏状态检测、保存失败不宣称已保存；补可观察回归及旧行为检测能力。",
+        "验证取消零写入、后续正常保存、发布/退出和刷新恢复，并运行./scripts/run-node22.sh ./init.sh与风险匹配npm run check:full，记录真实PG和浏览器证据。"
+      ],
+      "evidence": "2026-10-04完成：photo-patch仅对x/y/width/height/rotation以4×Number.EPSILON×max(1,|a|,|b|)比较；WorkEditor回滚到等价已保存字段时清除其预览并采用服务器基线，其他真实差异保留。相同最终生产浏览器回归在旧WorkEditor下捕获保存中残留（1 PATCH、PG尾差、Escape释放capture/回滚、默认5000ms失败）；修复版生产定向4/4、完整序列新增用例8.784秒通过，原114两项保护逐字保留。取消零新增PATCH/revision、实际移动/缩放/旋转的预览与保存、500失败阻止发布和同幂等重试、退出/重开/刷新不补写、真实上传图片发布成功均验证。./scripts/run-node22.sh ./init.sh exit0（109文件/1034项）；新增Node定向10项/typecheck exit0；LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default、CI unset，经./scripts/run-node22.sh npm run check:full exit0：覆盖率110文件1044项、真实PG45文件201项、生产E2E127/127且0 skip/retry，两次生产构建及静态门禁通过，整轮单调1010.437秒。覆盖率54.61/48.67/58.99/55.77%。原登记、预期旧行为失败、夹具纠正轮和最终通过独立保存于docs/plan/evidence/feat-115/verification.json；机制/测试理由/成本见docs/plan/2026-10-04-draft-photo-roundoff.md。新浏览器场景定向10.531秒，整套增量成本待测，不能替代112采样。隔离副本、原始报告/auth/日志、68份隔离tsx缓存已清理，Docker资源集合恢复原基线、3100关闭；未修改依赖/模型/迁移/启动部署配置，未运行Compose smoke（风险由PG/生产浏览器check:full匹配）。featuresNumber22<=40跳过归档，既有用户改动和其他feature保持。"
+    },
+    {
+      "id": "feat-116",
+      "name": "生产 E2E 双用户私聊用例 browserContext.close 超时的定向诊断与修复",
+      "description": "feat-112在114最终550输入/126项完整生产采样中，双用户私聊隔离用例末业务断言约20.9秒已完成，但finally第880行second.close()触发原120秒超时，case含teardown148.379秒；原样带trace定向2/2通过。失败同场景有UTC前跳，尚无因果对照。独立诊断实际浏览器关闭/收尾机制并按定位带回归修复，不能按单次定向通过宣称问题消失。 2026-10-05 feat-118已独立定位修复；最终同源check:full的133/133通过，本项原私聊及两条录制时钟回归均通过，门禁阻塞解除并完成验收。",
+      "priority": "P2",
+      "priorityReason": "新的完整生产门禁失败直接阻塞112可比基线；需先区分真实浏览器/runner收尾与产品缺陷，再讨论耗时优化，不能提高timeout或循环凑通过。",
+      "status": "done",
+      "dependencies": [
+        "feat-080"
+      ],
+      "acceptanceCriteria": [
+        "复核authenticated/tests/e2e/agent-entry-authenticated.spec.ts:804完整标题“两位用户的私聊持久隔离，关闭后任务完成、重新打开回复，审批后继续且 Chat 保持共享”；按112固定生产/Node/npm/实际完整Chromium/单worker/隔离PG条件保留Test timeout of 120000ms exceeded、browserContext.close: Test ended及第880行原错误，定向通过不替代完整失败。",
+        "观察page.close、logout、second.close、DB删除/disconnect及fixture teardown的单调时序，按需恢复完整前置序列并检查浏览器进程、transport/录制等实际关闭边界；区分挂起、事件投递、环境和产品状态，不把UTC跳变或资源相关性当根因。无定位证据时保留blocked，不加retry、固定sleep、宽松timeout或删除关闭/有效断言。",
+        "只按定位修复必要的生命周期/准备/清理问题，新增可观察回归并证明能捕获原故障或隔离注入；保留双Context真实Cookie/API/PG的私聊owner隔离、关窗后台完成、重新打开、审批后恢复、刷新历史及共享Chat独立的全部保护，组件/mock不能替代真实浏览器关闭和PG语义。",
+        "保证修复后的成功与失败收尾能回收本轮浏览器/context、隔离账号/DB连接/上传/容器；相关定向及真实完整前置验证通过，执行./scripts/run-node22.sh ./init.sh与风险匹配npm run check:full，记录原失败和最终结果，不顺带实现115或重写私聊。",
+        "完成独立验收后，112按最终源码/配置/集合另采三份完整有效无skip/retry生产样本；不拼旧组、失败轮通过项、本项门禁或局部定向结果。"
+      ],
+      "evidence": "2026-10-04：已定位并实现录制时钟与失败收尾修复，未完成独立验收。保留112原完整120000ms及880行second.close错误；仅给原录制帧墙钟前跳4024686.544ms，业务约20.5秒完成、101116视频槽令page.close等待FFmpeg约201.7秒，随后同样browserContext.close: Test ended，DB清理跳过。配置校验并原子适配锁定Playwright1.62.1录制输入为monotonicTime，保留视频/trace/原超时；原业务序列完整保留，独立fixture清理逐步继续并报告AggregateError。新增2条真实Chromium/FFmpeg/WebM/双Cookie/PG前后跳及业务/退出请求失败回归；原录制器回归20秒故障检测exit1，适配后注入原旅程2/2、生产定向4/4通过。最终./scripts/run-node22.sh ./init.sh exit0（110文件1044项）；重新npm ci后npm run check:full exit1：标准门禁与生产构建、45文件201项PG通过，完整129项E2E128passed/1failed，0skip/retry，CLI1008.582秒。原私聊19854ms、收尾229.089ms，新回归均通过；既有窄屏博文阅读434行5000ms无dialog失败，独立登记118，单次trace定向2/2通过不消除完整失败，未循环重跑。116状态blocked，不能done或称清洁退出；恢复须先定位118并重新验116完整门禁。官方audit另报既有生产7high/1critical，登记117及升级计划，未扩大本项依赖升级。详情docs/plan/2026-10-04-browser-context-video-clock.md与docs/plan/evidence/feat-116/verification.json；本项所有结果排除112三份采样，115和既有用户改动保持，未提交/推送/部署。\n2026-10-05 按feat-118第4项验收恢复本项收尾：118已done，跨归档前置080仍done；本阶段仅复核原116因果/回归证据与118同一最终输入的完整门禁，无代码或配置修改，依文档状态例外不机械重复init/check:full。\n2026-10-05 完成验收收尾：复核docs/plan/evidence/feat-116/verification.json的原因对照、旧录制器回归检测、patchedTargetJump、定向与原失败；原视频适配/cleanup/probe和browser-context-close回归源码SHA-256保持。feat-118最终581份输入的完整env -u CI -u VITEST_MAX_WORKERS -u PLAYWRIGHT_BASE_URL -u E2E_DATABASE_URL LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full exit0（1005.543秒）：113/1052、生产构建、45/201 PG、133/133 E2E、0skip/retry；原私聊20462ms、前跳/后跳及业务失败收尾回归1556/1330ms均在完整前置中通过，关闭/DB清理原始布尔和单调阶段在docs/plan/evidence/feat-118/full-summary.json及verification.json feat116Revalidation。最终./scripts/run-node22.sh ./init.sh亦exit0（113/1052）。此前116的blocked与所有失败证据保留为历史，不改写原129项失败结论；当前已解除唯一118阻塞，标为done。本阶段只作既有同源门禁的独立验收，不重复已经通过的整套测试，不实现其他功能；原117/119已done，121剩余上游风险保持。资源已回到原基线、测试工件已清理，所有结果仍排除112成本组；唯一下一步恢复112最终581/133三份采样。"
+    },
+    {
+      "id": "feat-117",
+      "name": "官方 npm 审计生产 critical/high 依赖的独立复核与升级",
+      "description": "116仅固定已安装Playwright1.62.1版本，未升级包；复查官方npm audit发现既有Next16.3.3命中next/og ImageResponse critical及Nodemailer9.1.1、Tailwind/构建glob链high。独立核对实际使用面并升级，不在116扩大范围。",
+      "priority": "P1",
+      "priorityReason": "官方registry生产审计exit1：1critical/7high；版本风险需优先复核，不能以应用门禁通过或无显式ImageResponse引用代替处理。",
+      "status": "done",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "按官方registry重新审计并保存版本、依赖路径及完整advisory；区分包级警报、直接运行路径和构建/开发路径，不将npm报告等同于实际可利用证明。",
+        "复核Next.js GHSA-vcvr-r3jv-pc5j的next/og输入使用面；优先升级到修复的16.3.6或当前兼容修复版本，同时验证本地Next指南及框架兼容。复核Nodemailer五项警报和SMTP适配层，选择至少10.0.14或当前修复版本；复核glob/Tailwind链，优先最小兼容传递依赖修复，必要主版本迁移须单独登记。",
+        "依赖变更同步锁文件、npm ci、官方npm audit；生产high/critical修复或逐项写明触发条件、风险、阻塞和可执行升级计划，不能凭本项定向/源码扫描声称运行面安全。",
+        "执行风险匹配./init.sh、npm run check:full及必要Compose smoke；保留116视频时钟回归，任何Playwright升级须显式复核适配而非绕过版本保护；更新状态与交接。"
+      ],
+      "evidence": "2026-10-04 完成。Next/eslint-config-next 16.3.3→16.3.8、Nodemailer 9.1.1→10.0.14，并最小兼容更新 @grpc/grpc-js、undici、brace-expansion，共23个锁定包路径版本变化；保留Playwright1.62.1及其完整性条目。两处 ./scripts/run-node22.sh npm ci --registry=https://registry.npmjs.org exit0；官方 npm audit --json --omit=dev exit1，7high/1critical→6high/0critical；全量13high/1critical→9high/0critical，剩余均为braces3.0.3链，逐路径条件/风险和可执行计划由feat-119承接。真实SMTP旧包2pass/1fail，新包邮件3文件10项通过。首轮init与check:full通过，必要Compose exit1（110.035秒）及旧manifest/lock对照exit1（71.105秒）复现相同7条TS2307/TS7006，曾blocked并独立登记120，原始错误保留。120完成后按其验收要求接续复核：同一锁文件d0bfa0f6…90160d，未再次变更依赖或重复同日审计；./scripts/run-node22.sh ./init.sh exit0；LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full（CI unset）exit0（1029.118秒）：112/1050 Node组件、45/201真实PG、130/130生产E2E，0skip/retry；原私聊和两项116视频墙钟回归通过。./scripts/run-node22.sh npm run test:compose-smoke exit0（102.135秒），init迁移/seed、standalone健康、独立Worker共享/私聊、媒体回收CLI与镜像输入隔离均通过，交付阻塞解除。宿主Node22.23.2/npm10.9.8，本轮Docker22.23.3/npm10.9.9；清理隔离资源、原始日志/报告/auth与临时源码，既有用户改动保留。未单独重复check（full已包含），未部署；112/116/118状态保持。安全证据见 docs/plan/evidence/feat-117/verification.json 和 docs/plan/2026-10-04-dependency-security-review.md；本轮门禁与清理详见 docs/plan/evidence/feat-120/verification.json。"
+    },
+    {
+      "id": "feat-118",
+      "name": "生产 E2E 窄屏刷新后首次点击博文标题未打开阅读弹窗的定向诊断与修复",
+      "description": "116最终完整check:full的第81项blog-presentation.spec.ts:347在第二位读者改为390x844并reload后，标题click已返回，但434行阅读博文dialog5000ms内不存在；128passed/1failed。单次--trace=on定向2/2通过，不能替代完整失败。独立定位准备/hydration/交互/环境边界，不将它归为已解决或增加sleep/retry/timeout。 2026-10-05 已定位并修复：SSR标题提前可用，水合/首次fit在pointerdown与pointerup之间将宽960缩至342，click落到DIV；标题在事件和适配同次提交后启用。真实完整Chromium前后对照及最终133/133完整门禁通过。",
+      "priority": "P2",
+      "priorityReason": "完整生产门禁失败阻塞用户当前116的独立完成和112成本采样；失败同时涉及窄屏阅读入口，需保留全文/权限和首次点击的真实保护。",
+      "status": "done",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "保留完整生产原始失败：tests/e2e/blog-presentation.spec.ts:434，expect dialog 阅读博文 toContainText 全文结尾 END、5000ms element(s) not found，128passed/1failed、0skip/retry；定向通过不能消除它。",
+        "在固定production/Node22.23.2/npm10.9.8/真实完整Chromium/单worker/隔离PG条件下，观察窄屏reload后可见内容、实际请求/脚本交付、事件和弹窗；按需恢复完整前置，区分未就绪准备、产品交互和环境，不凭hydrate猜测定根因。",
+        "只按定位修复相关准备/生命周期/交互并增加可观察回归，保留修改全文和摘要重排、发布、其他用户全文只读权限、键盘Enter、窄屏刷新及真实PG不变保护；不用重试、固定sleep、宽松timeout或删除有效断言凑通过。",
+        "成功与失败收尾回收页面/context、隔离账号/DB/上传/容器，定向和真实完整前置通过，执行./init.sh和npm run check:full；再恢复116的完整门禁验收，112按最终源码另采三份有效样本。"
+      ],
+      "evidence": "2026-10-04仅登记：116最终 LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full exit1，标准构建/110文件1044项与45文件201项PG通过，E2E128passed/1failed、0skip/retry；本项case11438ms，434行阅读弹窗5000ms不存在。它在116私聊/新增回归之前执行；原私聊第116和新回归83/84均通过，本轮未修改本项测试或应用业务文件。原样--trace=on定向单次2/2通过，根因尚未定位，不能宣称消失。原命令/脱敏错误/完整集合与定向见docs/plan/evidence/feat-116/verification.json fullGate/unrelatedGateDiagnostic；116因此blocked。本项not-started，未独立运行init/check:full或实施修复。\n2026-10-05 开始执行：用户指定 feat-118，确认无前置依赖；仅本项改为 in-progress。保留116原完整失败与后续定向通过，隔离生产环境诊断首次点击时序，不修改重试、sleep、timeout或既有有效断言。\n2026-10-05 完成独立验收：隔离源码/锁定安装图、Node22.23.2/npm10.9.8、生产/单worker/真实PG16.15，默认headless shell与另设channel=chromium的完整Chromium151.0.7922.34均取得对照；12倍CPU限速保持原reload默认load、单次click和5000ms断言，修复前pointerdown命中未水合BUTTON/宽960，pointerup/click命中已缩至342的DIV，原全文断言同样失败。WorkEditor初始ready=false，在fit与尺寸同批提交后通过WorkCanvas/PostCardView解除原生标题button禁用；未改API、权限、数据、依赖、timeout或retry。新增真实脚本交付门闩回归：旧版toBeDisabled失败，修复后首次点击/焦点恢复/Enter/另一账号只读及PG三实体不变通过；独立home-board准备外键错误与临时配置CJS错误另保留，均不冒充产品复现。完整Chromium修复前3passed/2failed、修复后5/5（0skip/retry），再次确认相同命中位置竞态；默认定向3/3通过。\n首轮npm run check:full exit1（1033.251秒）：标准/113文件1052项、45文件201项PG通过，E2E131/133，两个时区键盘用例导航后focus遇到新禁用标题而未获得焦点；补enabled/focused准备断言，全部原Enter、全文、样式及权限断言保留，失败命令与错误完整保留。最终./scripts/run-node22.sh ./init.sh exit0（113/1052），最终env -u CI -u VITEST_MAX_WORKERS -u PLAYWRIGHT_BASE_URL -u E2E_DATABASE_URL LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full exit0（1005.543秒）：标准/生产构建、113/1052、覆盖率54.74/48.75/59.31/55.87%、45/201真实PG、133/133生产E2E，0skip/retry；原窄屏9779ms、新回归3092ms，116原私聊及两条真实视频/资源回归全部通过。完整套件沿用headless shell，完整Chromium诊断另列实际进程版本，未混称。\n长期证据docs/plan/2026-10-05-blog-first-click.md及docs/plan/evidence/feat-118/diagnosis.json、verification.json、full-summary.json；首轮完整失败/输入与最终581份输入另存。未另重复npm run check（full包含）；未运行Compose smoke（无部署/依赖/运行配置改动）或112三份采样。隔离源码/node_modules/构建、原始成功失败报告/trace/video/auth、PG/上传/观察器已清理；70份仅引用本轮路径的tsx缓存和11份npm日志已清理，Docker回到原1容器/3卷/4网络/6镜像、3100关闭、临时测试进程/上传0，保留原用户内容。featuresNumber=27<=40跳过归档；按本项验收随后复核116状态，112只登记恢复条件，不采样或混入本轮结果。\n最终结构收尾：JSON、121全局唯一ID/跨归档依赖无环/状态/计数、证据及本地链接、581份最终门禁输入、git diff --check均通过并检查git status --short；根27项24done/2not-started/1blocked，featuresNumber27不触发归档。664份范围外原文件和其他24项feature原字段保持；四份交叠代码/测试在内存反向去除本轮补丁后逐一等于初始SHA-256，保留既有未提交内容。交接已重写，未提交/推送/部署。"
+    },
+    {
+      "id": "feat-119",
+      "name": "移除 Tailwind 3 与构建工具链的未修复 braces 依赖",
+      "description": "feat-117 官方审计确认 braces 3.0.3 的 GHSA-vfj7-8cjw-p6xm 无修复发布；Tailwind 3.4.19/chokidar/fast-glob/micromatch 链及 ESLint/GLTF 构建工具链仍带入该包。独立评估 Tailwind 4 迁移与其余父包替换，不能使用 audit fix --force、降级 Next/GLTF 或移动 devDependencies 隐藏风险。",
+      "priority": "P1",
+      "priorityReason": "生产安装图保留 6 high，全量保留 9 high，均由同一未修复 braces advisory 传播；构建输入模式失控可造成栈耗尽 DoS。Worker 镜像包含完整依赖，包级风险仍须跟踪。",
+      "status": "done",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "按官方 registry 重审 GHSA-vfj7-8cjw-p6xm 与所有引入路径；若已有兼容修复版本优先使用，否则设计 Tailwind 4 及 typography/PostCSS 迁移并列明样式兼容差异。",
+        "移除生产 Tailwind 链的 vulnerable braces，并逐项处理 ESLint Next 插件与 GLTF CLI 的剩余引入路径；如上游仍无兼容替代，保留逐路径风险、触发条件和可执行升级计划，不降级框架/资产工具、不用忽略审计或依赖分类伪造零警报。",
+        "保留两主题、响应式、Markdown typography、空间画布和 Agent 模型的真实视觉/交互契约；新增相应行为回归，运行 npm ci、./init.sh、npm run check:full 和 Compose smoke。",
+        "保存升级后完整官方审计、依赖图及 Web standalone/Worker 镜像的实际包检查；同步锁文件、feature 状态和交接。"
+      ],
+      "evidence": "2026-10-04 feat-117 登记，未开始迁移。官方 braces 最新 3.0.3，micromatch 4.0.8、fast-glob 3.3.3、Tailwind v3 最新 3.4.19 均无兼容修复；GHSA-vfj7-8cjw-p6xm affected<=3.0.3、patched None。当前 Tailwind content 是仓库固定 glob，应用未发现将请求/数据库内容作为 brace pattern 的直接调用；这是有界代码观察，不是运行面安全证明。实际 Dockerfile worker-runner 拷贝完整 deps，不能因 npm 标 dev 就认定镜像不存在。长期证据将写入 docs/plan/2026-10-04-dependency-security-review.md 和 docs/plan/evidence/feat-117/。\n2026-10-04 完成：官方重审仍无 braces 兼容修复，迁移 Tailwind3.4.19→4.3.3、PostCSS 插件4.3.3及 tailwind-merge3.7.0，保留 typography0.5.20 与 Next/GLTF/Playwright 锁定条目；明确源目录、base 层、原 sRGB/typography 配色及工具类兼容，不移动依赖分类或使用 force/overrides。官方生产 audit exit0（6high→0），全量 exit1（9high→6high）；剩余 ESLint/GLTF 两条路径按本项验收例外逐项保留触发条件、风险与升级步骤，独立登记121/not-started，不称 Worker 零风险。工作区与隔离源码 npm ci 均 exit0；./scripts/run-node22.sh ./init.sh exit0（113文件1052项）。env -u CI -u VITEST_MAX_WORKERS -u PLAYWRIGHT_BASE_URL -u E2E_DATABASE_URL LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full exit0（1157.953秒）：113/1052 Node组件、生产构建、45/201真实PG、132/132生产E2E，0skip/retry；默认/生日定向9/9与8/8通过。新增表单/Markdown/类合并回归，原画布、两主题模型、私聊及116视频时钟保护保留；颜色断言改为真实Canvas原RGB/alpha像素等价比较。Compose smoke exit0（282.213秒），init/standalone/独立Worker/媒体回收均通过；原始Web镜像无所检查的Tailwind/braces/glob目标包，Worker实际保留braces3.0.3与两个上游方，完整清单已存档。宿主Node22.23.2/npm10.9.8，实际镜像Node22.23.3/npm10.9.9。全部官方审计、完整依赖树、版本与测试成本见 docs/plan/2026-10-04-tailwind4-braces-migration.md 和 docs/plan/evidence/feat-119/verification.json；npm ls 保留既有两项optional包extraneous提示。隔离源码、原始日志、测试报告/auth及71个专属tsx缓存、9个专属npm日志已清理，Docker前后1容器/3卷/4网络/6镜像ID集合一致，3100关闭，581份门禁输入匹配。其他25个原feature与归档保持，112/116/118状态不变；未重复独立check（full含），未提交/推送/部署。"
+    },
+    {
+      "id": "feat-120",
+      "name": "Docker 构建中评估脚本与测试 fixture 的输入隔离修复",
+      "description": "feat-117 必要 Compose smoke 发现既有三个评估脚本被复制进 builder，而它们导入的 tests/evals fixture 被 .dockerignore 排除；tsconfig 包含全部 TypeScript 脚本，导致镜像构建失败。升级前 Next16.3.3 与升级后16.3.8 同一 Docker 配置均复现相同7条错误，须独立修复构建输入闭包。",
+      "priority": "P1",
+      "priorityReason": "阻止 Web 镜像生产构建和安全补丁的 Compose 交付验证，feat-117 因此 blocked。",
+      "status": "done",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "复核 feat-117 的升级前后 Docker 对照和7条 TS2307/TS7006；在隔离 Compose project 复现构建输入缺失，不访问现有业务数据库或真实外部 LLM。",
+        "明确手动 eval 脚本与 builder 输入边界：使所需输入完整，或仅排除不参与生产构建的手动评估入口；保留本地评估功能、真实测试和严格类型检查，不使用 ignoreBuildErrors、删除有效脚本或全局放宽 tsconfig 换通过。",
+        "用真实 Docker 构建/Compose smoke 验证修复，包含 init migrate deploy/seed、standalone Web健康、独立Worker共享与私聊任务、媒体清理CLI；检查生产镜像和构建上下文不带入真实配置或测试认证工件。",
+        "执行 ./init.sh、npm run check:full 与 npm run test:compose-smoke，保存命令、实际工具链版本和失败到通过的行为证据；清理隔离资源，更新状态与交接，再恢复 feat-117 的完成验收。"
+      ],
+      "evidence": "2026-10-04 完成。复核117升级前后对照，本轮隔离 ./scripts/run-node22.sh npm run test:compose-smoke exit1（58.033秒）逐条复现相同5条TS2307/2条TS7006；.dockerignore精确排除3个手动评估入口及Playwright报告，保留生产脚本、全部本地评估/fixture和严格tsconfig。扩展真实Docker合成上下文及无网络/只读/无挂载原始Web/Worker镜像回归；旧规则因报告泄漏exit1（1.494秒），撤销单个评估排除规则exit1（1.222秒），修复后Compose smoke exit0（102.135秒），init migrate deploy/seed、standalone健康、独立Worker共享/私聊任务、媒体上传与回收CLI/dry-run全部通过。宿主Node22.23.2/npm10.9.8；前后同摘要基础镜像实测Node22.23.3/npm10.9.9。./scripts/run-node22.sh ./init.sh exit0（112文件1050项）；npm run typecheck与tsc --listFilesOnly确认3入口/2TS fixture仍受检查；离线汇总7组224样本逐字段等于原结果，未调用真实LLM。env -u CI -u VITEST_MAX_WORKERS -u PLAYWRIGHT_BASE_URL -u E2E_DATABASE_URL LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full exit0（1029.118秒）：112/1050 Node组件、45/201真实PG16.15、130/130生产E2E，0skip/retry；原私聊与两个116墙钟回归通过。覆盖率54.71/48.72/59.31/55.87%；未单独重复check（full已包含）。隔离源码、原始日志、测试报告/auth及75个专属tsx缓存已删除，Docker全量ID集合恢复、3100端口关闭。现有用户改动保留，未部署。详见 docs/plan/2026-10-04-docker-eval-input-isolation.md 和 docs/plan/evidence/feat-120/verification.json；随后复核相同117锁文件并补齐其剩余验收，117也标为done，braces风险仍由119处理。"
+    },
+    {
+      "id": "feat-121",
+      "name": "构建工具链剩余 braces 上游修复跟进",
+      "description": "feat-119 已移除 Tailwind 的生产 braces 链；Next ESLint 稳定配套包与 GLTF CLI 最新稳定版仍依赖未修复的 micromatch/braces，完整 Worker 安装图保留该包。等待兼容上游修复或稳定父包替换后独立升级，不能用生产分类审计为零代替实际镜像检查。",
+      "priority": "P1",
+      "priorityReason": "官方全量审计仍有同一 GHSA-vfj7-8cjw-p6xm 传播的 6 high，Worker 使用完整依赖；当前无修复发布，需保留可执行跟进，不降级或删有效工具凑零警报。",
+      "status": "not-started",
+      "dependencies": [
+        "feat-119"
+      ],
+      "acceptanceCriteria": [
+        "按官方 registry 复核 braces、micromatch、fast-glob、@next/eslint-plugin-next/eslint-config-next 及 @gltf-transform/cli；记录完整 advisory、当前安装树及兼容修复版本，尚无修复时保持未实施并保留路径风险。",
+        "有兼容补丁时优先最小锁文件更新；如必须升级父包，Next/ESLint 保持稳定配套、GLTF CLI/core/extensions 保持兼容并验证真实资产；不使用 audit fix --force、无证明的 API 替换、降级、删除 lint 规则或移动依赖分类。",
+        "运行 npm ci、官方全量和生产审计、完整依赖图、./init.sh、npm run check:full、两主题 Agent 浏览器及 Compose smoke，保存 Web standalone/Worker 原始镜像的实际包清单；检查 Playwright 版本保护，不顺带升级它。",
+        "只有两条已登记路径均完成处理或新发现的不可消除风险已有独立明确记录，且相关门禁通过，才能 done；清理隔离资源，更新状态与交接，不把样本补入 feat-112。"
+      ],
+      "evidence": "2026-10-04 feat-119 中仅登记，未实施。官方 braces 3.0.3、micromatch 4.0.8、fast-glob 3.3.3 无兼容修复；@next/eslint-plugin-next 16.3.8 仍锁 fast-glob 3.3.1，GLTF CLI 4.5.1 仍用 micromatch ~4.0.8，本轮保留原 4.5.0。条件、安装图及可执行升级步骤见 docs/plan/2026-10-04-tailwind4-braces-migration.md 与 docs/plan/evidence/feat-119/。\n2026-10-06 官方复核后保持not-started、未实施：braces3.0.3/micromatch4.0.8/fast-glob3.3.3仍无可消除路径的兼容修复；Next及ESLint配套稳定16.3.8仍固定fast-glob3.3.1，GLTF CLI稳定4.5.1仍用micromatch~4.0.8，保留原4.5.0。拒绝audit建议的Next配套14.2.35及CLI2.0.5降级，未改验收或依赖。Node22.23.2/npm10.9.8；./scripts/run-node22.sh npm audit --json --registry=https://registry.npmjs.org exit1（7high/2moderate），同命令增加--omit=dev仍exit1（1high/2moderate）；原braces为6high，其余为新发现source-map-js与selector-parser，分别登记124/P1和125/P2，均未实施。npm ls --all --json、--omit=dev完整树及定向路径均exit0，原两项optional extraneous提示保留。Playwright三个锁定/安装包仍1.62.1，版本保护文件和允许的录制输入只读核验，未运行浏览器。GitHub API限流403后改读官方advisory-database完整JSON成功；source-map-js月份路径404更正后成功，原错误未隐藏。详情见docs/plan/2026-10-06-braces-upstream-review.md与docs/plan/evidence/feat-121/verification.json。未找到本项兼容修复，按纯文档例外未运行./scripts/run-node22.sh npm ci --registry=https://registry.npmjs.org、./scripts/run-node22.sh ./init.sh、./scripts/run-node22.sh npm run check、check:full、test:e2e:agent-entry:production:default、test:e2e:agent-entry:production:birthday或test:compose-smoke；逐条原命令及原因已存verification.json，未重新采集镜像，119原清单仅作历史风险证据；不宣称应用门禁通过或本项完成，不补入112样本。JSON、全局状态/依赖、计数、链接和diff/status按文档例外核验；临时npm缓存/原始日志清理，既有工作区内容保留。"
+    },
+    {
+      "id": "feat-122",
+      "name": "空间作品截图等待成本的定向诊断",
+      "description": "按feat-112三份可比生产E2E证据，独立定位五尺寸草稿布局、自动保存/整组发布旅程及发布时间悬停用例中的截图等待。三个入口分别作因果对照，不预设同根因；保留全部视觉工件及行为保护，再决定是否可安全优化，不预设可删截图或固定减量目标。",
+      "priority": "P2",
+      "priorityReason": "两个业务中位数前10用例有重复截图成本；发布时间用例虽中位数仅5.025秒，第3轮22.955秒超过7.025秒软预算，其中两次截图17.099秒。现有证据仅定位到Screenshot窗口，需先诊断内部等待/捕获成本。",
+      "status": "done",
+      "dependencies": [
+        "feat-112"
+      ],
+      "acceptanceCriteria": [
+        "复核feat-112 currentSampling三份最终581输入/133项证据，唯一定位authenticated/tests/e2e/blog-drafts.spec.ts的“草稿各尺寸只有一层蒙版，精简工具栏贴底且已移除辅助入口”与“草稿自动保存、恢复、私密字节与整组发布协作”；保留单项和Screenshot单调窗口、原命令及输入/环境指纹，不把跨UTC跳变wall时间当成本。 同时保留中位数前10之外、超过新软预算的“作品发布时间仅在框外悬停查看，无时钟按钮，两态均不改变占位”三份5025/4617/22955ms，第三轮两张截图合计17098.733ms；不只挑慢轮或拼历史样本。",
+        "只对上述三个入口的截图边界作定向因果对照，观察截图前就绪、字体/动画、实际捕获和输出等可获得阶段；不能仅凭调用栈、源码、资源相关性或定向通过归因。未取得可避免等待的证据时保留原覆盖并给出实测保留理由，不循环全量凑更快样本。",
+        "保持1000×479/480/481/240与160×120五种真实几何、单层蒙版、25次工具栏/入口可达性和既有视觉复核能力；保持真实上传拖动、自动保存/刷新恢复、私密到公开HTTP字节、双用户协作、外部归属、窄屏阅读和整组删除。低层覆盖不能替代真实CSS/WebGL/指针/Cookie/PG边界。 发布时间用例保留框外hover与浮层命中、Escape/离开关闭、作者日期、浏览/编辑两态几何及零写入。",
+        "仅在证明等价保护后最小调整准备或截图策略；涉及替代、迁移或删除时先用原故障/隔离注入证明检测能力再替换，说明仍保留的浏览器边界。不得用skip、retry、固定sleep、放宽timeout、删有效断言/视觉证据或降低coverage凑提速；不修改应用契约来迎合测试。",
+        "有代码/测试/运行配置改动时建立./init.sh基线并运行相关真实PG/定向生产浏览器及npm run check:full；保留失败传播、原有故障检测、两主题和资源清理。仅诊断/文档且没有持久代码变更时按AGENTS文档例外结构核验，明确真实运行范围；前后成本保持相同环境/集合，样本不足不报稳定预算或固定收益。",
+        "记录原因、判断、替代证明、耗时和唯一下一步；清理临时源码、账号/DB/上传、浏览器、原始报告/截图/视频/trace及缓存。不得把本项定向或变化后的全量结果拼入feat-112已建立的基线。"
+      ],
+      "evidence": "2026-10-05 feat-112三份最终581输入/133项完整生产样本均通过、0skip/retry后仅登记，尚未诊断或修改。五尺寸用例中位20.839秒，5张Screenshot单调窗口合计10.422/11.633/13.002秒；自动保存/整组发布中位20.376秒，3张Screenshot合计6.498/6.075/6.436秒。完整定位、原风险、低层覆盖、浏览器独有边界和保留判断见docs/testing-e2e-cost-review.md及docs/plan/evidence/feat-112/e2e-cost-baseline.json currentSampling.cases[*].review。当前证据仅定位到调用窗口，未证明字体、动画、捕获或I/O机制；所有视觉工件及有效断言先保留，不预设删测试或固定减量。 本轮预算复核另见发布时间场景第3轮22955ms超7025ms，Screenshot17098.733ms；纳入同一截图诊断范围但不假设同根因。其他仅一次较小超预算项保留实测窗口与风险，未发现足以支持改动的因果证据，不制造整改任务。\n2026-10-05 完成限定诊断：581输入和原112三份133项基线逐字节/完整身份复核，基线未改。隔离npm ci（1016包/19秒/exit0），5组固定的setup+3项生产PG/Chromium诊断共20次，18通过/2失败、0skip/retry；另保留空集合筛选错误和次生app-info ENOENT（CLI exit1/60.452秒，后经--list纠正）。原参数、关闭截图动画、CDP编码速度及去除只读就绪求值作有限对照，耗时在capture、fonts求值和restore之间变化，未证明稳定且等价的准备/截图优化，原spec及10个手写截图边界、五尺寸/25次trial点击、上传/字节授权/协作/hover/零写入均保留；无持久代码变更。原参数且无就绪探针的两个主题均在936行窄屏阅读对话框5000ms断言失败，CLI exit1，后两张截图未执行；已独立登记feat-123，不当作完整快样本，不声称应用全绿。各组CLI102.281/104.538/103.183/113.814/103.177秒，具体单项/阶段、控制边界、失败及复现脚本见docs/plan/2026-10-05-draft-screenshot-cost.md与docs/plan/evidence/feat-122/screenshot-diagnostics.json。最终仅文档/证据/状态，按AGENTS例外未额外运行./init.sh、check:quick、check、check:full、独立test:integration或Compose smoke；实际6次生产构建（含1次空集合准备）、5组真实PG浏览器范围另列。隔离源码/依赖/报告/auth/截图/视频/缓存均清理；Docker恢复1容器/3卷/4网络/5镜像，3100关闭；JSON、123全局ID/跨归档依赖、源与范围外文件、链接及diff/status核验。根29项<=40，不归档。唯一下一步feat-123。"
+    },
+    {
+      "id": "feat-123",
+      "name": "空间作品窄屏刷新后首击阅读残留失效的定向诊断与修复",
+      "description": "feat-122 在不改变原应用/测试源码、仅保留截图阶段计时且关闭额外就绪求值的两个生产主题中，均观察到自动保存/整组发布旅程在390px刷新后首次点击作品标题未打开阅读弹窗。失败发生于后两张截图之前，原5秒断言与CLI失败正常传播；先与无任何插桩的原运行做因果对照，不预设与feat-118同根因，不把增加截图或等待当作修复。 2026-10-06 已定位并修正测试入口：heading绕过内部原生button禁用检查；两个主题的事件复现均在禁用状态完成pointerdown/up而没有click。仅改为同名精确button定位，真实首击、5秒断言和原旅程保持；无应用改动。两主题定向与完整门禁通过。",
+      "priority": "P2",
+      "priorityReason": "已有两个主题下的直接浏览器失败，影响公开作品窄屏阅读全文入口；触发频率与根因尚未确定，优先定位核心阅读交互。",
+      "status": "done",
+      "dependencies": [
+        "feat-118"
+      ],
+      "acceptanceCriteria": [
+        "复核docs/plan/evidence/feat-122/screenshot-diagnostics.json中的restore-original和theme-default原命令/环境/输入指纹、936行失败与单调事件；保留两个失败，不用定向后续通过覆盖，不把伙伴页失败截图当作390px主页面命中证据。",
+        "以新的隔离源码/锁定依赖/真实PG和生产浏览器，在两个主题分别比较原应用/测试、仅截图计时及必要的事件观察，确定标题首次点击前后的实际命中、可交互状态、几何和阅读弹窗接线；用受控对照证明根因，不仅凭调用栈、时长或与feat-118相似的症状归因。",
+        "若确认应用缺陷，仅修复导致首次点击丢失的当前根因并增加行为回归；证明原故障或隔离注入下失败、修复后通过，保留真实CSS/指针/Cookie/PG和首次点击要求。不得改为双击、增加重试/固定sleep、放宽timeout或删有效断言/截图。",
+        "保持自动保存/恢复、真实上传拖动、私密到公开HTTP字节、双用户权限、外部归属、窄屏阅读、整组删除和原3张视觉工件；不扩大至其它博客或Agent功能。新发现范围外工作单独登记。",
+        "有持久代码/测试/运行配置改动时先建立./init.sh基线，再运行相关真实PG、两主题定向生产浏览器和npm run check:full；无持久改动仅诊断时按AGENTS文档例外写明真实范围，不声称应用全绿。",
+        "记录因果证据、回归检测、成本和失败传播；清理隔离账号/PG/上传/浏览器/报告/截图/视频/trace/缓存，更新状态与唯一下一步，不把新结果混入feat-112基线。"
+      ],
+      "evidence": "2026-10-05 由feat-122独立登记，尚未开始。源581份输入与feat-112最终组相同，tests/e2e/blog-drafts.spec.ts:847旅程在936行toContainText(\"散步、拍照\")因阅读博文对话框5000ms内不存在而失败。restore-original（default构建/birthday-2026运行）单项21668ms，theme-default（birthday-2026构建/default运行）18475ms，均3通过1失败、0skip/retry、CLI exit1；两个后续手写截图未执行。原参数但仍带截图计时，无额外就绪探针；此前3个有就绪探针的控制组通过，仅说明时序敏感性待检，不能证明探针修复。原命令、输入与环境、错误、可访问快照和清理步骤在docs/plan/evidence/feat-122/screenshot-diagnostics.json failures/runs；说明见docs/plan/2026-10-05-draft-screenshot-cost.md。\n2026-10-06 开始执行：用户指定 feat-123；已读取约定、完整验收与118/122证据入口，前置118已done。仅本项改为in-progress，新建隔离源码/锁定依赖/真实PG生产浏览器，对照无插桩和仅截图计时，再按因果证据定位首击失效。\n2026-10-06 完成独立验收：新隔离源码与锁定npm ci（1016包、npm报告18秒）、Node22.23.2/npm10.9.8、Next16.3.8、Playwright1.62.1、Chromium headless shell151.0.7922.34、真实PG16.15；581份原输入与112/122逐字节匹配。Docker Desktop起初未启动，启动后恢复原socket再执行验证。原无插桩两主题1失败/1通过，仅截图计时两组通过；保留122的两次原失败及936行/单调事件/伙伴失败图归属，不以新通过覆盖历史失败。两个主题加入同一只读事件观察后，均见pointerdown/up落在disabled=true的BUTTON、宽960且几何不变，没有click，约389/403ms后才启用；只将heading改为button后首次pointerdown/up/click均在启用、宽342时命中同一按钮并打开全文。这与118应用提前启用后缩放的机制有别，只修正测试的可操作性定位，未改应用/CSS/API/权限/数据/依赖/运行配置。\n仅持久修改tests/e2e/blog-drafts.spec.ts中的一处定位及说明注释；首次单click、5000ms全文断言、保存/恢复/真实上传拖动、私密到公开字节、双用户协作/权限、外部归属、窄屏阅读、整组删除和原3张截图完整保留。隔离阻断已启用按钮click传播时，修正后的原全文断言仍在5000ms失败且CLI exit1，随后移除注入/观察器；无新增用例、固定sleep、重试、宽松timeout或删减断言。最终两主题无诊断插桩各4/4、0skip/retry；目标旅程21.871/17.176秒，原三图逐张复核。10组定向共32执行、28通过/4失败（1原复现、2事件复现、1预期故障注入）；另保留2次插桩输入哈希guard准备错误，均因区分锁定安装与既有视频适配后的指纹而解决，不计业务失败。不报稳定提速，不改112基线。\n./scripts/run-node22.sh ./init.sh exit0（113文件/1052项）；最终env -u CI -u VITEST_MAX_WORKERS -u PLAYWRIGHT_BASE_URL -u E2E_DATABASE_URL -u E2E_EXTERNAL_ISOLATED -u E2E_DEV_ORIGINS -u NODE_OPTIONS -u NODE_ENV LANG=en_US.UTF-8 TZ=UTC CIRCLE_NODE_TOTAL=4 E2E_APP_MODE=production E2E_SOFTWARE_WEBGL=true NEXT_PUBLIC_AGENT_ENTRY_THEME=default ./scripts/run-node22.sh npm run check:full exit0（1051.324秒）：静态/生产构建、113/1052、覆盖率54.71/48.72/59.31/55.87%、45/201真实PG、133/133生产E2E，0skip/retry；目标旅程22696ms、118门闩回归3533ms。581份最终输入匹配主工作区，133项集合与112相同。未重复独立check或test:integration（full包含）；未运行Compose smoke（仅测试定位，无部署/依赖/运行配置改动）。\n长期证据docs/plan/2026-10-06-draft-reading-first-click.md与docs/plan/evidence/feat-123/diagnosis.json、full-verification.json、full-summary.json。隔离源码/依赖/构建/报告/auth/截图/视频/缓存及原始失败日志已清理；70份tsx缓存按source map、11份npm日志按cwd确认归属后删除，独占PW缓存56文件随目录清理。Docker回到原1容器/3卷/4网络/6镜像ID集合，3100关闭、E2E临时上传0。保留676份范围外原文件、其他28项feature及既有用户改动；JSON/123唯一ID/跨归档依赖/相对链接/计数/diff核验。根29项27done/2not-started，featuresNumber29<=40不归档；交接重写，唯一下一步复核121上游兼容修复条件，未提交/推送/部署。"
+    },
+    {
+      "id": "feat-124",
+      "name": "修复 source-map-js indexed source map 拒绝服务依赖风险",
+      "description": "feat-121于2026-10-06官方复核发现GHSA-68fv-2mgg-jv7q：当前source-map-js1.2.1影响生产与全量安装图，官方已发布1.2.2。独立核对所有父包范围并优先最小锁文件更新，不并入等待上游的braces任务。",
+      "priority": "P1",
+      "priorityReason": "官方生产审计1high来自该包，攻击者可控indexed source map的section offset可能阻塞事件循环；已有兼容补丁候选，可优先实施。当前仅证实安装图，不声称已证实线上请求可达性。",
+      "status": "done",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "按官方advisory与registry确认source-map-js受影响范围和修复版，核对PostCSS、Next内嵌PostCSS、Tailwind node及测试工具的实际引入路径和父包版本范围；区分安装图、框架打包副本与真实运行可达性。",
+        "优先仅将受影响的source-map-js锁定条目升级至兼容修复版并执行npm ci，保留无关锁定版本、依赖分类、Next/ESLint配套、GLTF资产工具和Playwright1.62.1版本保护；不使用audit fix --force或无证明的跨主版本overrides。",
+        "运行官方全量/生产审计和完整依赖图，确认该advisory从适用路径消失；用有界行为回归验证修复相关source map处理及正常产物兼容，运行./init.sh、npm run check:full、两主题Agent生产浏览器与Compose smoke，保存Web standalone/Worker原始镜像实际包清单。",
+        "对未消除的braces/typography等其他已登记风险保留独立记录，不扩大范围追求零计数；清理隔离资源，更新feature状态与交接，不把本轮补入feat-112采样。"
+      ],
+      "evidence": "2026-10-06 feat-121中仅登记，未实施。./scripts/run-node22.sh npm audit --json --registry=https://registry.npmjs.org与增加--omit=dev的生产审计均exit1，其中source-map-js1.2.1命中GHSA-68fv-2mgg-jv7q（>=1.0.0 <1.2.2，high，fixAvailable=true）；官方最新1.2.2。实际安装链包括postcss8.5.26、next16.3.8→postcss8.5.23、@tailwindcss/node4.3.3和测试工具。完整公告、官方元数据及路径见docs/plan/evidence/feat-121/source-map-js-advisory.json、registry.json、new-advisory-paths.json及docs/plan/2026-10-06-braces-upstream-review.md。本轮没有升级或运行应用/镜像门禁；当前请求可达性及镜像暴露待本项审查。\n2026-10-06 完成：依次读取AGENTS.md、根状态与交接，依赖为空；官方advisory/registry确认修复版1.2.2，五条父包均允许^1.2.1，区分Next私有PostCSS、source-map/source-map08框架副本与未证实的线上攻击可达性。仅更新source-map-js锁条目的version/resolved/integrity；package.json、其余锁条目、Next/ESLint16.3.8、GLTF4.5.0、Playwright1.62.1及视频时钟保护保持。新增6项有界Node行为回归，旧1.2.1为4失败/2通过，新1.2.2为6/6通过；回归子进程限堆64MiB/2秒，定向runner265ms、命令0.730秒。扩展Compose原始镜像包名清单，保留原隔离和部署断言。\n宿主Node22.23.2/npm10.9.8；所有npm命令使用./scripts/run-node22.sh。官方registry npm ci在前后隔离副本及最终主工作区成功；npm audit --json --registry=https://registry.npmjs.org由7high/2moderate降至6high/2moderate，增加--omit=dev由1high/2moderate降至0high/2moderate，均exit1但本项GHSA-68fv-2mgg-jv7q已消失。剩余121的braces和125的typography独立跟踪，不宣称零警报。npm ls --all --json及--omit=dev完整树exit0，原两个optional extraneous提示保留。\n./scripts/run-node22.sh ./init.sh最终114文件/1058项通过。首次npm run check:full exit0（1022.775秒，1058 Node/组件+201真实PG+133生产E2E）；默认主题独立28/28通过（246.048秒）。原生日主题命令exit1（147.164秒、22通过/1失败，848行5000ms等待错误主题提示），独立登记126，用户明确授权“修正feat-126，并完成feat-124”；实施126时124暂blocked。最小断言候选生日23/23通过（155.883秒），正式应用与候选逐字节相同。最终再次npm run check:full exit0（1029.101秒），114文件/1058项Node/组件、45文件/201项真实PG、133/133默认生产E2E，0skip/retry；覆盖率statements/branches/functions/lines为54.71/48.72/59.31/55.87%。最终full已含check/integration与修正后的默认主题集合，无需重复；生日候选与最终输入一致，未重复同一验证。最终日志中一条destination stream closed early、原生日失败及开发fixture失败均如实保留摘要与恢复结果。\nnpm run test:compose-smoke exit0（167.747秒），构建上下文隔离、init迁移seed、Web健康、独立Worker共享/私聊、媒体与回收均通过；无网络/只读/无数据卷的原始Web和Worker镜像均实际含source-map-js1.2.2，Worker仍含121/125风险路径。镜像Node22.23.3/npm10.9.9与宿主分开记录。feat-126仅改Docker排除的E2E文件，镜像输入保持，无需重复构建。559个最终门禁输入与主工作区一致；696原文件无删除及范围外变动，30个未选既有feature保持，不补入112采样。独占源码、日志、报告/auth、截图/视频和缓存清理，Docker前后同一组1容器/5镜像/3卷/4网络，3100端口关闭。状态/依赖/计数/链接及diff/status核验，根32<=40跳过归档，保留用户既有改动，未提交推送或部署。完整命令、原失败与最终结果见docs/plan/2026-10-06-source-map-js-security.md及docs/plan/evidence/feat-124/verification.json、scope-validation.json、resource-cleanup.json。"
+    },
+    {
+      "id": "feat-125",
+      "name": "跟进 typography 固定 selector-parser 的复杂度漏洞修复",
+      "description": "feat-121于2026-10-06官方复核发现GHSA-rj75-hqrm-r3gf：@tailwindcss/typography0.5.20固定postcss-selector-parser6.0.10，官方parser修复版7.1.6超出该精确依赖。独立跟进稳定父包或有兼容证据的替代，不直接覆盖跨主版本或降级插件。",
+      "priority": "P2",
+      "priorityReason": "官方生产与全量审计均含parser及typography传播的2moderate；复杂平坦选择器可能耗尽同步CPU。公告的触发条件是不可信选择器进入同步解析，普通可信构建与请求可达性应分别判断。",
+      "status": "not-started",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "按官方registry和GHSA-rj75-hqrm-r3gf核对postcss-selector-parser及typography稳定版，记录安装链、真实调用面、原始镜像包存在性和可利用边界；尚无兼容修复时保持未实施并保留风险。",
+        "有兼容补丁优先最小更新；如需稳定父包或API替换，先给出针对本仓库typography使用面的兼容证据，保留Tailwind4、Markdown样式与响应式契约；不采用audit fix --force、typography降级或无证明的跨主版本覆盖。",
+        "依赖变更后执行npm ci、官方全量/生产审计、完整依赖图、./init.sh、npm run check:full、两主题Agent生产浏览器和Compose smoke；保留Markdown真实视觉/交互回归并保存Web standalone/Worker原始镜像实际包清单，Playwright不顺带升级。",
+        "相关门禁通过且本路径已处理或剩余风险有明确独立记录后再done；清理隔离资源，更新状态与交接，保留其他feature及feat-112采样。"
+      ],
+      "evidence": "2026-10-06 feat-121中仅登记，未实施。官方全量/生产audit均exit1；postcss-selector-parser6.0.10受GHSA-rj75-hqrm-r3gf（<7.1.6）影响，与直接父包@tailwindcss/typography传播为2moderate。官方parser最新7.1.6；typography最新0.5.20仍精确固定6.0.10，audit建议降级typography0.5.4不作为兼容方案。完整公告、元数据和路径见docs/plan/evidence/feat-121/selector-parser-advisory.json、registry.json、new-advisory-paths.json及docs/plan/2026-10-06-braces-upstream-review.md。本轮未实施替换、未运行应用或镜像门禁。"
+    },
+    {
+      "id": "feat-126",
+      "name": "修正生日主题私聊完成提示的浏览器验收契约",
+      "description": "feat-124按原验收执行完整生日主题生产浏览器时，私聊隔离与审批旅程在848行错误要求默认主题的动态回复提示；生日主题既有feedback=static且useEntryFeedback(false)不发布该反馈。应用与原测试均为会话前既有内容，本项单独跟踪，不把测试契约修正混入依赖补丁。",
+      "priority": "P2",
+      "priorityReason": "确定的主题分支契约冲突阻塞完整生日主题发布门禁；任务实际已completed，失败发生在完成提示断言，尚未证实私聊业务故障。",
+      "status": "done",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "保留生日主题静态反馈与默认主题轻反馈的应用契约；原失败命令、5000ms断言和主/第二用户截图归属必须保留，不用后续通过覆盖。",
+        "只修正该既有旅程的主题对应期望：默认主题仍断言回复准备提示；生日主题确认思考提示消失，随后通过真实开窗确认已持久回复，保留双用户隔离、审批续跑、刷新与共享Chat断言。不得增加重试、固定等待或放宽超时。",
+        "用真实PostgreSQL和两个主题生产浏览器验证修正前后行为；运行./init.sh与npm run check:full，记录实际范围和成本，不计入feat-112采样。",
+        "清理隔离账号、数据库、浏览器和报告，更新本项及被阻塞的feat-124验收记录。"
+      ],
+      "evidence": "2026-10-06 完成，范围由用户明确授权“修正feat-126，并完成feat-124”。本项依赖为空；实施时仅126为in-progress，124暂blocked，完成本项后解除124阻塞。原命令./scripts/run-node22.sh npm run test:e2e:agent-entry:production:birthday exit1（147.164秒、22通过/1失败、0skip/retry）：848行已确认真实PG任务completed后，错误等待默认主题“回复准备好啦。”5000ms；生日Registry既有feedback=static，思考提示消失符合应用契约。原主页面截图归属test-failed-1，第二用户空白页面test-failed-2；错误、截图归属和定位完整保存在docs/plan/evidence/feat-124/agent-birthday-failed-summary.json，不以后续通过覆盖。\n仅将tests/e2e/agent-entry-authenticated.spec.ts该处断言按主题区分：默认仍检查完成提示，生日检查tooltip消失；随后真实开窗验证持久回复，保留双用户隔离、审批续跑、刷新与共享Chat断言。无应用改动、额外重试、固定等待或超时放宽。最小候选差异见docs/plan/evidence/feat-124/feat-126-proposed.patch；生日完整23/23通过（exit0、155.883秒、0skip/retry），正式文件与该候选逐字节相同。默认首次独立28/28通过，正式应用后./scripts/run-node22.sh ./init.sh通过（114文件/1058项、53.516秒），./scripts/run-node22.sh npm run check:full再次exit0（1029.101秒）：114文件/1058项Node/组件、45文件/201项真实PostgreSQL、133/133默认生产E2E，0skip/retry；其中修正后的默认私聊旅程19.8秒通过。最终full已含标准门禁、集成与默认Agent集合，未重复运行；生日候选逐字节应用，未重复相同验证。原失败、开发fixture错误和最终一条WebServer流关闭日志均保留并说明，不混同应用门禁失败。\n隔离数据库/账号、浏览器、报告/auth、截图/视频、原始日志及缓存清理，Docker资源恢复、3100关闭；状态、依赖、计数、链接、diff/status核验通过，原用户改动保留，不补入112采样。124/126均done；根32项，featuresNumber同步且<=40跳过归档，交接已重写。所有命令、范围与成本见docs/plan/2026-10-06-source-map-js-security.md、docs/plan/evidence/feat-124/verification.json、final-full-gate-summary.json、agent-birthday-candidate-summary.json及resource-cleanup.json。"
     }
   ]
 }

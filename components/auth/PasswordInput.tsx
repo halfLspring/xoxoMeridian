@@ -30,12 +30,12 @@ export function PasswordInput(props: Omit<React.InputHTMLAttributes<HTMLInputEle
       <input
         {...props}
         type={show ? "text" : "password"}
-        className={`w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 pr-10 text-[15px] font-medium leading-normal text-black placeholder:text-[#b0b0b0] placeholder:text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50 ${props.className ?? ""}`}
+        className={`w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 pr-10 text-[15px] font-medium leading-normal text-black placeholder:text-[#b0b0b0] placeholder:text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-neutral-50 ${props.className ?? ""}`}
       />
       <button
         type="button"
         aria-label={show ? "隐藏密码" : "显示密码"}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-black/25 transition-colors duration-200 hover:text-black/50 focus:outline-none cursor-pointer"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-black/25 transition-colors duration-200 hover:text-black/50 focus:outline-hidden cursor-pointer"
         onClick={() => setShow((v) => !v)}
       >
         {show ? <EyeOffIcon /> : <EyeIcon />}

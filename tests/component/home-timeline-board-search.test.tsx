@@ -102,6 +102,20 @@ describe("HomeTimelineBoard search", () => {
     ).toBeInTheDocument();
   });
 
+  it("首页专用搜索即使收到旧日志集合也显示无匹配空态", async () => {
+    navigation.searchParams = new URLSearchParams("q=log-only");
+    const log = { ...initialPost, type: "agent_log", title: "旧日志标题", content: "工具调用载荷" };
+    mockServer.use(http.get("/api/blog/feed", () => HttpResponse.json({
+      entries: [{ kind: "post", post: log }], nextCursor: null,
+    })));
+    render(<HomeTimelineBoard posts={[log]} feed={{ entries: [], nextCursor: null }} currentUserId="user-1" initialSnapshot={initialSnapshot} />);
+    expect(await screen.findByText("No posts match your search.")).toBeInTheDocument();
+    expect(screen.queryByRole("article")).not.toBeInTheDocument();
+    expect(screen.queryByText("旧日志标题")).not.toBeInTheDocument();
+    expect(screen.queryByText("工具调用载荷")).not.toBeInTheDocument();
+    expect(screen.queryByText(/wait for the agent/i)).not.toBeInTheDocument();
+  });
+
   it.each([401, 500, "network"] as const)("搜索 %s 失败时显示可访问错误并保留最近成功的结果，键盘重试可恢复", async (failure) => {
     const requests: string[] = [];
     let recovered = false;

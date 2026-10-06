@@ -145,7 +145,7 @@ export function HomeUploadModal({
             value={caption}
             onChange={(event) => setCaption(event.target.value)}
             maxLength={200}
-            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-none transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
+            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-hidden transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
             placeholder="给图片添加一行标注…"
           />
         </div>

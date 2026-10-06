@@ -14,11 +14,12 @@ type PostCardViewProps = {
   draft?: boolean;
   href?: string;
   onOpen?: () => void;
+  openDisabled?: boolean;
   actions?: ReactNode;
 };
 
 // 容器提供数据和操作；两种入口只在这里定义卡片、时间与 Markdown 摘要。
-export function PostCardView({ title, content, authorName, timestamp, authorTimezone, authorCity, authorCountry, draft, href, onOpen, actions }: PostCardViewProps) {
+export function PostCardView({ title, content, authorName, timestamp, authorTimezone, authorCity, authorCountry, draft, href, onOpen, openDisabled, actions }: PostCardViewProps) {
   const date = new Date(timestamp);
   return (
     <article className="timeline-card post-card w-full">
@@ -33,7 +34,7 @@ export function PostCardView({ title, content, authorName, timestamp, authorTime
       <h2 className="text-lg font-semibold text-black leading-snug">
         {href
           ? <Link href={href} className="post-card-open">{title}</Link>
-          : <button type="button" className="post-card-open" onClick={onOpen}>{title}</button>}
+          : <button type="button" className="post-card-open" disabled={openDisabled} onClick={onOpen}>{title}</button>}
       </h2>
       {content && <MarkdownContent content={content} variant="preview" />}
       {actions}

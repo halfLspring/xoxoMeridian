@@ -72,7 +72,7 @@ export function ChatApp({
 
   return (
     <main className="flex h-screen min-h-[720px] flex-col bg-sage-50 text-ink">
-      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-[#e8e8e8] bg-white/95 backdrop-blur-sm px-5">
+      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-[#e8e8e8] bg-white/95 backdrop-blur-xs px-5">
         <div className="flex items-center gap-6">
           <BrandBadge />
           <Link

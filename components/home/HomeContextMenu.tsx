@@ -41,7 +41,7 @@ export function HomeContextMenu({
       <button
         ref={buttonRef}
         type="button"
-        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-black/70 transition-colors duration-200 hover:bg-sage-50 focus-visible:bg-sage-50 focus-visible:outline-none cursor-pointer"
+        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-black/70 transition-colors duration-200 hover:bg-sage-50 focus-visible:bg-sage-50 focus-visible:outline-hidden cursor-pointer"
         onClick={onAddPhoto}
       >
         <CameraIcon size={16} />

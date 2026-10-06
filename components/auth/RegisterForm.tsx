@@ -75,7 +75,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
           autoComplete="email"
           required
           disabled={submitting}
-          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] font-medium leading-normal text-black placeholder:text-[#b0b0b0] placeholder:text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50"
+          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] font-medium leading-normal text-black placeholder:text-[#b0b0b0] placeholder:text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-neutral-50"
         />
       </div>
 
@@ -90,7 +90,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
           maxLength={40}
           required
           disabled={submitting}
-          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] font-medium leading-normal text-black placeholder:text-[#b0b0b0] placeholder:text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50"
+          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] font-medium leading-normal text-black placeholder:text-[#b0b0b0] placeholder:text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-neutral-50"
         />
       </div>
 
@@ -119,14 +119,14 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
           autoComplete="one-time-code"
           required
           disabled={submitting}
-          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] font-medium leading-normal text-black placeholder:text-[#b0b0b0] placeholder:text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-neutral-50"
+          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] font-medium leading-normal text-black placeholder:text-[#b0b0b0] placeholder:text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:cursor-not-allowed disabled:bg-neutral-50"
         />
       </div>
 
       <button
         type="submit"
         disabled={submitting}
-        className="mt-1 w-full min-h-[44px] rounded-[10px] bg-[#3a5b22] px-4 py-3 text-[15px] font-semibold text-white transition-colors duration-200 hover:bg-[#2e4a1a] focus:ring-2 focus:ring-[#3a5b22]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        className="mt-1 w-full min-h-[44px] rounded-[10px] bg-[#3a5b22] px-4 py-3 text-[15px] font-semibold text-white transition-colors duration-200 hover:bg-[#2e4a1a] focus:ring-2 focus:ring-[#3a5b22]/30 focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
       >
         {submitting ? "注册中…" : "注册"}
       </button>
@@ -140,7 +140,7 @@ export function RegisterForm({ onSwitchToLogin }: { onSwitchToLogin: () => void 
         <button
           type="button"
           onClick={onSwitchToLogin}
-          className="text-[#0f3dde] transition-colors duration-200 hover:text-[#0c35c0] focus:ring-2 focus:ring-[#0f3dde]/20 rounded-sm focus:outline-none cursor-pointer"
+          className="text-[#0f3dde] transition-colors duration-200 hover:text-[#0c35c0] focus:ring-2 focus:ring-[#0f3dde]/20 rounded-xs focus:outline-hidden cursor-pointer"
         >
           登录
         </button>

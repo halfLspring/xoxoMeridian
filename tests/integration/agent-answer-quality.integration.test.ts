@@ -5,6 +5,7 @@ import { ExecutionTracer } from "@/agent/execution-tracer";
 import { AgentTaskLeaseLostError, claimAgentTask } from "@/agent/task-claim";
 import type { AgentPlan, LLMAnswerRequest } from "@/agent/types";
 import { prisma } from "@/lib/prisma";
+import { queryBlogFeed } from "@/lib/blog-work/feed";
 import { createTestRoom, createTestUser, resetTestDatabase } from "@/tests/integration/support/database";
 
 // 仅替换模型边界；计划、工具、预算、lease、checkpoint 与最终消息使用真实 PostgreSQL。
@@ -71,13 +72,14 @@ async function fixture(maxTurns = 4) {
 function readTask(taskId: string) {
   return prisma.agentTask.findUniqueOrThrow({
     where: { id: taskId },
-    include: { finalMessage: true, toolCalls: true, llmCalls: true, steps: true }
+    include: { finalMessage: true, toolCalls: true, llmCalls: true, steps: true, eventLogs: true, timelinePost: true }
   });
 }
 
 describe("工具查询结果综合的持久化与恢复", () => {
   it("保留同名工具的全部结果，按实际查询生成消息并累计两次模型预算", async () => {
     const { task, room } = await fixture(2);
+    expect(await queryBlogFeed(task.requestedById!)).toEqual({ entries: [], nextCursor: null });
     await runAgentTask(task.id, { workerId: "answer-worker" });
     const saved = await readTask(task.id);
 
@@ -94,6 +96,21 @@ describe("工具查询结果综合的持久化与恢复", () => {
     ]));
     expect(saved.finalMessage?.content).not.toContain(plan.finalResponseText);
     expect(await prisma.memo.count({ where: { roomId: room.id } })).toBe(2);
+    expect(saved.timelinePost).toMatchObject({ type: "agent_log", agentTaskId: task.id, roomId: room.id });
+    expect(saved.timelinePost?.metadata).toMatchObject({ taskId: task.id });
+    expect(saved.toolCalls.every(call => call.input !== null && call.output !== null && call.status === "completed")).toBe(true);
+    expect(saved.llmCalls.every(call => call.requestPayload !== null && call.responsePayload !== null)).toBe(true);
+    expect(saved.eventLogs).toEqual(expect.arrayContaining([expect.objectContaining({ type: "agent.task.completed" })]));
+    const snapshot = async () => {
+      const record = await readTask(task.id);
+      // 全字段比对前固定关系顺序，数据库未承诺数组的默认读取顺序。
+      for (const rows of [record.steps, record.toolCalls, record.llmCalls, record.eventLogs]) rows.sort((a, b) => a.id.localeCompare(b.id));
+      return record;
+    };
+    const beforeHome = await snapshot();
+    expect(await queryBlogFeed(task.requestedById!, { q: "memo.create", limit: 1 })).toEqual({ entries: [], nextCursor: null });
+    expect(await queryBlogFeed(task.requestedById!)).toEqual({ entries: [], nextCursor: null });
+    expect(await snapshot()).toEqual(beforeHome);
     await runAgentTask(task.id, { workerId: "answer-duplicate-worker" });
     expect(model.plan).toHaveBeenCalledTimes(1);
     expect(model.synthesize).toHaveBeenCalledTimes(1);

@@ -51,7 +51,7 @@ async function editCaption(caption: string, current = "旅行照片 1") {
 
 function resizePhoto(dx = 80) {
   const handle = within(photoCard()).getByTitle("调整大小");
-  fireEvent.pointerDown(handle, { clientX: 240, clientY: 180, pointerId: 1 });
+  fireEvent.pointerDown(handle, { button: 0, isPrimary: true, clientX: 240, clientY: 180, pointerId: 1 });
   fireEvent.pointerMove(handle, { clientX: 240 + dx, clientY: 180, pointerId: 1 });
   fireEvent.pointerUp(handle, { clientX: 240 + dx, clientY: 180, pointerId: 1 });
 }
@@ -69,8 +69,10 @@ function deferred() {
 describe("HomeTimelineBoard mutation recovery", () => {
   beforeAll(() => {
     Object.defineProperty(HTMLElement.prototype, "setPointerCapture", { configurable: true, value: vi.fn() });
+    Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", { configurable: true, value: () => true });
+    Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", { configurable: true, value: vi.fn() });
   });
-  afterAll(() => { Reflect.deleteProperty(HTMLElement.prototype, "setPointerCapture"); });
+  afterAll(() => { Reflect.deleteProperty(HTMLElement.prototype, "setPointerCapture"); Reflect.deleteProperty(HTMLElement.prototype, "hasPointerCapture"); Reflect.deleteProperty(HTMLElement.prototype, "releasePointerCapture"); });
 
   for (const failure of ["500", "network"] as const) {
     it.each(["resize", "caption", "photo-delete", "connection-delete"] as const)(

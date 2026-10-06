@@ -122,7 +122,7 @@ async function getListedSlugs(url: string) {
 }
 
 describe("Post room visibility", () => {
-  it("keeps user posts global while restricting agent logs across every read path", async () => {
+  it("普通文章保持全局可见，首页排除日志且独立列表与详情仍执行房间权限", async () => {
     const { userA, userB } = await createVisibilityFixtures();
     authState.currentUserId = userA.id;
 
@@ -167,7 +167,6 @@ describe("Post room visibility", () => {
     expect(homeTimeline).not.toBeNull();
     expect(homeTimeline?.props.posts.map((post) => post.slug).sort()).toEqual([
       "global-user-post",
-      "room-a-agent-log",
     ]);
 
     authState.currentUserId = userB.id;
@@ -175,5 +174,7 @@ describe("Post room visibility", () => {
       "global-user-post",
       "room-b-secret-agent-log",
     ]);
+    const partnerHome = findElementByType(await HomePage(), HomeTimelineBoard);
+    expect(partnerHome?.props.posts.map(post => post.slug)).toEqual(["global-user-post"]);
   });
 });

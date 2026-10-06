@@ -240,7 +240,7 @@ function TimelineItem({
             type: "spring",
             stiffness: 300,
           }}
-          className="w-4 h-4 rounded-full mt-1 flex-shrink-0"
+          className="w-4 h-4 rounded-full mt-1 shrink-0"
           style={{
             background: sage[400],
             border: `3px solid ${sage[200]}`,
@@ -788,7 +788,7 @@ export function AboutView({ people }: { people: AboutViewPerson[] }) {
               <div className="space-y-4">
                 {TECH_STACK.map(({ emoji, label, val }) => (
                   <div key={label} className="flex gap-3 items-start">
-                    <span className="text-xl flex-shrink-0">{emoji}</span>
+                    <span className="text-xl shrink-0">{emoji}</span>
                     <div>
                       <p className="text-[13px] font-medium" style={{ color: sage[700] }}>
                         {label}

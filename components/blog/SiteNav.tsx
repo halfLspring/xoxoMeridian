@@ -15,7 +15,7 @@ export function SiteNav({ displayName }: { displayName: string }) {
   const isStudy = pathname.startsWith("/study");
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-[#e8e8e8] bg-white/95 backdrop-blur-sm">
+    <nav className="sticky top-0 z-40 border-b border-[#e8e8e8] bg-white/95 backdrop-blur-xs">
       <div className="site-nav-content flex min-h-16 flex-wrap items-center justify-between gap-3 px-5 py-2">
         <div className="flex min-w-0 items-center gap-6">
           <BrandBadge />

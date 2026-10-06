@@ -47,7 +47,7 @@ export function PolaroidCard({
       <div className="absolute bottom-1.5 left-2 right-6" data-caption-area>
         {editingCaption ? (
           <input
-            className="w-full bg-transparent text-xs text-black/60 outline-none"
+            className="w-full bg-transparent text-xs text-black/60 outline-hidden"
             data-caption-area
             value={caption}
             onChange={(e) => setCaption(e.target.value)}

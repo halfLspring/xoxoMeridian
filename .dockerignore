@@ -10,12 +10,17 @@ node_modules
 .env.local
 coverage
 test-results
+playwright-report
 data
 .git
 .gitignore
 README.md
 docs
 tests
+# 手动评估依赖 tests/evals，仅在本地运行；本地 typecheck 仍检查脚本与 fixture。
+scripts/eval-agent-answers.ts
+scripts/eval-agent-workflow.ts
+scripts/summarize-agent-eval.ts
 study
 tsconfig.tsbuildinfo
 *.tmp

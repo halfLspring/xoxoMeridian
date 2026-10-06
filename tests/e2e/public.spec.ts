@@ -39,6 +39,32 @@ test("shows accessible login and registration forms", async ({ page }) => {
   await expect(page.getByLabel("邀请码")).toBeVisible();
 });
 
+test("表单保留字号、焦点和桌面及窄屏布局", async ({ page }) => {
+  for (const width of [1280, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    const email = page.getByLabel("邮箱");
+    const submit = page.locator("form").getByRole("button", { name: "登录", exact: true });
+    await expect(email).toHaveCSS("font-size", "15px");
+    await expect(email).toHaveCSS("font-weight", "500");
+    await expect(email).toHaveCSS("line-height", "22.5px");
+    await expect(email).toHaveCSS("padding", "12px 16px");
+    await expect(email).toHaveCSS("border-radius", "10px");
+    await expect(submit).toHaveCSS("font-size", "15px");
+    await expect(submit).toHaveCSS("font-weight", "600");
+    await expect(submit).toHaveCSS("cursor", "pointer");
+    await email.focus();
+    await page.keyboard.type("layout@example.com");
+    await page.keyboard.press("Tab");
+    await expect(page.getByLabel("密码", { exact: true })).toBeFocused();
+    await expect(email).toHaveValue("layout@example.com");
+    const visual = page.getByTestId(/^auth-visual-layer-/).first();
+    if (width >= 1024) await expect(visual).toBeVisible();
+    else await expect(visual).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
 test("serves the shared brand mark and browser tab icon", async ({ page }) => {
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 800 });

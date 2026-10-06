@@ -45,7 +45,7 @@ const initialSnapshot = {
 function dragPhoto(from: { x: number; y: number }, to: { x: number; y: number }) {
   const photo = screen.getByRole("img", { name: "旅行照片" }).closest("[data-home-photo]");
   expect(photo).not.toBeNull();
-  fireEvent.pointerDown(photo!, { clientX: from.x, clientY: from.y, pointerId: 1 });
+  fireEvent.pointerDown(photo!, { button: 0, isPrimary: true, clientX: from.x, clientY: from.y, pointerId: 1 });
   fireEvent.pointerUp(photo!, { clientX: to.x, clientY: to.y, pointerId: 1 });
 }
 
@@ -55,10 +55,12 @@ describe("HomeTimelineBoard drag persistence", () => {
       configurable: true,
       value: vi.fn(),
     });
+    Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", { configurable: true, value: () => true });
+    Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", { configurable: true, value: vi.fn() });
   });
 
   afterAll(() => {
-    Reflect.deleteProperty(HTMLElement.prototype, "setPointerCapture");
+    Reflect.deleteProperty(HTMLElement.prototype, "setPointerCapture"); Reflect.deleteProperty(HTMLElement.prototype, "hasPointerCapture"); Reflect.deleteProperty(HTMLElement.prototype, "releasePointerCapture");
   });
 
   it("shows a retry action after a failed final position write and clears it after success", async () => {

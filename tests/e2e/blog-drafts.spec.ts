@@ -932,7 +932,8 @@ test("草稿自动保存、恢复、私密字节与整组发布协作", async ({
       await page.setViewportSize({ width: 390, height: 844 }); await page.reload();
       await expect(publicWork.getByRole("button", { name: /^(内容列表|放大查看|调整边框)$/ })).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await publicWork.getByRole("heading", { name: "把九月，留在这片绿色里" }).click();
+      // 原生按钮在水合和首次适配前禁用；直接点击按钮，让就绪检查覆盖实际阅读入口。
+      await publicWork.getByRole("button", { name: "把九月，留在这片绿色里", exact: true }).click();
       await expect(page.getByRole("dialog", { name: "阅读博文" })).toContainText("散步、拍照");
       await page.screenshot({ path: testInfo.outputPath("draft-mobile-reading.png") });
       await page.getByRole("button", { name: "关闭阅读博文" }).click();
@@ -1009,6 +1010,20 @@ test("窄屏缩放下图片鼠标和触摸位移逆变换，Escape 与 pointerca
   await withStudyUser(context, async ({ page, db, userId }) => {
     const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, viewportHeight: 960 } });
     const photo = await db.atlasElement.create({ data: { boardId: "home-board", workId: work.id, type: "photo", x: 80, y: 350, width: 240, height: 180, imageUrl: "/brand/logo_transparent.svg", caption: "缩放移动" } });
+    const writes: string[] = [];
+    const observeWrites = (target: Page) => target.on("request", request => {
+      if (request.method() === "PATCH" && new URL(request.url()).pathname === `/api/blog/works/${work.id}`) writes.push(request.url());
+    });
+    observeWrites(page);
+    const savedGesture = async (target: Page, revision: number, gesture: () => Promise<unknown>) => {
+      const reply = target.waitForResponse(response => response.request().method() === "PATCH" && new URL(response.url()).pathname === `/api/blog/works/${work.id}`);
+      await gesture();
+      const response = await reply;
+      expect(response.status()).toBe(200);
+      expect((await response.json()).work.revision).toBe(revision);
+      await response.finished();
+      await expect(target.getByText("已自动保存", { exact: true })).toBeVisible();
+    };
     await page.setViewportSize({ width: 390, height: 844 }); await page.goto(`/home?draft=${work.id}`);
     await page.waitForFunction(() => {
       const root = document.querySelector<HTMLElement>(".active-draft .blog-work"), scene = root?.querySelector<HTMLElement>(".work-scene");
@@ -1018,15 +1033,21 @@ test("窄屏缩放下图片鼠标和触摸位移逆变换，Escape 与 pointerca
     const x = box.x + box.width / 2, y = box.y + box.height / 3;
     // 工具栏精简后此尺寸的控件留在框内；手势夹具须位于未被状态/工具栏遮挡的内容区。
     expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("[data-element-id]")?.getAttribute("data-element-id"), { x, y })).toBe(photo.id);
-    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 30, y + 15); await page.mouse.up();
+    await savedGesture(page, 1, async () => {
+      await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 30, y + 15); await page.mouse.up();
+    });
     await expect.poll(async () => (await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).x).toBeCloseTo(80 + 30 / scale, 0);
     const before = await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } }), revision = (await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision;
+    expect(revision).toBe(1);
+    expect(writes).toHaveLength(1);
     const moved = (await node.boundingBox())!;
     await page.mouse.move(moved.x + 20, moved.y + 20); await page.mouse.down(); await page.mouse.move(moved.x + 40, moved.y + 30); await page.keyboard.press("Escape"); await page.mouse.up();
+    expect(writes).toHaveLength(1);
+    expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(before);
     expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(revision);
     const touch = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width: 390, height: 844 }, hasTouch: true, storageState: await context.storageState() });
     try {
-      const touchPage = await touch.newPage(); await touchPage.goto(`/home?draft=${work.id}`);
+      const touchPage = await touch.newPage(); observeWrites(touchPage); await touchPage.goto(`/home?draft=${work.id}`);
       await touchPage.waitForFunction(() => {
         const root = document.querySelector<HTMLElement>(".active-draft .blog-work"), scene = root?.querySelector<HTMLElement>(".work-scene");
         return root && scene && Math.abs(new DOMMatrixReadOnly(getComputedStyle(scene).transform).a - Math.min(1, root.clientWidth / 960)) < 0.001 && [...document.querySelectorAll(".page-enter")].every(node => node.getAnimations().every(animation => animation.playState === "finished"));
@@ -1036,10 +1057,13 @@ test("窄屏缩放下图片鼠标和触摸位移逆变换，Escape 与 pointerca
       await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at] });
       await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...at, x: at.x + 20, y: at.y + 10 }] });
       await cdp.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+      await expect.poll(async () => (await touchNode.boundingBox())!.x).toBeCloseTo(rect.x, 0);
+      expect(writes).toHaveLength(1);
+      expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(before);
       expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(revision);
       await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at] });
       await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...at, x: at.x + 20, y: at.y + 10 }] });
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await savedGesture(touchPage, 2, () => cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }));
       await expect.poll(async () => (await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).x).toBeCloseTo(before.x + 20 / scale, 0);
       const resizeBox = (await touchNode.getByRole("button", { name: "调整照片大小：缩放移动" }).boundingBox())!;
       const resizeAt = { x: resizeBox.x + resizeBox.width / 2, y: resizeBox.y + resizeBox.height / 2, id: 1 };
@@ -1047,7 +1071,7 @@ test("窄屏缩放下图片鼠标和触摸位移逆变换，Escape 与 pointerca
       await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...resizeAt, x: resizeAt.x + 12 }] });
       await expect.poll(async () => (await touchNode.boundingBox())!.width).toBeCloseTo(Math.round(240 + 12 / scale) * scale, 0);
       expect((await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).width).toBe(240);
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await savedGesture(touchPage, 3, () => cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }));
       await expect.poll(async () => (await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).width).toBe(Math.round(240 + 12 / scale));
       const rotatedBox = (await touchNode.boundingBox())!, rotationHandle = (await touchNode.getByRole("button", { name: "旋转照片：缩放移动" }).boundingBox())!;
       const cx = rotatedBox.x + rotatedBox.width / 2, cy = rotatedBox.y + rotatedBox.height / 2;
@@ -1057,10 +1081,321 @@ test("窄屏缩放下图片鼠标和触摸位移逆变换，Escape 与 pointerca
       for (const angle of [5, 10, 15, 20]) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [rotationAt(angle)] });
       await expect.poll(() => touchNode.evaluate(node => { const m = new DOMMatrixReadOnly(getComputedStyle(node).transform); return Math.atan2(m.b, m.a) * 180 / Math.PI; })).toBeCloseTo(20, 0);
       expect((await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).rotation).toBe(0);
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await savedGesture(touchPage, 4, () => cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }));
       await expect.poll(async () => (await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).rotation).toBe(20);
+      expect(writes).toHaveLength(4);
+      const final = await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } });
+      expect(final.y).toBeCloseTo(before.y + 10 / scale, 0);
+      expect(final.height).toBe(Math.round(final.width / (240 / 180)));
+      expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(4);
+      await touchPage.reload();
+      await expect.poll(() => touchPage.locator(`[data-element-id="${photo.id}"]`).evaluate(node => { const m = new DOMMatrixReadOnly(getComputedStyle(node).transform); return Math.atan2(m.b, m.a) * 180 / Math.PI; })).toBeCloseTo(20, 0);
+      expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(final);
+      expect(writes).toHaveLength(4);
       await cdp.detach();
     } finally { await touch.close(); }
+  });
+});
+
+test("保存响应与 Escape 交叠、迟到鼠标释放均不提交触摸取消，后续手势可保存", async ({ context, browser }, testInfo) => {
+  await withStudyUser(context, async ({ db, userId }) => {
+    const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, viewportHeight: 960 } });
+    const photo = await db.atlasElement.create({ data: { boardId: "home-board", workId: work.id, type: "photo", x: 80, y: 350, width: 240, height: 180, imageUrl: "/brand/logo_transparent.svg", caption: "交叠取消" } });
+    const touch = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width: 390, height: 844 }, hasTouch: true, storageState: await context.storageState() });
+    const page = await touch.newPage();
+    const writes: Array<{ baseRevision: number; operation: string; utc: string; monotonicNs: string }> = [];
+    let pointers: object[] = [];
+    let releaseResponse: () => void = () => {};
+    try {
+      const heldResponse = new Promise<void>(resolve => { releaseResponse = resolve; });
+      let held = false;
+      await page.route(`**/api/blog/works/${work.id}`, async route => {
+        if (route.request().method() !== "PATCH" || held) { await route.continue(); return; }
+        held = true;
+        const response = await route.fetch();
+        await heldResponse;
+        await route.fulfill({ response });
+      });
+      page.on("request", request => {
+        if (request.method() === "PATCH" && new URL(request.url()).pathname === `/api/blog/works/${work.id}`) {
+          const body = request.postDataJSON();
+          writes.push({ baseRevision: body.baseRevision, operation: body.command.operation, utc: new Date().toISOString(), monotonicNs: process.hrtime.bigint().toString() });
+        }
+      });
+      await page.goto(`/home?draft=${work.id}`);
+      const editor = page.getByRole("region", { name: "空间草稿" }), node = page.locator(`[data-element-id="${photo.id}"]`);
+      await waitForWorkLayout(page, editor);
+      await expect.poll(() => editor.locator(".work-scene").evaluate(scene => new DOMMatrixReadOnly(getComputedStyle(scene).transform).a)).toBeLessThan(1);
+      await node.evaluate(target => {
+        const events: object[] = [];
+        Object.assign(window, { photoCancellationEvents: events });
+        for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel", "gotpointercapture", "lostpointercapture"]) {
+          target.addEventListener(type, raw => {
+            const event = raw as PointerEvent;
+            events.push({ type, pointerId: event.pointerId, pointerType: event.pointerType, capture: target.hasPointerCapture(event.pointerId), x: event.clientX, y: event.clientY, utc: new Date().toISOString(), monotonicMs: performance.now() });
+          }, true);
+        }
+      });
+      const box = (await node.boundingBox())!, scale = box.width / photo.width;
+      const at = { x: box.x + box.width / 2, y: box.y + box.height / 3, id: 1 };
+      expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("[data-element-id]")?.getAttribute("data-element-id"), at)).toBe(photo.id);
+      // 首次提交使用可精确表示的场景位移，使本例只观测响应/事件交叠。
+      const firstResponse = page.waitForResponse(response => response.request().method() === "PATCH" && new URL(response.url()).pathname === `/api/blog/works/${work.id}`);
+      await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.move(at.x + 80 * scale, at.y + 40 * scale); await page.mouse.up();
+      // 真实事务已提交，但响应正文暂未交给编辑器；不靠 sleep 安排交叠。
+      await expect.poll(async () => (await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).x).toBeCloseTo(photo.x + 80, 0);
+      const before = await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } });
+      expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(1);
+      const moved = (await node.boundingBox())!;
+      const start = { x: moved.x + moved.width / 2, y: moved.y + moved.height / 3, id: 1 };
+      await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(start.x + 20, start.y + 10);
+      releaseResponse();
+      await page.keyboard.press("Escape");
+      expect(await node.evaluate(target => target.hasPointerCapture(1))).toBe(false);
+      await expect.poll(async () => (await node.boundingBox())!.x).toBeCloseTo(moved.x, 0);
+      expect((await firstResponse).status()).toBe(200);
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      const cdp = await touch.newCDPSession(page);
+      try {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...start, x: start.x + 20, y: start.y + 10 }] });
+        await expect.poll(async () => (await node.boundingBox())!.x).toBeCloseTo(moved.x + 20, 0);
+        // 已取消的鼠标仍物理按住；迟到 pointerup 不能结束当前触摸或清除其预览。
+        await page.mouse.up();
+        await expect.poll(async () => (await node.boundingBox())!.x).toBeCloseTo(moved.x + 20, 0);
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+        await expect.poll(async () => (await node.boundingBox())!.x).toBeCloseTo(moved.x, 0);
+        expect(writes).toHaveLength(1);
+        expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(1);
+        expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(before);
+        const saved = page.waitForResponse(response => response.request().method() === "PATCH" && new URL(response.url()).pathname === `/api/blog/works/${work.id}`);
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...start, x: start.x + 20, y: start.y + 10 }] });
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        const response = await saved;
+        expect(response.status()).toBe(200);
+        expect((await response.json()).work.revision).toBe(2);
+        await response.finished();
+        await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+        const after = await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } });
+        expect(after.x).toBeCloseTo(before.x + 20 / scale, 0);
+        expect(after.y).toBeCloseTo(before.y + 10 / scale, 0);
+        expect(after).toMatchObject({ width: before.width, height: before.height, rotation: before.rotation });
+        expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(2);
+        expect(writes.map(write => write.baseRevision)).toEqual([0, 1]);
+        pointers = await page.evaluate(() => (window as unknown as { photoCancellationEvents: object[] }).photoCancellationEvents);
+        await page.reload();
+        await waitForWorkLayout(page, editor);
+        await expect.poll(() => node.evaluate(target => Number.parseFloat((target as HTMLElement).style.left))).toBeCloseTo(after.x, 0);
+        expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(after);
+      } finally { await cdp.detach(); }
+    } finally {
+      releaseResponse();
+      pointers = await page.evaluate(() => (window as unknown as { photoCancellationEvents?: object[] }).photoCancellationEvents).catch(() => undefined) ?? pointers;
+      await testInfo.attach("图片取消请求与指针时序", { contentType: "application/json", body: JSON.stringify({ pointers, writes }) });
+      await touch.close();
+    }
+  });
+});
+
+test("图片改回原尺寸后交叠保存响应不覆盖预览，后续键盘尺寸正确持久化", async ({ context }, testInfo) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const work = await db.blogWork.create({ data: { ownerId: userId, boardId: "home-board" } });
+    const upload = await page.request.post(`/api/blog/works/${work.id}/uploads`, {
+      headers: { "X-Blog-Viewer-Id": userId, origin: new URL(testInfo.project.use.baseURL!).origin },
+      multipart: { file: { name: "overlap.png", mimeType: "image/png", buffer: png }, metadata: JSON.stringify({ mutationId: randomUUID(), baseRevision: 0, expectedStatus: "draft", data: { x: 80, y: 180, width: 240, height: 180, caption: "连续缩放" } }) },
+    });
+    expect(upload.status()).toBe(200);
+    const photo = await db.atlasElement.findFirstOrThrow({ where: { workId: work.id, type: "photo" } });
+    const initialRevision = (await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision;
+    const path = `/api/blog/works/${work.id}`;
+    const replies = Array.from({ length: 2 }, () => {
+      let release!: () => void;
+      const pending = new Promise<void>(resolve => { release = resolve; });
+      return { pending, release };
+    });
+    const widths: number[] = [];
+    // 确认编辑器已经读取首次响应，再等待一帧，观察真实渲染后的编辑基线。
+    await page.addInitScript(({ path }) => {
+      const original = window.fetch;
+      Object.assign(window, { photoSaveReads: [] });
+      window.fetch = async (...args) => {
+        const response = await original(...args);
+        if (new URL(response.url).pathname === path && args[1]?.method === "PATCH") {
+          const read = response.json.bind(response);
+          response.json = async () => {
+            const data = await read();
+            (window as unknown as { photoSaveReads: number[] }).photoSaveReads.push(data.work?.revision ?? -1);
+            return data;
+          };
+        }
+        return response;
+      };
+    }, { path });
+    await page.route(`**${path}`, async route => {
+      if (route.request().method() !== "PATCH") { await route.continue(); return; }
+      const index = widths.length;
+      widths.push(route.request().postDataJSON().command.data.width);
+      const response = await route.fetch();
+      if (replies[index]) await replies[index].pending;
+      await route.fulfill({ response });
+    });
+    try {
+      await page.goto(`/home?draft=${work.id}`);
+      const editor = page.getByRole("region", { name: "空间草稿" });
+      const node = editor.locator(`[data-element-id="${photo.id}"]`);
+      const resize = node.getByRole("button", { name: "调整照片大小：连续缩放", exact: true });
+      const displayedWidth = () => node.evaluate(target => (target as HTMLElement).style.getPropertyValue("--home-photo-width"));
+      await waitForWorkLayout(page, editor);
+      await resize.press("ArrowRight");
+      await expect.poll(async () => (await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(initialRevision + 1);
+      await resize.press("ArrowLeft");
+      await expect.poll(displayedWidth).toBe("240px");
+      replies[0].release();
+      await page.waitForFunction(revision => (window as unknown as { photoSaveReads: number[] }).photoSaveReads.includes(revision), initialRevision + 1);
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+      // 第二次事务已提交，但响应仍暂扣；首次响应不能把预览改回 250。
+      await expect.poll(async () => (await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(initialRevision + 2);
+      await expect.poll(displayedWidth).toBe("240px");
+      await resize.press("ArrowRight");
+      await expect.poll(displayedWidth).toBe("250px");
+      replies[1].release();
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      expect(widths).toEqual([250, 240, 250]);
+      expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toMatchObject({ width: 250, height: 188 });
+      expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(initialRevision + 3);
+      await page.reload();
+      await waitForWorkLayout(page, editor);
+      await expect.poll(displayedWidth).toBe("250px");
+      await expect(editor.getByRole("button", { name: "发布", exact: true })).toBeEnabled();
+      expect(widths).toHaveLength(3);
+    } finally {
+      replies.forEach(reply => reply.release());
+    }
+  });
+});
+
+test("非精确缩放的已保存图片在响应交叠后取消不残留脏状态，真实编辑仍须确认保存", async ({ context }, testInfo) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, viewportHeight: 960 } });
+    const upload = await page.request.post(`/api/blog/works/${work.id}/uploads`, {
+      headers: { "X-Blog-Viewer-Id": userId, origin: new URL(testInfo.project.use.baseURL!).origin },
+      multipart: { file: { name: "roundoff.png", mimeType: "image/png", buffer: png }, metadata: JSON.stringify({ mutationId: randomUUID(), baseRevision: 0, expectedStatus: "draft", data: { x: 80, y: 350, width: 240, height: 180, caption: "尾差取消" } }) },
+    });
+    expect(upload.status()).toBe(200);
+    const photo = await db.atlasElement.findFirstOrThrow({ where: { workId: work.id, type: "photo" } });
+    const initialRevision = (await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision;
+    const path = `/api/blog/works/${work.id}`;
+    const writes: Array<{ baseRevision: number; command: { operation: string; data?: { x?: number; y?: number } } }> = [];
+    const observations: object[] = [];
+    let releaseResponse: () => void = () => {};
+    const heldResponse = new Promise<void>(resolve => { releaseResponse = resolve; });
+    let held = false, failNext = false;
+    await page.setViewportSize({ width: 390, height: 844 });
+    // 观察应用实际消费 JSON 的时刻，再等浏览器绘制；响应到达不等于编辑器已处理。
+    await page.addInitScript(({ path }) => {
+      const original = window.fetch;
+      Object.assign(window, { photoSaveReads: [] });
+      window.fetch = async (...args) => {
+        const response = await original(...args);
+        if (new URL(response.url).pathname === path && args[1]?.method === "PATCH") {
+          const read = response.json.bind(response);
+          response.json = async () => {
+            const data = await read();
+            (window as unknown as { photoSaveReads: number[] }).photoSaveReads.push(data.work?.revision ?? -1);
+            return data;
+          };
+        }
+        return response;
+      };
+    }, { path });
+    await page.route(`**${path}`, async route => {
+      if (route.request().method() !== "PATCH") { await route.continue(); return; }
+      if (failNext) { failNext = false; await route.fulfill({ status: 500, json: { error: "测试图片保存失败" } }); return; }
+      if (held) { await route.continue(); return; }
+      held = true;
+      const response = await route.fetch();
+      await heldResponse;
+      await route.fulfill({ response });
+    });
+    page.on("request", request => {
+      if (request.method() === "PATCH" && new URL(request.url()).pathname === path) writes.push(request.postDataJSON());
+    });
+    try {
+      await page.goto(`/home?draft=${work.id}`);
+      const editor = page.getByRole("region", { name: "空间草稿" }), node = editor.locator(`[data-element-id="${photo.id}"]`);
+      await waitForWorkLayout(page, editor);
+      await expect.poll(() => editor.locator(".work-scene").evaluate(scene => new DOMMatrixReadOnly(getComputedStyle(scene).transform).a)).toBe(0.36875);
+      const box = (await node.boundingBox())!, start = { x: box.x + box.width / 2, y: box.y + box.height / 3 };
+      await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(start.x + 30, start.y + 15); await page.mouse.up();
+      await expect.poll(async () => (await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(initialRevision + 1);
+      const committed = await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } });
+      const submitted = writes[0].command.data!;
+      expect(submitted.x).toBe(161.35593220338984);
+      expect(committed.x).toBe(161.3559322033898);
+      const moved = (await node.boundingBox())!, next = { x: moved.x + moved.width / 2, y: moved.y + moved.height / 3 };
+      await page.mouse.move(next.x, next.y); await page.mouse.down(); await page.mouse.move(next.x + 20, next.y + 10);
+      await expect.poll(async () => (await node.boundingBox())!.x).toBeCloseTo(moved.x + 20, 0);
+      releaseResponse();
+      await page.waitForFunction(revision => (window as unknown as { photoSaveReads: number[] }).photoSaveReads.includes(revision), initialRevision + 1);
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+      await page.keyboard.press("Escape"); await page.mouse.up();
+      await expect.poll(async () => (await node.boundingBox())!.x).toBeCloseTo(moved.x, 0);
+      expect(await node.evaluate(target => target.hasPointerCapture(1))).toBe(false);
+      expect(writes).toHaveLength(1);
+      expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(committed);
+      expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(initialRevision + 1);
+      observations.push({ stage: "取消后", submitted, stored: { x: committed.x, y: committed.y }, writes: writes.length, status: await editor.getByRole("status").innerText() });
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      await expect(editor.getByRole("button", { name: "发布", exact: true })).toBeEnabled();
+
+      // 位置、尺寸、角度均有真实保存；失败时仍阻止发布，重试保留原操作。
+      await page.mouse.move(next.x, next.y); await page.mouse.down(); await page.mouse.move(next.x + 10, next.y + 5);
+      await expect(editor.getByText("保存中…", { exact: true })).toBeVisible();
+      await expect(editor.getByRole("button", { name: "发布", exact: true })).toBeDisabled();
+      expect(writes).toHaveLength(1);
+      await page.mouse.up();
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      await expect.poll(async () => (await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).revision).toBe(initialRevision + 2);
+      const movedAgain = await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } });
+      expect(movedAgain.x).toBeCloseTo(committed.x + 10 / 0.36875, 8);
+      expect(movedAgain.y).toBeCloseTo(committed.y + 5 / 0.36875, 8);
+      await node.getByRole("button", { name: "调整照片大小：尾差取消", exact: true }).press("ArrowRight");
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toMatchObject({ width: 250, height: 188 });
+      failNext = true;
+      await node.getByRole("button", { name: "旋转照片：尾差取消", exact: true }).focus();
+      await page.keyboard.down("ArrowRight");
+      await expect(editor.getByText("保存中…", { exact: true })).toBeVisible();
+      expect(writes).toHaveLength(3);
+      await page.keyboard.up("ArrowRight");
+      await expect(editor.getByText("保存失败", { exact: true })).toBeVisible();
+      await expect(editor.getByRole("button", { name: "发布", exact: true })).toBeDisabled();
+      expect((await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).rotation).toBe(0);
+      await editor.getByRole("button", { name: "重试保存", exact: true }).click();
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      const final = await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } });
+      expect(final.rotation).toBe(1);
+      expect(writes.map(write => write.baseRevision)).toEqual([0, 1, 2, 3, 3].map(delta => initialRevision + delta));
+      observations.push({ stage: "真实修改及重试后", stored: { x: final.x, y: final.y, width: final.width, height: final.height, rotation: final.rotation }, writes: writes.length });
+      await editor.getByRole("button", { name: "退出草稿", exact: true }).click();
+      await expect(editor).toHaveCount(0);
+      await page.goto(`/home?draft=${work.id}`);
+      await waitForWorkLayout(page, editor);
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      await page.reload();
+      await waitForWorkLayout(page, editor);
+      await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+      expect(await db.atlasElement.findUniqueOrThrow({ where: { id: photo.id } })).toEqual(final);
+      expect(writes).toHaveLength(5);
+      await editor.getByRole("button", { name: "发布", exact: true }).click();
+      await expect(page.locator(`[data-work-id="${work.id}"]`).getByRole("button", { name: "编辑作品", exact: true })).toBeVisible();
+      expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } }))).toMatchObject({ revision: initialRevision + 5, status: "published" });
+      expect(writes.map(write => write.command.operation)).toEqual(["photo.update", "photo.update", "photo.update", "photo.update", "photo.update", "publish"]);
+    } finally {
+      releaseResponse();
+      await testInfo.attach("图片尾差与保存行为", { contentType: "application/json", body: JSON.stringify({ observations, writes }) });
+    }
   });
 });
 

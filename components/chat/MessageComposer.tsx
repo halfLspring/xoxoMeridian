@@ -86,7 +86,7 @@ function MessageComposerEditor({
           <textarea
             ref={textareaRef}
             aria-label="消息内容"
-            className="min-h-[52px] flex-1 resize-none rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-none transition-colors duration-200 placeholder:text-[#b0b0b0] focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
+            className="min-h-[52px] flex-1 resize-none rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-hidden transition-colors duration-200 placeholder:text-[#b0b0b0] focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
             placeholder={`写点什么，或者 ${MENTION_AGENT} 明天提醒我给对方发早安`}
             value={content}
             onChange={(event) => setContent(event.target.value)}
@@ -99,14 +99,14 @@ function MessageComposerEditor({
           />
           <div className="flex w-32 flex-col gap-2">
             <button
-              className="rounded-[10px] border border-[#d9d9d9] bg-white px-3 py-2 text-sm font-medium text-[#3a5b22] transition-colors duration-200 hover:bg-[#3a5b22] hover:text-white focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none cursor-pointer"
+              className="rounded-[10px] border border-[#d9d9d9] bg-white px-3 py-2 text-sm font-medium text-[#3a5b22] transition-colors duration-200 hover:bg-[#3a5b22] hover:text-white focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden cursor-pointer"
               onClick={insertAssistantMention}
               type="button"
             >
               {MENTION_AGENT}
             </button>
             <button
-              className="rounded-[10px] bg-[#3a5b22] px-3 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-[#2e4a1a] focus:ring-2 focus:ring-[#3a5b22]/30 focus:outline-none disabled:opacity-50 cursor-pointer"
+              className="rounded-[10px] bg-[#3a5b22] px-3 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-[#2e4a1a] focus:ring-2 focus:ring-[#3a5b22]/30 focus:outline-hidden disabled:opacity-50 cursor-pointer"
               disabled={sending}
               onClick={() => send()}
               type="button"

@@ -3,24 +3,21 @@
 import type { WorkSnapshot } from "@/lib/blog-work/types";
 import { useMemo } from "react";
 import { PostCard } from "@/components/blog/PostCard";
-import { AgentLogCard } from "@/components/blog/AgentLogCard";
 import { PostCardSpatialShell } from "@/components/home/PostCardSpatialShell";
 import { useScrollReveal } from "@/lib/useScrollReveal";
 import { compareTimelinePosts } from "@/lib/post-timeline";
 import { cn } from "@/lib/utils";
 
-type Direction = "left" | "right" | "center";
+type Direction = "left" | "right";
 
 const DIRECTION_CLASS: Record<Direction, string> = {
   left: "revealed-left",
   right: "revealed-right",
-  center: "revealed-center",
 };
 
 const ALIGN_CLASS: Record<Direction, string> = {
   left: "md:justify-start md:pr-[calc(50%+2rem)] justify-start",
   right: "md:justify-end md:pl-[calc(50%+2rem)] justify-start",
-  center: "justify-center",
 };
 
 export type TimelinePost = {
@@ -104,7 +101,7 @@ export function Timeline({
   renderWork?: (work: WorkSnapshot) => React.ReactNode;
 } & TimelineSpatialProps) {
   const sorted = useMemo(
-    () => [...posts].sort(compareTimelinePosts),
+    () => posts.filter(post => post.type !== "agent_log").sort(compareTimelinePosts),
     [posts]
   );
   const entries = useMemo<TimelineEntry[]>(
@@ -137,7 +134,7 @@ export function Timeline({
         <p className="text-black/40 text-sm">{emptyMessage ?? "No moments yet."}</p>
         {!emptyMessage && (
           <p className="text-black/30 text-xs mt-1">
-            Write your first post or wait for the agent to log its activities.
+            Write your first post or publish a spatial work.
           </p>
         )}
       </div>
@@ -152,17 +149,6 @@ export function Timeline({
         {entries.map((entry) => {
           if (entry.kind === "work") return <div key={entry.id} className="work-timeline-row">{renderWork?.(entry.work)}</div>;
           const post = entry.post;
-
-          if (post.type === "agent_log") {
-            const side = post.agentRequesterId
-              ? post.agentRequesterId === leftUserId ? "left" : "right"
-              : "center";
-            return (
-              <TimelineItem key={post.id} side={side}>
-                <AgentLogCard post={post as any} />
-              </TimelineItem>
-            );
-          }
 
           const isLeft = post.authorId === leftUserId;
           const elementId = postElementByPostId[post.id];

@@ -1,6 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 import { e2eAgentEntryTheme, e2eAppMode } from "./tests/e2e/support/app-mode";
+import { installPlaywrightVideoClock } from "./tests/e2e/support/playwright-video-clock";
+
+// 配置在 runner 中先执行，随后新建的 worker 加载经过校验的录制器。
+installPlaywrightVideoClock();
 
 const externalBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 const baseURL = externalBaseUrl ?? "http://127.0.0.1:3100";
@@ -57,7 +61,7 @@ export default defineConfig({
     },
     {
       name: "authenticated",
-      testMatch: /(?:^|\/)(?:authenticated|agent-entry-authenticated|agent-answer-quality|blog-drafts|blog-user-boundary|blog-presentation|response-diagnostics)\.spec\.ts$/,
+      testMatch: /(?:^|\/)(?:authenticated|agent-entry-authenticated|agent-answer-quality|blog-drafts|blog-user-boundary|blog-presentation|response-diagnostics|browser-context-close)\.spec\.ts$/,
       dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],

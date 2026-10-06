@@ -84,7 +84,7 @@ export function CronBuilder({ value, onChange }: CronBuilderProps) {
             max={23}
             value={parts.hour}
             onChange={(e) => updateTime(e.target.value, parts.minute)}
-            className="w-16 rounded-[8px] border border-[#d9d9d9] bg-white px-2 py-1.5 text-center text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none"
+            className="w-16 rounded-[8px] border border-[#d9d9d9] bg-white px-2 py-1.5 text-center text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden"
           />
           <span aria-hidden="true" className="text-black/40">:</span>
           <label htmlFor={minuteId} className="sr-only">分钟</label>
@@ -95,7 +95,7 @@ export function CronBuilder({ value, onChange }: CronBuilderProps) {
             max={59}
             value={parts.minute}
             onChange={(e) => updateTime(parts.hour, e.target.value)}
-            className="w-16 rounded-[8px] border border-[#d9d9d9] bg-white px-2 py-1.5 text-center text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none"
+            className="w-16 rounded-[8px] border border-[#d9d9d9] bg-white px-2 py-1.5 text-center text-sm transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden"
           />
         </div>
       </fieldset>

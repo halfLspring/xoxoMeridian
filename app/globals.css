@@ -1,37 +1,89 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@config "../tailwind.config.ts";
+@source "./";
+@source "../components";
+@source "../lib";
 
-:root {
-  color-scheme: light;
-  background: #f3f7f0;
-  color: #283034;
+/* 保留迁移前已使用的 sRGB 色值，避免 v4 默认 OKLCH 调色板改变现有界面。 */
+@theme inline {
+  --color-black: #000;
+  --color-white: #fff;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-green-50: #f0fdf4;
+  --color-green-700: #15803d;
+  --color-orange-400: #fb923c;
+  --color-amber-50: #fffbeb;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-950: #451a03;
+  --color-emerald-400: #34d399;
 }
 
-* {
-  box-sizing: border-box;
-}
+/* 基础规则进入 base 层，让字号、字重等工具类仍能覆盖元素默认值。 */
+@layer base {
+  :root {
+    color-scheme: light;
+    background: #f3f7f0;
+    color: #283034;
+  }
 
-html,
-body {
-  min-height: 100%;
-}
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: #e5e7eb;
+  }
 
-body {
-  margin: 0;
-  background: #f3f7f0;
-  font-family: var(--font-inter), system-ui, sans-serif;
-}
+  html,
+  body {
+    min-height: 100%;
+  }
 
-button,
-textarea,
-input {
-  font: inherit;
-}
+  body {
+    margin: 0;
+    background: #f3f7f0;
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
 
-::selection {
-  background: rgba(58, 91, 34, 0.12);
-  color: #3a5b22;
+  button,
+  textarea,
+  input {
+    font: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  dialog {
+    margin: auto;
+  }
+
+  ::selection {
+    background: rgba(58, 91, 34, 0.12);
+    color: #3a5b22;
+  }
 }
 
 /* Auth visual theme */

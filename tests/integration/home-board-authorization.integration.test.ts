@@ -204,7 +204,6 @@ describe("Home board room-scoped anchor authorization", () => {
     expect(home).not.toBeNull();
     expect(home?.props.posts.map((post) => post.id).sort()).toEqual([
       "home-auth-global-post",
-      "home-auth-room-a-log",
     ]);
     const elementIds = home?.props.initialSnapshot.elements.map((element) => element.id).sort();
     const connectionIds = home?.props.initialSnapshot.connections.map((connection) => connection.id).sort();

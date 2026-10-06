@@ -183,7 +183,7 @@ function ModeTabs({
             onClick={() => onModeChange(m)}
             disabled={disabled}
             className={`px-4 py-1.5 rounded-[8px] text-xs font-medium transition-colors ${active
-              ? "bg-white text-[#3a5b22] shadow-sm"
+              ? "bg-white text-[#3a5b22] shadow-xs"
               : "text-sage-700/60 hover:text-sage-700"
               }`}
           >
@@ -467,7 +467,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
       <motion.header
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-[10px] border border-sage-100 bg-white/90 px-6 py-4 flex items-center justify-between shadow-sm"
+        className="rounded-[10px] border border-sage-100 bg-white/90 px-6 py-4 flex items-center justify-between shadow-xs"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center">
@@ -559,7 +559,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
                       className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:opacity-50"
                     >
                       <div
-                        className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${goal.done
+                        className={`w-4 h-4 rounded-sm border-2 shrink-0 flex items-center justify-center transition-colors ${goal.done
                           ? "bg-[#3a5b22] border-[#3a5b22]"
                           : "border-sage-200"
                           }`}
@@ -608,7 +608,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
               <input
                 type="text"
                 aria-label="添加待办"
-                className="flex-1 min-w-0 h-8 rounded-[8px] border border-sage-200 bg-white px-2.5 text-xs outline-none transition-colors placeholder:text-black/30 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
+                className="flex-1 min-w-0 h-8 rounded-[8px] border border-sage-200 bg-white px-2.5 text-xs outline-hidden transition-colors placeholder:text-black/30 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
                 placeholder="添加待办…"
                 value={goalDraft}
                 onChange={(e) => setGoalDraft(e.target.value)}
@@ -640,7 +640,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
           className="flex flex-col gap-4"
         >
           {/* Timer Card */}
-          <section className="rounded-[10px] border border-sage-100 bg-white/90 p-8 flex flex-col items-center shadow-sm">
+          <section className="rounded-[10px] border border-sage-100 bg-white/90 p-8 flex flex-col items-center shadow-xs">
             {/* Mode tabs */}
             <ModeTabs
               mode={mode}
@@ -711,7 +711,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
                       type="button"
                       onClick={stopTimer}
                       whileTap={{ scale: 0.94 }}
-                      className="rounded-[10px] bg-[#3a5b22] px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#2f4d1c] disabled:opacity-50 flex items-center gap-1.5"
+                      className="rounded-[10px] bg-[#3a5b22] px-5 py-2 text-sm font-medium text-white shadow-xs transition-colors hover:bg-[#2f4d1c] disabled:opacity-50 flex items-center gap-1.5"
                       disabled={busy}
                     >
                       <Square className="w-3.5 h-3.5" />
@@ -732,7 +732,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
                       type="button"
                       onClick={resumeTimer}
                       whileTap={{ scale: 0.94 }}
-                      className="rounded-[10px] bg-[#3a5b22] px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#2f4d1c] disabled:opacity-50 flex items-center gap-1.5"
+                      className="rounded-[10px] bg-[#3a5b22] px-5 py-2 text-sm font-medium text-white shadow-xs transition-colors hover:bg-[#2f4d1c] disabled:opacity-50 flex items-center gap-1.5"
                       disabled={busy}
                     >
                       <Play className="w-4 h-4" />
@@ -760,7 +760,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
                     whileTap={{ scale: 0.94 }}
-                    className="rounded-[10px] bg-[#3a5b22] px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#2f4d1c] disabled:opacity-50 flex items-center gap-1.5"
+                    className="rounded-[10px] bg-[#3a5b22] px-5 py-2 text-sm font-medium text-white shadow-xs transition-colors hover:bg-[#2f4d1c] disabled:opacity-50 flex items-center gap-1.5"
                     disabled={busy}
                   >
                     <Play className="w-4 h-4" />
@@ -834,7 +834,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
           </section>
 
           {/* Motivation strip */}
-          <div className="rounded-[10px] border border-sage-100 bg-gradient-to-r from-sage-100/80 to-skysoft-50 px-5 py-3 flex items-center justify-between">
+          <div className="rounded-[10px] border border-sage-100 bg-linear-to-r/srgb from-sage-100/80 to-skysoft-50 px-5 py-3 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-black">
                 今日已专注 {todayFocusStr}
@@ -849,7 +849,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
               {Array.from({ length: 7 }).map((_, i) => (
                 <div
                   key={i}
-                  className="w-1.5 rounded-sm"
+                  className="w-1.5 rounded-xs"
                   style={{
                     backgroundColor:
                       i < Math.min(data.stats.todayCount, 7)
@@ -874,7 +874,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
           <StudyRoomMembers members={data.members} />
 
           {/* Mini Room Chat */}
-          <div className="rounded-[10px] border border-sage-100 bg-white/90 shadow-sm overflow-hidden">
+          <div className="rounded-[10px] border border-sage-100 bg-white/90 shadow-xs overflow-hidden">
             {data.chatSnapshot && data.currentUser ? (
               <MiniRoomChat
                 currentUser={currentUser}
@@ -899,7 +899,7 @@ export function StudyDashboard({ initialData }: { initialData: StudyPageData }) 
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.16 }}
-        className="rounded-[10px] border border-sage-100 bg-white/90 p-6 shadow-sm"
+        className="rounded-[10px] border border-sage-100 bg-white/90 p-6 shadow-xs"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-semibold text-black/50 uppercase tracking-wider">

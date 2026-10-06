@@ -15,6 +15,7 @@ vi.mock("@/lib/auth", () => ({
 
 import HomePage from "@/app/home/page";
 import { GET } from "@/app/api/posts/route";
+import { GET as GETFeed } from "@/app/api/blog/feed/route";
 
 function timelinePosts(node: React.ReactNode): TimelinePost[] | null {
   if (!React.isValidElement(node)) return null;
@@ -29,7 +30,7 @@ function timelinePosts(node: React.ReactNode): TimelinePost[] | null {
 beforeEach(resetTestDatabase);
 afterAll(async () => { await prisma.$disconnect(); });
 
-describe("首页与搜索的 Post 展示投影", () => {
+describe("首页专用读取与独立 Post 展示投影", () => {
   it("真实查询返回相同最小字段、位置快照/fallback 和成员可见集合，排除私有档案", async () => {
     const [author, noProfile, outsider] = await Promise.all([
       createTestUser(), createTestUser(), createTestUser(),
@@ -65,7 +66,11 @@ describe("首页与搜索的 Post 展示投影", () => {
       const { posts: searched } = await response.json() as { posts: TimelinePost[] };
       const home = timelinePosts(await HomePage());
       expect(home).not.toBeNull();
-      expect(searched).toEqual(home);
+      const feedResponse = await GETFeed(new Request("http://localhost/api/blog/feed?q=投影"));
+      expect(feedResponse.status).toBe(200);
+      const feed = await feedResponse.json();
+      expect(feed.entries.map((entry: { post: TimelinePost }) => entry.post)).toEqual(home);
+      expect(searched.filter(post => post.type !== "agent_log")).toEqual(home);
       expect(searched.map((post) => post.id).sort()).toEqual([
         "legacy", "no-author", "no-profile", "snapshot", ...(viewer.id === author.id ? ["member-log"] : []),
       ].sort());
@@ -89,7 +94,7 @@ describe("首页与搜索的 Post 展示投影", () => {
     }
   });
 
-  it("首页与搜索从任务事实解析新旧 Agent 日志的发起者，房间不匹配时不误认", async () => {
+  it("首页排除新旧/失联/无发起者日志，独立日志 API 仍解析归属并执行成员权限", async () => {
     const [first, second] = await Promise.all([createTestUser(), createTestUser()]);
     const [room, otherRoom] = await Promise.all([createTestRoom(), createTestRoom()]);
     await prisma.roomParticipant.createMany({ data: [
@@ -129,7 +134,10 @@ describe("首页与搜索的 Post 展示投影", () => {
     expect(response.status).toBe(200);
     const searched = (await response.json() as { posts: TimelinePost[] }).posts;
     const home = timelinePosts(await HomePage());
-    expect(home).toEqual(searched);
+    expect(home).toEqual([]);
+    const feedResponse = await GETFeed(new Request("http://localhost/api/blog/feed?q=归属验证"));
+    expect(feedResponse.status).toBe(200);
+    expect(await feedResponse.json()).toEqual({ entries: [], nextCursor: null });
     const requesterById = new Map(searched.map((post) => [post.id, post.agentRequesterId]));
     expect(Object.fromEntries(requesterById)).toEqual({
       "new-log": first.id,
@@ -141,5 +149,9 @@ describe("首页与搜索的 Post 展示投影", () => {
     });
     expect(searched.every((post) => !("roomId" in post) && !("agentTaskId" in post))).toBe(true);
     expect(searched.every((post) => post.authorId === null)).toBe(true);
+    auth.userId = (await createTestUser()).id;
+    const outsiderResponse = await GET(new Request("http://localhost/api/posts?type=agent_log&q=归属验证"));
+    expect(outsiderResponse.status).toBe(200);
+    expect((await outsiderResponse.json()).posts).toEqual([]);
   });
 });

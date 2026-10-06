@@ -82,7 +82,7 @@ export function LeftRail({
               type="button"
               onClick={onCreate}
               disabled={busy !== null}
-              className="rounded-[10px] border border-[#d9d9d9] bg-white px-2.5 py-1 text-xs font-medium text-[#3a5b22] transition-colors duration-200 hover:bg-[#3a5b22] hover:text-white focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:opacity-50 cursor-pointer"
+              className="rounded-[10px] border border-[#d9d9d9] bg-white px-2.5 py-1 text-xs font-medium text-[#3a5b22] transition-colors duration-200 hover:bg-[#3a5b22] hover:text-white focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:opacity-50 cursor-pointer"
             >
               + 新建
             </button>
@@ -113,7 +113,7 @@ export function LeftRail({
               type="button"
               onClick={onWipe}
               disabled={busy !== null}
-              className="flex-1 rounded-[10px] border border-[#d9d9d9] bg-white px-2 py-1.5 text-xs text-black/60 transition-colors duration-200 hover:bg-neutral-50 focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:opacity-50 cursor-pointer"
+              className="flex-1 rounded-[10px] border border-[#d9d9d9] bg-white px-2 py-1.5 text-xs text-black/60 transition-colors duration-200 hover:bg-neutral-50 focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:opacity-50 cursor-pointer"
               title="清空当前会话的所有数据，保留房间"
             >
               {busy === "wipe" ? "清空中…" : "清空当前"}
@@ -122,7 +122,7 @@ export function LeftRail({
               type="button"
               onClick={onDelete}
               disabled={busy !== null}
-              className="flex-1 rounded-[10px] border border-red-200 bg-white px-2 py-1.5 text-xs text-red-600 transition-colors duration-200 hover:bg-red-50 focus:ring-2 focus:ring-red-500/15 focus:outline-none disabled:opacity-50 cursor-pointer"
+              className="flex-1 rounded-[10px] border border-red-200 bg-white px-2 py-1.5 text-xs text-red-600 transition-colors duration-200 hover:bg-red-50 focus:ring-2 focus:ring-red-500/15 focus:outline-hidden disabled:opacity-50 cursor-pointer"
               title="彻底删除整个会话窗口"
             >
               {busy === "delete" ? "删除中…" : "删除会话"}

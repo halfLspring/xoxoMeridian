@@ -137,7 +137,7 @@ export function MeForm({ initial }: { initial: Initial }) {
     <form className="space-y-5 rounded-[10px] border border-[#e8e8e8] bg-white p-6" onSubmit={onSubmit}>
       <Field label="昵称">
         <input
-          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-none transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
+          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-hidden transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
           maxLength={40}
           onChange={(event) => update("displayName", event.target.value)}
           type="text"
@@ -148,7 +148,7 @@ export function MeForm({ initial }: { initial: Initial }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="城市">
           <input
-            className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-none transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
+            className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-hidden transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
             onChange={(event) => update("city", event.target.value)}
             type="text"
             value={form.city}
@@ -156,7 +156,7 @@ export function MeForm({ initial }: { initial: Initial }) {
         </Field>
         <Field label="国家">
           <input
-            className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-none transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
+            className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-hidden transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
             onChange={(event) => update("country", event.target.value)}
             type="text"
             value={form.country}
@@ -166,7 +166,7 @@ export function MeForm({ initial }: { initial: Initial }) {
 
       <Field label={`自我介绍 / 给助手的背景说明（${noteLength}/${NOTE_LIMIT}）`}>
         <textarea
-          className="min-h-[160px] w-full resize-y rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-none transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
+          className="min-h-[160px] w-full resize-y rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal outline-hidden transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
           maxLength={NOTE_LIMIT}
           onChange={(event) => update("profileNote", event.target.value)}
           placeholder="例如：我偏爱吃酸的；我喜欢夏天；遇到事情我不是不愿意承认错误，而是讨厌被冤枉。"
@@ -177,7 +177,7 @@ export function MeForm({ initial }: { initial: Initial }) {
             type="button"
             onClick={onRefineNote}
             disabled={refining || !form.profileNote.trim()}
-            className="rounded-[10px] border border-[#d9d9d9] bg-white px-3 py-1.5 text-xs font-medium text-[#3a5b22] transition-colors duration-200 hover:bg-[#3a5b22] hover:text-white focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:opacity-50 cursor-pointer"
+            className="rounded-[10px] border border-[#d9d9d9] bg-white px-3 py-1.5 text-xs font-medium text-[#3a5b22] transition-colors duration-200 hover:bg-[#3a5b22] hover:text-white focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:opacity-50 cursor-pointer"
           >
             {refining ? "优化中…" : "小助手优化"}
           </button>
@@ -185,7 +185,7 @@ export function MeForm({ initial }: { initial: Initial }) {
             <button
               type="button"
               onClick={onUndoRefine}
-              className="rounded-[10px] border border-[#d9d9d9] bg-white px-3 py-1.5 text-xs text-black/60 transition-colors duration-200 hover:bg-neutral-50 focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none cursor-pointer"
+              className="rounded-[10px] border border-[#d9d9d9] bg-white px-3 py-1.5 text-xs text-black/60 transition-colors duration-200 hover:bg-neutral-50 focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden cursor-pointer"
             >
               撤销
             </button>
@@ -201,12 +201,12 @@ export function MeForm({ initial }: { initial: Initial }) {
           type="button"
           onClick={onLogout}
           disabled={loggingOut}
-          className="rounded-[10px] border border-red-200 bg-white px-4 py-2.5 text-sm text-red-600 transition-colors duration-200 hover:bg-red-50 focus:ring-2 focus:ring-red-500/15 focus:outline-none disabled:opacity-50 cursor-pointer"
+          className="rounded-[10px] border border-red-200 bg-white px-4 py-2.5 text-sm text-red-600 transition-colors duration-200 hover:bg-red-50 focus:ring-2 focus:ring-red-500/15 focus:outline-hidden disabled:opacity-50 cursor-pointer"
         >
           {loggingOut ? "退出中…" : "退出登录"}
         </button>
         <button
-          className="rounded-[10px] bg-[#3a5b22] px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-[#2e4a1a] focus:ring-2 focus:ring-[#3a5b22]/30 focus:outline-none disabled:opacity-50 cursor-pointer"
+          className="rounded-[10px] bg-[#3a5b22] px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-[#2e4a1a] focus:ring-2 focus:ring-[#3a5b22]/30 focus:outline-hidden disabled:opacity-50 cursor-pointer"
           disabled={saving}
           type="submit"
         >

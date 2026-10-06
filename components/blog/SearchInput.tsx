@@ -89,7 +89,7 @@ function SearchField({
         value={value}
         onChange={handleChange}
         placeholder="Search posts..."
-        className="w-48 rounded-[10px] border border-[#d9d9d9] bg-white pl-8 pr-7 py-1.5 text-xs text-black placeholder:text-black/30 focus:outline-none focus:border-[#3a5b22] focus:w-56 transition-all duration-200"
+        className="w-48 rounded-[10px] border border-[#d9d9d9] bg-white pl-8 pr-7 py-1.5 text-xs text-black placeholder:text-black/30 focus:outline-hidden focus:border-[#3a5b22] focus:w-56 transition-all duration-200"
       />
       {value && (
         <button

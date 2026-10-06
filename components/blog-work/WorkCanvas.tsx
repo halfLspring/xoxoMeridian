@@ -9,8 +9,8 @@ import { sceneToScreen, visibleAnchor, windowRect, type Point, type Rect } from 
 
 export type AnchorRegistrar = (id: string, point: () => Point | null) => () => void;
 const ignoreAnchor = () => () => {};
-export function WorkCanvas({ work, scale, editing, disabled = false, onPhotoPreview, onPhotoCommit, onDeletePhoto, onPost, onSelect, selected, registerAnchor }: {
-  work: WorkSnapshot; scale: number; editing: boolean; disabled?: boolean;
+export function WorkCanvas({ work, scale, editing, disabled = false, openDisabled = false, onPhotoPreview, onPhotoCommit, onDeletePhoto, onPost, onSelect, selected, registerAnchor }: {
+  work: WorkSnapshot; scale: number; editing: boolean; disabled?: boolean; openDisabled?: boolean;
   onPhotoPreview: (id: string, patch: Partial<WorkElement>) => void;
   onPhotoCommit: (id: string, patch: Partial<WorkElement>) => void;
   onDeletePhoto: (id: string) => void; onPost: (id: string) => void; onSelect: (id: string) => void;
@@ -61,6 +61,7 @@ export function WorkCanvas({ work, scale, editing, disabled = false, onPhotoPrev
             <PostCardView title={post.title || "未命名博文"} content={post.content} authorName={work.ownerName}
               timestamp={post.publishedAt ?? work.updatedAt} authorTimezone={post.authorTimezone} authorCity={post.authorCity} authorCountry={post.authorCountry} draft={work.status === "draft"}
               onOpen={() => selected !== undefined && selected !== null ? onSelect(post.elementId) : onPost(post.id)}
+              openDisabled={openDisabled}
               actions={<>
                 {/* 保留操作行高度，切换编辑状态不移动后续卡片和连线锚点。 */}
                 <div className="mt-3 flex h-4 gap-2">

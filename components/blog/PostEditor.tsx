@@ -85,7 +85,7 @@ export function PostEditor({ initialValues }: PostEditorProps) {
           placeholder="Post title"
           required
           disabled={isBusy}
-          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-lg font-semibold text-black placeholder:text-black/30 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:opacity-50"
+          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-lg font-semibold text-black placeholder:text-black/30 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:opacity-50"
         />
 
         <label htmlFor="post-content" className="sr-only">Post content</label>
@@ -97,7 +97,7 @@ export function PostEditor({ initialValues }: PostEditorProps) {
           required
           disabled={isBusy}
           rows={20}
-          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-relaxed text-black placeholder:text-black/30 font-mono resize-y focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none disabled:opacity-50"
+          className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-relaxed text-black placeholder:text-black/30 font-mono resize-y focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden disabled:opacity-50"
         />
 
         <div className="flex items-center justify-between">

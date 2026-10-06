@@ -94,7 +94,7 @@ function MemoModalForm({ onClose, roomId, memo, onSuccess }: Omit<MemoModalProps
             type="text"
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none"
+            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden"
             required
             maxLength={Math.max(MEMO_TITLE_MAX_LENGTH, memo?.title.length ?? 0)}
             aria-describedby={memo && memo.title.length > MEMO_TITLE_MAX_LENGTH ? "memo-title-legacy" : undefined}
@@ -107,7 +107,7 @@ function MemoModalForm({ onClose, roomId, memo, onSuccess }: Omit<MemoModalProps
             id="memo-content"
             value={formData.content}
             onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none"
+            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden"
             rows={5}
             required
             maxLength={Math.max(MEMO_CONTENT_MAX_LENGTH, memo?.content.length ?? 0)}
@@ -121,7 +121,7 @@ function MemoModalForm({ onClose, roomId, memo, onSuccess }: Omit<MemoModalProps
             id="pinned"
             checked={formData.pinned}
             onChange={(e) => setFormData({ ...formData, pinned: e.target.checked })}
-            className="h-4 w-4 rounded border-warm-300 text-sage-600 focus:ring-sage-500"
+            className="h-4 w-4 rounded-sm border-warm-300 text-sage-600 focus:ring-sage-500"
           />
           <label htmlFor="pinned" className="text-sm font-medium text-black/70">
             置顶
@@ -273,7 +273,7 @@ function ScheduledJobModalForm({
             type="text"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none"
+            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden"
             placeholder="例如：每天早上的问候"
             maxLength={Math.max(SCHEDULE_DESCRIPTION_MAX_LENGTH, existingDescription.length)}
             aria-describedby={existingDescription.length > SCHEDULE_DESCRIPTION_MAX_LENGTH ? "job-description-legacy" : undefined}
@@ -286,7 +286,7 @@ function ScheduledJobModalForm({
             id="job-prompt"
             value={formData.prompt}
             onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
-            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none"
+            className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden"
             rows={3}
             required
             maxLength={500}
@@ -301,7 +301,7 @@ function ScheduledJobModalForm({
               type="datetime-local"
               value={formData.fireAt}
               onChange={(e) => setFormData({ ...formData, fireAt: e.target.value })}
-              className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-none"
+              className="mt-1 w-full rounded-[10px] border border-[#d9d9d9] bg-white px-4 py-3 text-[15px] leading-normal transition-colors duration-200 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15 focus:outline-hidden"
               required
             />
           </div>

@@ -100,7 +100,7 @@ export function MiniRoomChat({
         <div className="flex gap-2">
           <input
             type="text"
-            className="flex-1 min-w-0 h-9 rounded-[8px] border border-sage-200 bg-white px-3 text-sm outline-none transition-colors placeholder:text-black/30 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
+            className="flex-1 min-w-0 h-9 rounded-[8px] border border-sage-200 bg-white px-3 text-sm outline-hidden transition-colors placeholder:text-black/30 focus:border-[#3a5b22] focus:ring-2 focus:ring-[#3a5b22]/15"
             placeholder="说点什么..."
             value={draft}
             onChange={(e) => setDraft(e.target.value)}

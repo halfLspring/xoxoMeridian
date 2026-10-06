@@ -30,7 +30,7 @@ export function CanvasConnection({ from, to, color, deleteAction }: {
         tabIndex={0}
         aria-label={deleteAction.label}
         aria-disabled={deleteAction.disabled}
-        className="focus-visible:stroke-sage-300/60 focus-visible:outline-none"
+        className="focus-visible:stroke-sage-300/60 focus-visible:outline-hidden"
         style={{ pointerEvents: "stroke", cursor: "pointer" }}
         onClick={event => {
           event.stopPropagation();

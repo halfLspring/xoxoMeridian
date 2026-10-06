@@ -123,11 +123,11 @@ export function HomeTimelineBoard({
   const searchPending = !!q && !currentSearch;
   const searchError = q ? currentSearch?.error : null;
   const additional = extraPage?.query === q ? extraPage.entries : [];
-  const displayPosts = [...new Map([...(q ? (searchState?.posts ?? posts) : posts), ...additional.flatMap(entry => entry.kind === "post" ? [entry.post] : [])].map(post => [post.id, post])).values()];
+  const displayPosts = [...new Map([...(q ? (searchState?.posts ?? posts) : posts), ...additional.flatMap(entry => entry.kind === "post" ? [entry.post] : [])].map(post => [post.id, post])).values()].filter(post => post.type !== "agent_log");
   const displayWorks = [...new Map([...(q ? [] : publishedWorks), ...((q ? searchState?.works : undefined) ?? feed?.entries.flatMap(entry => entry.kind === "work" ? [entry.work] : []) ?? []), ...additional.flatMap(entry => entry.kind === "work" ? [entry.work] : [])].map(work => [work.id, work])).values()].filter(work => !deletedWorkIds.has(work.id));
   const nextCursor = extraPage?.query === q ? extraPage.cursor : q ? currentSearch?.nextCursor : feed?.nextCursor;
   const externalConnections = [...new Map([...displayWorks.map(w => editedWorks[w.id] ?? w), ...(activeWork ? [activeWork] : [])].flatMap(w => w.connections.filter(c => !w.elements.some(e => e.id === c.fromId) || !w.elements.some(e => e.id === c.toId))).map(c => [c.id, c])).values()];
-  const emptyMessage = q && currentSearch && !currentSearch.error && currentSearch.posts?.length === 0 && displayWorks.length === 0
+  const emptyMessage = q && currentSearch && !currentSearch.error && displayPosts.length === 0 && displayWorks.length === 0
     ? "No posts match your search."
     : undefined;
 

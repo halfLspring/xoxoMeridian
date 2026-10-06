@@ -12,6 +12,7 @@ import { WorkPublishedTime } from "@/components/blog-work/WorkPublishedTime";
 import { MarkdownContent } from "@/components/blog/MarkdownContent";
 import { fitHomePhotoSizeToBounds } from "@/lib/home-spatial";
 import { photoPatchSchema, type WorkWindow } from "@/lib/blog-work/schemas";
+import { photoPatchChanged } from "@/lib/blog-work/photo-patch";
 import type { WorkSnapshot, WorkElement } from "@/lib/blog-work/types";
 
 export type LeaveHandler = (next: () => void) => void;
@@ -19,7 +20,7 @@ const onlyWindow = (w: WorkWindow): WorkWindow => ({ viewportX: w.viewportX, vie
 type TextBuffer = { title: string; content: string; version: number };
 const photoChanged = (work: WorkSnapshot, id: string, patch: Partial<WorkElement>) => {
   const stored = work.elements.find(element => element.id === id);
-  return !!stored && (Object.keys(patch) as Array<keyof WorkElement>).some(key => patch[key] !== stored[key]);
+  return !!stored && photoPatchChanged(stored, patch);
 };
 export function WorkEditor({ initial, actorId, editable = false, focusPostId, leaveRef, onClose, onPublished, onDeleted, onChanged, registerAnchor }: {
   initial: WorkSnapshot; actorId: string; editable?: boolean; focusPostId?: string; leaveRef?: MutableRefObject<LeaveHandler | null>;
@@ -30,8 +31,10 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const textVersion = useRef(0), sentVersions = useRef(new Map<string, number>());
   const [texts, setTexts] = useState<Record<string, TextBuffer>>({}), textRef = useRef(texts), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [photoPatches, setPhotoPatches] = useState<Record<string, Partial<WorkElement>>>({}), [frame, setFrame] = useState<WorkFrameValue | null>(null);
+  const pendingPhotoSaves = useRef(new Set<{ id: string; keys: Array<keyof WorkElement> }>());
   const [framePreview, setFramePreview] = useState<WorkFrameValue | null>(null);
   const [scale, setScale] = useState(1), root = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
   const workFrame = useRef<HTMLElement>(null);
   const [availableWidth, setAvailableWidth] = useState(initial.viewportWidth);
   const [availableLeft, setAvailableLeft] = useState(0);
@@ -103,6 +106,8 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     setAvailableLeft(Math.min(0, 12 - root.current.getBoundingClientRect().left));
     // 私密草稿的宿主固定在页面原点，适配宽度不随保存/平移位置改变。
     setScale(Math.min(1, Math.max(1, width - (initial.status === "draft" ? 24 : 0)) / viewportWidth.current));
+    // SSR 标题先禁用；事件处理器与首次适配在同一次提交就绪，避免按下后缩放导致 click 丢失。
+    setReady(true);
   }, [initial.status]);
   useEffect(() => { fit(); window.addEventListener("resize", fit); return () => window.removeEventListener("resize", fit); }, [fit]);
   useLayoutEffect(() => {
@@ -148,13 +153,38 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     "--work-header-height": `${controlsSize.header}px`,
     "--work-notices-top": `${controlsOutside ? frameHeight + controlsSize.header + controlsSize.footer + 24 : controlsSize.header}px`,
   } as CSSProperties;
-  const previewPhoto = (id: string, patch: Partial<WorkElement>) => setPhotoPatches(previous => ({ ...previous, [id]: { ...previous[id], ...patch } }));
+  const hasPendingPhotoField = (id: string, key: keyof WorkElement) => [...pendingPhotoSaves.current].some(pending => pending.id === id && pending.keys.includes(key));
+  const previewPhoto = (id: string, patch: Partial<WorkElement>) => {
+    const stored = work.elements.find(element => element.id === id);
+    // 同字段的排队保存仍会改变基线；只在全部确认后清理等价预览。
+    const confirmedKeys = (Object.keys(patch) as Array<keyof WorkElement>).filter(key =>
+      stored && !hasPendingPhotoField(id, key) && !photoPatchChanged(stored, { [key]: patch[key] }));
+    setPhotoPatches(previous => {
+      const next = { ...previous, [id]: { ...previous[id], ...patch } };
+      for (const key of confirmedKeys) delete next[id][key];
+      if (!Object.keys(next[id]).length) delete next[id];
+      return next;
+    });
+  };
   const commitPhoto = (id: string, patch: Partial<WorkElement>) => {
     const parsed = photoPatchSchema.safeParse(patch);
     if (!parsed.success) { setLocalError("图片宽度须为 120–640、高度须为 90–800、旋转须为 −25°–25°"); return false; }
     setLocalError("");
+    const pending = { id, keys: Object.keys(patch) as Array<keyof WorkElement> };
+    pendingPhotoSaves.current.add(pending);
     previewPhoto(id, patch);
-    void enqueue({ operation: "photo.update", id, data: parsed.data }).then(result => { if (result) setPhotoPatches(previous => { const next = { ...previous, [id]: { ...previous[id] } }; for (const key of Object.keys(patch)) if (next[id]?.[key as keyof WorkElement] === patch[key as keyof WorkElement]) delete next[id][key as keyof WorkElement]; return next; }); });
+    void enqueue({ operation: "photo.update", id, data: parsed.data }).then(result => {
+      pendingPhotoSaves.current.delete(pending);
+      if (!result) return;
+      // 连续修改可能再次得到相同值，较早的响应不能确认后续仍在排队的编辑。
+      const confirmedKeys = pending.keys.filter(key => !hasPendingPhotoField(id, key));
+      setPhotoPatches(previous => {
+        const next = { ...previous, [id]: { ...previous[id] } };
+        for (const key of confirmedKeys) if (next[id][key] === patch[key]) delete next[id][key];
+        if (!Object.keys(next[id]).length) delete next[id];
+        return next;
+      });
+    });
     return true;
   };
   const commitFrame = (next: WorkFrameValue, kind: "move" | "resize") => {
@@ -179,7 +209,7 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     });
   };
   const canvas = <WorkFrame frame={{ ...onlyWindow(merged), ...(work.status === "draft" ? { draftX: merged.draftX ?? 24, draftY: merged.draftY ?? 40 } : {}) }} scale={scale} editing={editing && work.canManage && !locked} movable={work.status === "draft" && work.ownerId === actorId} onPreview={setFramePreview} onCommit={commitFrame}>
-    <WorkCanvas work={merged} scale={scale} editing={editing} disabled={state === "auth-invalid" || locked} onPhotoPreview={previewPhoto} onPhotoCommit={commitPhoto} onDeletePhoto={id => { void enqueue({ operation: "photo.delete", id }); }} onPost={id => { if (!locked) setModal(`post:${id}`); }} onSelect={chooseEndpoint} selected={selected} registerAnchor={registerAnchor} />
+    <WorkCanvas work={merged} scale={scale} editing={editing} disabled={state === "auth-invalid" || locked} openDisabled={!ready} onPhotoPreview={previewPhoto} onPhotoCommit={commitPhoto} onDeletePhoto={id => { void enqueue({ operation: "photo.delete", id }); }} onPost={id => { if (!locked) setModal(`post:${id}`); }} onSelect={chooseEndpoint} selected={selected} registerAnchor={registerAnchor} />
   </WorkFrame>;
   if (state === "auth-invalid") return <div role="alert">登录已失效。<Link href="/">重新登录</Link></div>;
   return <div ref={root} className="work-editor-host"><section ref={workFrame} style={frameStyle} className={`blog-work ${editing ? "blog-work-editing" : ""} ${controlsOutside ? "work-controls-outside" : ""}`} data-work-id={work.id} aria-label={work.status === "draft" ? "空间草稿" : "已发布作品"}>

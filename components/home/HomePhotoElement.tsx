@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { HomePhotoRotation } from "@/components/home/HomePhotoRotation";
 import type { HomePhotoElementData } from "@/components/home/types";
 import { clampPhotoSize } from "@/lib/home-spatial";
@@ -45,6 +45,8 @@ export function HomePhotoElement({
   const dragRef = useRef({
     active: false,
     resizing: false,
+    pointerId: null as number | null,
+    target: null as HTMLElement | null,
     startClientX: 0,
     startClientY: 0,
     startX: element.x,
@@ -67,8 +69,18 @@ export function HomePhotoElement({
     }
   };
 
+  const finishGesture = useCallback(() => {
+    const drag = dragRef.current;
+    const { pointerId, target } = drag;
+    drag.active = false;
+    drag.resizing = false;
+    drag.pointerId = null;
+    drag.target = null;
+    if (pointerId !== null && target?.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+  }, []);
+
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (deleting || readOnly || event.button !== 0) return;
+    if (deleting || readOnly || event.button !== 0 || event.isPrimary === false || dragRef.current.active) return;
     const target = event.target as HTMLElement;
     if (target.closest("[data-caption-area], [data-rotation-control]") || target.closest("button")) return;
 
@@ -78,6 +90,8 @@ export function HomePhotoElement({
       ...dragRef.current,
       active: true,
       resizing: false,
+      pointerId: event.pointerId,
+      target: event.currentTarget,
       startClientX: event.clientX,
       startClientY: event.clientY,
       startX: element.x,
@@ -87,7 +101,7 @@ export function HomePhotoElement({
   }, [deleting, readOnly, element.x, element.y]);
 
   const onResizePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    if (deleting) return;
+    if (deleting || readOnly || event.button !== 0 || event.isPrimary === false || dragRef.current.active) return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -95,24 +109,26 @@ export function HomePhotoElement({
       ...dragRef.current,
       active: true,
       resizing: true,
+      pointerId: event.pointerId,
+      target: event.currentTarget,
       startClientX: event.clientX,
       startClientY: event.clientY,
       startWidth: element.width,
       startRotation: element.rotation,
       aspectRatio: element.width / Math.max(element.height, 1),
     };
-  }, [deleting, element.width, element.height, element.rotation]);
+  }, [deleting, readOnly, element.width, element.height, element.rotation]);
 
   const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (deleting || !dragRef.current.active || dragRef.current.resizing) return;
+    if (deleting || !dragRef.current.active || dragRef.current.resizing || dragRef.current.pointerId !== event.pointerId) return;
     const dx = (event.clientX - dragRef.current.startClientX) / viewScale;
     const dy = (event.clientY - dragRef.current.startClientY) / viewScale;
     onMove(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
   }, [deleting, element.id, onMove, viewScale]);
 
   const onPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (deleting || !dragRef.current.active || dragRef.current.resizing) return;
-    dragRef.current.active = false;
+    if (deleting || !dragRef.current.active || dragRef.current.resizing || dragRef.current.pointerId !== event.pointerId) return;
+    finishGesture();
     const dx = (event.clientX - dragRef.current.startClientX) / viewScale;
     const dy = (event.clientY - dragRef.current.startClientY) / viewScale;
     const dist = Math.hypot(dx, dy);
@@ -124,7 +140,7 @@ export function HomePhotoElement({
     }
 
     onMoveEnd(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
-  }, [deleting, element.id, onMoveEnd, onSelect, viewScale]);
+  }, [deleting, element.id, onMoveEnd, onSelect, viewScale, finishGesture]);
 
   const getResizeSize = useCallback((clientX: number, clientY: number) => {
     const drag = dragRef.current;
@@ -138,7 +154,7 @@ export function HomePhotoElement({
   }, [viewScale]);
 
   const onResizePointerMove = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    if (deleting || !dragRef.current.active || !dragRef.current.resizing) return;
+    if (deleting || !dragRef.current.active || !dragRef.current.resizing || dragRef.current.pointerId !== event.pointerId) return;
     const size = getResizeSize(event.clientX, event.clientY);
     rootRef.current?.style.setProperty("--home-photo-width", `${size.width}px`);
     rootRef.current?.style.setProperty("--home-photo-height", `${size.height}px`);
@@ -146,29 +162,33 @@ export function HomePhotoElement({
   }, [deleting, getResizeSize, element.id, onResizePreview]);
 
   const onResizePointerUp = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    if (deleting || !dragRef.current.active || !dragRef.current.resizing) return;
-    dragRef.current.active = false;
-    dragRef.current.resizing = false;
+    if (deleting || !dragRef.current.active || !dragRef.current.resizing || dragRef.current.pointerId !== event.pointerId) return;
     const size = getResizeSize(event.clientX, event.clientY);
+    finishGesture();
     onResizeEnd(element.id, size.width, size.height);
-  }, [deleting, element.id, getResizeSize, onResizeEnd]);
+  }, [deleting, element.id, getResizeSize, onResizeEnd, finishGesture]);
 
   const cancelGesture = useCallback(() => {
     const drag = dragRef.current;
     if (!drag.active) return;
-    if (drag.resizing) {
+    const resizing = drag.resizing;
+    finishGesture();
+    if (resizing) {
       rootRef.current?.style.setProperty("--home-photo-width", `${drag.startWidth}px`);
       rootRef.current?.style.setProperty("--home-photo-height", `${drag.startWidth / drag.aspectRatio}px`);
       onResizePreview?.(element.id, drag.startWidth, drag.startWidth / drag.aspectRatio);
     } else onMove(element.id, drag.startX, drag.startY);
-    drag.active = false;
-    drag.resizing = false;
-  }, [element.id, onMove, onResizePreview]);
+  }, [element.id, onMove, onResizePreview, finishGesture]);
+  const cancelPointerGesture = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragRef.current.pointerId === event.pointerId) cancelGesture();
+  };
+  const cancelFromKey = useEffectEvent(cancelGesture);
   useEffect(() => {
-    const cancel = (event: KeyboardEvent) => { if (event.key === "Escape") cancelGesture(); };
+    // 同一次 keydown 中较早的监听器可能触发重渲染；稳定订阅避免新监听器错过当前 Escape。
+    const cancel = (event: KeyboardEvent) => { if (event.key === "Escape") cancelFromKey(); };
     window.addEventListener("keydown", cancel);
     return () => window.removeEventListener("keydown", cancel);
-  }, [cancelGesture]);
+  }, []);
 
   return (
     <div
@@ -188,8 +208,8 @@ export function HomePhotoElement({
         transformOrigin: "center center",
         touchAction: readOnly ? undefined : "none",
       }}
-      onPointerCancel={cancelGesture}
-      onLostPointerCapture={cancelGesture}
+      onPointerCancel={cancelPointerGesture}
+      onLostPointerCapture={cancelPointerGesture}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -217,7 +237,7 @@ export function HomePhotoElement({
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === "Escape") commitCaption();
                 }}
-                className="w-full bg-transparent text-xs text-black/60 outline-none"
+                className="w-full bg-transparent text-xs text-black/60 outline-hidden"
                 data-caption-area
                 autoFocus
                 maxLength={200}
