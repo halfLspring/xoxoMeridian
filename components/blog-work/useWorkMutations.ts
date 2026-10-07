@@ -47,6 +47,10 @@ export function useWorkMutations(initial: WorkSnapshot, actorId: string) {
         if (task.command.operation === "delete" && response.status === 404 && data.code === "NOT_FOUND") {
           queue.current.shift(); task.resolve(current.current); continue;
         }
+        // 重复点击已连接的两端视为无操作，继续处理后续修改。
+        if (task.command.operation === "connection.create" && response.status === 409 && data.code === "DUPLICATE_CONNECTION") {
+          queue.current.shift(); task.resolve(current.current); continue;
+        }
         if (!response.ok) {
           setError(data.error || "保存失败，请重试");
           if (data.code === "REVISION_CONFLICT" && !task.upload) {
@@ -55,7 +59,7 @@ export function useWorkMutations(initial: WorkSnapshot, actorId: string) {
               apply(latest); task.base = latest; task.input = undefined; task.rebased = true; continue;
             }
           }
-          if (response.status === 400 || (response.status === 409 && ["DUPLICATE_CONNECTION", "EMPTY_WORK", "UPLOAD_PENDING", "SLUG_CONFLICT"].includes(data.code))) {
+          if (response.status === 400 || (response.status === 409 && ["EMPTY_WORK", "UPLOAD_PENDING", "SLUG_CONFLICT"].includes(data.code))) {
             queue.current.shift(); task.resolve(null); rejected = true; continue;
           }
           changeState(response.status === 409 || response.status === 404 ? "conflict" : "failed"); return;

@@ -11,10 +11,11 @@ function CanvasPin({ x, y }: Point) {
 }
 
 // 坐标均为所在 SVG 的屏幕 CSS 像素；容器先完成场景缩放与原点换算。
-export function CanvasConnection({ from, to, color, deleteAction }: {
+export function CanvasConnection({ from, to, color, deleteAction, hitOnly = false }: {
   from: Point;
   to: Point;
   color?: string | null;
+  hitOnly?: boolean;
   deleteAction?: { label: string; disabled: boolean; onDelete: () => void };
 }) {
   const sag = Math.min(Math.abs(to.x - from.x) * 0.22 + 18, 120);
@@ -43,9 +44,11 @@ export function CanvasConnection({ from, to, color, deleteAction }: {
           if (!deleteAction.disabled) deleteAction.onDelete();
         }}
       />}
-      <path d={path} fill="none" stroke={color || "#668a5b"} strokeWidth={2} strokeLinecap="round" strokeDasharray="6 4" style={{ pointerEvents: "none" }} />
-      <CanvasPin {...from} />
-      <CanvasPin {...to} />
+      {!hitOnly && <>
+        <path d={path} fill="none" stroke={color || "#668a5b"} strokeWidth={2} strokeLinecap="round" strokeDasharray="6 4" style={{ pointerEvents: "none" }} />
+        <CanvasPin {...from} />
+        <CanvasPin {...to} />
+      </>}
     </g>
   );
 }

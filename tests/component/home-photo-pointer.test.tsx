@@ -70,3 +70,20 @@ it.each(["移动", "缩放"])("%s手势忽略其他指针的按下、预览、�
   else expect(initial.onResizeEnd).toHaveBeenCalledExactlyOnceWith("photo", 280, 210);
   expect(pointers.size).toBe(0);
 });
+
+it.each([
+  { name: "微小抖动仍是点击", offset: 1, selects: true },
+  { name: "拖动回原点仍是拖动", offset: 20, selects: false },
+])("$name，不产生错误接线或微小位置保存", ({ offset, selects }) => {
+  const initial = props();
+  render(<HomePhotoElement {...initial} />);
+  const photo = screen.getByRole("img", { name: "手势" }).closest<HTMLElement>("[data-home-photo]")!;
+  capture(photo);
+  const pointer = { button: 0, isPrimary: true, pointerId: 1, clientX: 100, clientY: 100 };
+  fireEvent.pointerDown(photo, pointer);
+  fireEvent.pointerMove(photo, { ...pointer, clientX: 100 + offset });
+  fireEvent.pointerUp(photo, pointer);
+  expect(initial.onSelect).toHaveBeenCalledTimes(selects ? 1 : 0);
+  expect(initial.onMoveEnd).toHaveBeenCalledTimes(selects ? 0 : 1);
+  expect(initial.onMove).toHaveBeenCalledTimes(selects ? 0 : 1);
+});

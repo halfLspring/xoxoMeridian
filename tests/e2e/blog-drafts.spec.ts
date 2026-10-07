@@ -99,7 +99,7 @@ for (const example of [
         expect(editing.outer).toEqual(editing.frame);
         expect(editing.outer).toEqual(editing.crop);
         await expect(editor.getByRole("button", { name: /^调整草稿.+边界$/ })).toHaveCount(8);
-        for (const name of ["删除作品", "退出编辑", "博文", "图片", "连线"]) {
+        for (const name of ["删除作品", "退出编辑", "博文", "图片"]) {
           await editor.getByRole("button", { name, exact: true }).click({ trial: true });
         }
         await editor.getByRole("button", { name: "退出编辑", exact: true }).click();
@@ -238,8 +238,12 @@ test("未发布草稿悬停不显示发布时间", async ({ context }) => {
     await page.goto(`/home?draft=${draft.id}`);
     const privateEditor = page.getByRole("region", { name: "空间草稿" });
     await waitForWorkLayout(page, privateEditor);
-    await privateEditor.hover();
+    // 透明草稿空白处允许穿透；直接移动真实指针，并在可命中的控件上复核父级悬停。
+    const box = (await privateEditor.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await expect(privateEditor.getByRole("button", { name: "查看作品发布时间" })).toHaveCount(0);
+    await expect(page.getByRole("tooltip", { name: "作品发布时间" })).toHaveCount(0);
+    await privateEditor.getByRole("button", { name: "退出草稿", exact: true }).hover();
     await expect(page.getByRole("tooltip", { name: "作品发布时间" })).toHaveCount(0);
   });
 });
@@ -354,7 +358,8 @@ test("整稿平移 Escape、pointercancel 和丢失捕获取消且不写入", as
         else await at.border.evaluate(node => node.releasePointerCapture(1));
         await page.mouse.up();
       }
-      expect(await editor.boundingBox()).toEqual(before);
+      // 原生取消事件交付后还需等待 React 提交布局；同时保留零写入和精确几何断言。
+      await expect.poll(() => editor.boundingBox(), { message: `${action} 后恢复原位置` }).toEqual(before);
       await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
     }
     expect(writes).toEqual([]);
@@ -654,10 +659,10 @@ test("深链读取中切到 My Draft 并退出，迟到响应不会重开草稿"
   });
 });
 
-test("草稿各尺寸只有一层蒙版，精简工具栏贴底且已移除辅助入口", async ({ context }, testInfo) => {
-  await withStudyUser(context, async ({ page, db, userId }) => {
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    for (const [width, height] of [[1000, 479], [1000, 480], [1000, 481], [1000, 240], [160, 120]]) {
+for (const [width, height] of [[1000, 479], [1000, 480], [1000, 481], [1000, 240], [160, 120]]) {
+  test(`草稿各尺寸只有一层蒙版，精简工具栏贴底且已移除辅助入口：${width}×${height}`, async ({ context }, testInfo) => {
+    await withStudyUser(context, async ({ page, db, userId }) => {
+      await page.setViewportSize({ width: 1440, height: 1000 });
       const work = await db.blogWork.create({ data: { owner: { connect: { id: userId } }, board: { connectOrCreate: { where: { id: "home-board" }, create: { id: "home-board" } } }, draftX: 100, draftY: 60, viewportWidth: width, viewportHeight: height } });
       await page.goto(`/home?draft=${work.id}`);
       const editor = page.getByRole("region", { name: "空间草稿" });
@@ -669,7 +674,7 @@ test("草稿各尺寸只有一层蒙版，精简工具栏贴底且已移除辅�
       expect(frame.height).toBe(height);
       await expect(editor.getByRole("button", { name: /^调整草稿.+边界$/ })).toHaveCount(8);
       const toolbar = editor.getByRole("toolbar", { name: "草稿工具栏" });
-      await expect(toolbar.getByRole("button")).toHaveText(["博文", "图片", "连线"]);
+      await expect(toolbar.getByRole("button")).toHaveText(["博文", "图片"]);
       const bar = (await toolbar.boundingBox())!;
       if (height >= 240) {
         expect(frame.y + frame.height - bar.y - bar.height).toBeCloseTo(8, 0);
@@ -679,13 +684,13 @@ test("草稿各尺寸只有一层蒙版，精简工具栏贴底且已移除辅�
       }
       await expect(editor.getByRole("button", { name: /^(内容列表|放大查看|调整边框)$/ })).toHaveCount(0);
       await expect(editor.getByText("整组内容（含被裁切的部分）将公开。")).toHaveCount(0);
-      for (const name of ["退出草稿", "发布", "博文", "图片", "连线"]) {
+      for (const name of ["退出草稿", "发布", "博文", "图片"]) {
         await editor.getByRole("button", { name, exact: true }).click({ trial: true });
       }
       await page.screenshot({ path: testInfo.outputPath(`frame-${width}x${height}.png`) });
-    }
+    });
   });
-});
+}
 
 test("调整草稿边界时蒙版和控件随动，内容不平移且保存恢复不跳位", async ({ context }, testInfo) => {
   await withStudyUser(context, async ({ page, db, userId }) => {
@@ -791,7 +796,7 @@ test("窄屏调整边框保持显示比例，极小窗口仍可操作全部控�
     expect(frame.height).toBeCloseTo(121 * ratio, 0);
     expect(await editor.boundingBox()).toEqual(frame);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    for (const name of ["退出草稿", "发布", "博文", "图片", "连线"]) {
+    for (const name of ["退出草稿", "发布", "博文", "图片"]) {
       await editor.getByRole("button", { name, exact: true }).click({ trial: true });
     }
     await editor.getByRole("button", { name: "博文", exact: true }).focus();
@@ -803,7 +808,7 @@ test("窄屏调整边框保持显示比例，极小窗口仍可操作全部控�
   });
 });
 
-test("右键框选空白作品，双篇双图自动布局、手动连线及恢复", async ({ context }, testInfo) => {
+test("右键框选空白作品，双篇双图自动布局、点击连线及恢复", async ({ context }, testInfo) => {
   test.setTimeout(60_000);
   await withStudyUser(context, async ({ page, db }) => {
     await page.setViewportSize({ width: 1672, height: 941 }); await page.goto("/home");
@@ -822,8 +827,9 @@ test("右键框选空白作品，双篇双图自动布局、手动连线及恢�
     await expect.poll(async () => (await db.atlasElement.findUniqueOrThrow({ where: { id: photos[0].id } })).width).toBe(130);
     await first.getByRole("button", { name: "旋转照片：未标注照片" }).focus(); await page.keyboard.press("ArrowRight");
     await expect.poll(async () => (await db.atlasElement.findUniqueOrThrow({ where: { id: photos[0].id } })).rotation).not.toBe(0);
-    await editor.getByRole("button", { name: "连线", exact: true }).click(); await page.getByLabel("起点", { exact: true }).selectOption(photos[0].id); await page.getByLabel("终点", { exact: true }).selectOption(photos[1].id); await page.getByRole("button", { name: "添加连线", exact: true }).click();
-    await expect(page.getByRole("button", { name: "删除作品连线 1" })).toBeVisible(); await page.getByRole("button", { name: "关闭连线" }).click();
+    await first.getByRole("button", { name: "连接照片：未标注照片" }).focus(); await page.keyboard.press("Enter");
+    await editor.locator(`[data-element-id="${photos[1].id}"]`).getByRole("button", { name: "连接照片：未标注照片" }).focus(); await page.keyboard.press("Space");
+    await expect(editor.getByRole("button", { name: "删除作品连线 1" })).toBeVisible();
     await expect(editor.locator("[data-work-connection]")).toHaveCount(1);
     const cards = editor.locator("[data-work-post]"), originalSecond = (await cards.nth(1).boundingBox())!.y;
     const fullContent = "更长的完整正文。\n\n".repeat(30);
@@ -880,12 +886,11 @@ test("草稿自动保存、恢复、私密字节与整组发布协作", async ({
     const photo = snapshot.work.elements.find((e: { type: string }) => e.type === "photo");
     expect(photo).toMatchObject({ caption: "窗边植物", x: 520 });
     const externalAnchor = await db.atlasElement.findFirstOrThrow({ where: { postId: external.id } });
-    await editor.getByRole("button", { name: "连线", exact: true }).click();
-    await page.getByLabel("起点", { exact: true }).selectOption(photo.id);
-    await page.getByLabel("终点", { exact: true }).selectOption(externalAnchor.id);
-    await page.getByRole("button", { name: "添加连线", exact: true }).click();
-    await expect(page.getByRole("button", { name: "删除作品连线 1" })).toBeVisible(); await page.getByRole("button", { name: "关闭连线" }).click();
-    await expect(page.locator("[data-external-connection] path")).toHaveCount(1);
+    await page.getByRole("button", { name: "连接博文：外部公开博文" }).focus(); await page.keyboard.press("Enter");
+    await editor.getByRole("button", { name: "连接照片：窗边植物" }).focus(); await page.keyboard.press("Space");
+    await expect(page.getByRole("button", { name: "删除作品连线 1" })).toBeVisible();
+    expect(await db.atlasConnection.findFirst({ where: { workId } })).toMatchObject({ fromId: photo.id, toId: externalAnchor.id });
+    await expect(page.locator("[data-external-connection] path[stroke-dasharray]")).toHaveCount(1);
     const otherId = `e2e-blog-${randomUUID()}`, email = `${otherId}@example.com`, template = await db.user.findUniqueOrThrow({ where: { id: userId } });
     await db.user.create({ data: { id: otherId, email, passwordHash: template.passwordHash, displayName: "伙伴", avatarLabel: "伴", participants: { create: { roomId } } } });
     // 手动创建的 Context 显式清空默认 storageState，避免换号登录撤销基础账号 Session。
@@ -919,7 +924,7 @@ test("草稿自动保存、恢复、私密字节与整组发布协作", async ({
       await partnerPage.goto("/home");
       const partnerWork = partnerPage.locator(`[data-work-id="${workId}"]`);
       await expect(partnerWork).toBeVisible();
-      await expect(partnerPage.locator("[data-external-connection] path")).toHaveCount(1);
+      await expect(partnerPage.locator("[data-external-connection] path[stroke-dasharray]")).toHaveCount(1);
       await partnerWork.getByRole("button", { name: "编辑作品", exact: true }).click();
       await expect(partnerWork.getByRole("button", { name: "删除作品", exact: true })).toHaveCount(0);
       await expect(partnerWork.getByRole("button", { name: "调整边框", exact: true })).toHaveCount(0);
@@ -938,7 +943,7 @@ test("草稿自动保存、恢复、私密字节与整组发布协作", async ({
       await page.screenshot({ path: testInfo.outputPath("draft-mobile-reading.png") });
       await page.getByRole("button", { name: "关闭阅读博文" }).click();
       await publicWork.getByRole("button", { name: "编辑作品", exact: true }).click();
-      await expect(publicWork.getByRole("toolbar", { name: "草稿工具栏" }).getByRole("button")).toHaveText(["博文", "图片", "连线"]);
+      await expect(publicWork.getByRole("toolbar", { name: "草稿工具栏" }).getByRole("button")).toHaveText(["博文", "图片"]);
       const deleteButton = publicWork.getByRole("button", { name: "删除作品", exact: true });
       await deleteButton.scrollIntoViewIfNeeded();
       const deleteBox = (await deleteButton.boundingBox())!;
@@ -950,7 +955,7 @@ test("草稿自动保存、恢复、私密字节与整组发布协作", async ({
       await deleteButton.focus(); await page.keyboard.press("Enter");
       expect((await deleted).status()).toBe(200);
       await expect(publicWork).toHaveCount(0);
-      await expect(page.locator("[data-external-connection] path")).toHaveCount(0);
+      await expect(page.locator("[data-external-connection] path[stroke-dasharray]")).toHaveCount(0);
       await page.reload();
       await expect(publicWork).toHaveCount(0);
       expect(await db.blogWork.count({ where: { id: workId } })).toBe(0);
@@ -1488,10 +1493,10 @@ test("旋转图片 AABB 空角没有线和钉子，扩大窗口后恢复真实�
     await expect(editor.locator(`[data-work-connection="${connection.id}"]`)).toHaveCount(0);
     await page.waitForFunction(() => [...document.querySelectorAll(".page-enter")].every(node => node.getAnimations().every(animation => animation.playState === "finished")));
     await resizeFrame(page, editor, 360, 360);
-    await expect(editor.locator(`[data-work-connection="${connection.id}"] path`)).toBeVisible();
+    await expect(editor.locator(`[data-work-connection="${connection.id}"] path[stroke-dasharray]`)).toBeVisible();
     const circles = await editor.locator(`[data-work-connection="${connection.id}"] circle`).evaluateAll(nodes => nodes.map(n => ({ x: Number(n.getAttribute("cx")), y: Number(n.getAttribute("cy")) })));
     expect(circles[1].x).toBeGreaterThan(0); expect(circles[1].y).toBeGreaterThan(120);
-    await page.setViewportSize({ width: 375, height: 812 }); await expect(editor.locator(`[data-work-connection="${connection.id}"] path`)).toBeVisible();
+    await page.setViewportSize({ width: 375, height: 812 }); await expect(editor.locator(`[data-work-connection="${connection.id}"] path[stroke-dasharray]`)).toBeVisible();
     expect(await db.atlasConnection.count({ where: { id: connection.id } })).toBe(1);
   });
 });
@@ -1512,7 +1517,7 @@ test("最大窗口的边框手柄不能越界，裁切外的图片数据仍保�
     expect((await db.blogWork.findUniqueOrThrow({ where: { id: work.id } })).viewportWidth).toBe(8192);
     expect(await db.atlasElement.count({ where: { workId: work.id } })).toBe(2);
     expect((await db.atlasElement.findFirstOrThrow({ where: { workId: work.id, x: 9000 } })).caption).toBe("远距图片 2");
-    for (const name of ["博文", "图片", "连线"]) await editor.getByRole("button", { name, exact: true }).click({ trial: true });
+    for (const name of ["博文", "图片"]) await editor.getByRole("button", { name, exact: true }).click({ trial: true });
   });
 });
 
@@ -1585,3 +1590,116 @@ test("双标签页同字段冲突保留本地输入，明确选择后重提", as
     }
   });
 });
+
+test("草稿内点击接线与取消、键盘删除，图片手势及刷新保持正确", async ({ context }) => {
+  await withStudyUser(context, async ({ page, db, userId }) => {
+    const work = await db.blogWork.create({ data: { ownerId: userId, boardId: "home-board", viewportWidth: 960, viewportHeight: 540 } });
+    const post = await db.post.create({ data: { workId: work.id, authorId: userId, workOrder: 0, title: "点击连线的博文", content: "正文区域直接连接图片", slug: randomUUID() } });
+    const note = await db.atlasElement.create({ data: { workId: work.id, boardId: "home-board", postId: post.id, type: "note", x: 96, y: 72 } });
+    const photo = await db.atlasElement.create({ data: { workId: work.id, boardId: "home-board", type: "photo", x: 560, y: 200, width: 180, height: 140, imageUrl: "/brand/logo_transparent.svg", caption: "点击图片" } });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(`/home?draft=${work.id}`);
+    const editor = page.locator(`[data-work-id="${work.id}"]`), picture = editor.getByRole("button", { name: "连接照片：点击图片" });
+    const body = editor.locator(`[data-work-post="${post.id}"] .prose`);
+    await waitForWorkLayout(page, editor);
+    await expect(editor.getByRole("toolbar").getByRole("button")).toHaveText(["博文", "图片"]);
+    await picture.click({ position: { x: 60, y: 65 } });
+    await expect(picture).toHaveAttribute("aria-pressed", "true");
+    await picture.click({ position: { x: 60, y: 65 } });
+    await expect(picture).toHaveAttribute("aria-pressed", "false");
+    await body.click();
+    await expect(editor.getByRole("button", { name: "连接博文：点击连线的博文" })).toHaveAttribute("aria-pressed", "true");
+    await expect(editor.getByRole("button", { name: "连接博文：点击连线的博文" })).toHaveAttribute("aria-pressed", "false");
+    // 越过拖动阈值后回到原点，不能把松手解释成第二次点击。
+    await body.click();
+    const box = (await picture.boundingBox())!;
+    await page.mouse.move(box.x + 60, box.y + 65); await page.mouse.down();
+    await page.mouse.move(box.x + 95, box.y + 85, { steps: 3 });
+    await page.mouse.move(box.x + 60, box.y + 65, { steps: 3 }); await page.mouse.up();
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    expect(await db.atlasConnection.count({ where: { workId: work.id } })).toBe(0);
+    await page.keyboard.press("Escape");
+    await body.click(); await picture.click({ position: { x: 60, y: 65 } });
+    await expect(editor.locator("[data-work-connection]")).toHaveCount(1);
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    expect(await db.atlasConnection.findFirst({ where: { workId: work.id } })).toMatchObject({ fromId: note.id, toId: photo.id });
+    await page.reload();
+    await expect(editor.locator("[data-work-connection]")).toHaveCount(1);
+    await editor.getByRole("button", { name: "删除作品连线 1" }).focus(); await page.keyboard.press("Space");
+    await expect(editor.locator("[data-work-connection]")).toHaveCount(0);
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+    await expect(editor.locator("[data-work-connection]")).toHaveCount(0);
+    expect(await db.atlasElement.count({ where: { workId: work.id } })).toBe(2);
+  });
+});
+
+for (const target of ["普通图片", "公开作品博文"] as const) {
+  for (const outsideFirst of [false, true]) {
+    test(`草稿跨边界点击：${target}、${outsideFirst ? "外部" : "草稿"}先选，归属与删除刷新一致`, async ({ context }) => {
+      await withStudyUser(context, async ({ page, db, userId }) => {
+        const work = await db.blogWork.create({ data: { ownerId: userId, boardId: "home-board", draftX: target === "普通图片" && outsideFirst ? 24 : 800, draftY: 40, viewportWidth: 640, viewportHeight: 420 } });
+        const upload = await page.request.post(`/api/blog/works/${work.id}/uploads`, {
+          headers: { origin: new URL(test.info().project.use.baseURL!).origin, "X-Blog-Viewer-Id": userId },
+          multipart: {
+            file: { name: "connection.png", mimeType: "image/png", buffer: png },
+            metadata: JSON.stringify({ mutationId: randomUUID(), baseRevision: work.revision, expectedStatus: "draft", data: { x: 400, y: 150, width: 180, height: 140, caption: "草稿端点" } }),
+          },
+        });
+        expect(upload.status()).toBe(200);
+        const { resourceId: localId } = await upload.json() as { resourceId: string };
+        const publicWork = target === "公开作品博文" ? await db.blogWork.create({ data: { ownerId: userId, boardId: "home-board", status: "published", publishedAt: new Date("2020-01-01T00:00:00Z"), viewportWidth: 640, viewportHeight: 360 } }) : null;
+        const post = publicWork ? await db.post.create({ data: { authorId: userId, workId: publicWork.id, workOrder: 0, title: "外部作品端点", content: "点击这段公开正文", slug: randomUUID(), publishedAt: publicWork.publishedAt } }) : null;
+        const external = await db.atlasElement.create({ data: { boardId: "home-board", workId: publicWork?.id, postId: post?.id, type: post ? "note" : "photo", x: 60, y: 200, width: 180, height: 140, imageUrl: post ? null : "/brand/logo_transparent.svg", caption: "外部画板端点" } });
+        try {
+          await page.setViewportSize({ width: 1600, height: 1050 }); await page.goto(`/home?draft=${work.id}`);
+          const editor = page.locator(`[data-work-id="${work.id}"]`), picture = editor.getByRole("button", { name: "连接照片：草稿端点" });
+          await waitForWorkLayout(page, editor);
+          const outside = post ? page.locator(`[data-work-post="${post.id}"] .prose`) : page.getByRole("button", { name: "连接照片：外部画板端点" });
+          if (publicWork) await waitForPublishedLayout(page, page.locator(`[data-work-id="${publicWork.id}"]`), 640);
+          // 先测量两个可见端点，再连续发送真实指针事件，避免第二次定位/滚动耗时超过 1500ms 选择窗口。
+          const insideBox = (await picture.boundingBox())!, outsideBox = (await outside.boundingBox())!;
+          const insidePoint = { x: insideBox.x + 60, y: insideBox.y + 65 };
+          const outsidePoint = { x: outsideBox.x + (post ? 25 : 60), y: outsideBox.y + (post ? 15 : 65) };
+          for (const point of [insidePoint, outsidePoint]) {
+            expect(point.x).toBeGreaterThan(0); expect(point.x).toBeLessThan(1600);
+            expect(point.y).toBeGreaterThan(0); expect(point.y).toBeLessThan(1050);
+          }
+          const clickInside = () => page.mouse.click(insidePoint.x, insidePoint.y);
+          const clickOutside = () => page.mouse.click(outsidePoint.x, outsidePoint.y);
+          if (outsideFirst) { await clickOutside(); await clickInside(); }
+          else { await clickInside(); await clickOutside(); }
+          const line = page.locator("[data-external-connection]");
+          await expect(line).toHaveCount(1);
+          await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+          const saved = await db.atlasConnection.findFirstOrThrow({ where: { workId: work.id } });
+          expect(saved).toMatchObject({ fromId: localId, toId: external.id, workId: work.id });
+          expect((await db.atlasElement.findUniqueOrThrow({ where: { id: external.id } })).workId).toBe(publicWork?.id ?? null);
+          // 发布后另一作品也会读到这条线；删除必须以所属作品的新快照为准。
+          const publishBeforeDelete = !!publicWork && outsideFirst;
+          if (publishBeforeDelete) {
+            await editor.getByRole("button", { name: "发布", exact: true }).click();
+            await expect(editor.getByRole("button", { name: "编辑作品", exact: true })).toBeVisible();
+          }
+          await page.reload();
+          await waitForWorkLayout(page, editor);
+          if (publishBeforeDelete) await waitForPublishedLayout(page, editor, work.viewportWidth);
+          if (publicWork) await waitForPublishedLayout(page, page.locator(`[data-work-id="${publicWork.id}"]`), publicWork.viewportWidth);
+          expect(await db.atlasConnection.findUnique({ where: { id: saved.id } })).toMatchObject({ workId: work.id, fromId: localId, toId: external.id });
+          await expect(line, "两端布局就绪后，刷新保留已保存连线").toHaveCount(1);
+          if (publishBeforeDelete) await editor.getByRole("button", { name: "编辑作品", exact: true }).click();
+          await page.getByRole("button", { name: "删除作品连线 1" }).focus(); await page.keyboard.press("Enter");
+          await expect(line).toHaveCount(0);
+          await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+          await page.reload();
+          if (publishBeforeDelete) await editor.getByRole("button", { name: "编辑作品", exact: true }).click();
+          await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();
+          await expect(line).toHaveCount(0);
+          expect(await db.atlasElement.count({ where: { id: { in: [localId, external.id] } } })).toBe(2);
+          expect(await db.atlasConnection.count({ where: { id: saved.id } })).toBe(0);
+        } finally { await page.close(); await db.atlasElement.deleteMany({ where: { id: external.id } }); }
+      });
+    });
+  }
+}

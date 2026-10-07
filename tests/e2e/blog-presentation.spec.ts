@@ -61,6 +61,8 @@ async function pins(line: Locator) {
 }
 
 async function expectPin(line: Locator, index: number, target: Locator) {
+  // 刷新先完成客户端图钉挂载，再核对真实屏幕几何，避免把尚未水合当成位置偏差。
+  await expect(line.locator("circle[stroke]").nth(index)).toBeAttached();
   await expect.poll(async () => {
     const point = (await pins(line))[index], rect = await target.boundingBox();
     if (!point || !rect) return Infinity;
@@ -126,7 +128,8 @@ test.describe("博文共享展示", () => {
           await expect(dialog.getByLabel("正文（Markdown）")).toHaveValue(posts[0].content);
           await dialog.getByRole("button", { name: "关闭编辑博文", exact: true }).click();
 
-          await first.getByRole("button", { name: "选择为连线端点" }).click();
+          await first.getByRole("button", { name: `连接博文：${posts[0].title}` }).focus();
+          await page.keyboard.press("Enter");
           await second.getByRole("button", { name: posts[1].title, exact: true }).focus();
           await page.keyboard.press("Tab");
           await expect(secondEdit).toBeFocused();
@@ -578,7 +581,10 @@ test.describe("博文共享展示", () => {
         await page.mouse.up();
         await expect.poll(async () => (await db.blogWork.findUniqueOrThrow({ where: { id: draft.id } })).viewportWidth).toBe(width);
       };
-      for (const line of lines) await expect(line.locator("path")).toHaveAttribute("stroke", "#668a5b");
+      for (const line of lines) {
+        await expect(line.locator("path[stroke-dasharray]")).toHaveAttribute("stroke", "#668a5b");
+      }
+      await expect(page.getByRole("button", { name: /删除作品连线/ })).toHaveCount(2);
       await resize(360);
       for (const line of lines) {
         await expect.poll(async () => {
@@ -589,6 +595,7 @@ test.describe("博文共享展示", () => {
       await expectPin(lines[1], 1, page.locator(`[data-element-id="${c.id}"]`));
       await resize(300);
       for (const line of lines) await expect(line).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /删除作品连线/ })).toHaveCount(0);
       await editor.getByRole("button", { name: "调整草稿右边界", exact: true }).focus();
       await page.keyboard.press("ArrowLeft");
       await expect(editor.getByText("已自动保存", { exact: true })).toBeVisible();

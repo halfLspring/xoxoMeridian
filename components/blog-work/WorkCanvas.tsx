@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { HomePhotoElement } from "@/components/home/HomePhotoElement";
+import { PostCardSpatialShell } from "@/components/home/PostCardSpatialShell";
 import { PostCardView } from "@/components/blog/PostCardView";
 import { CanvasConnection } from "@/components/home/CanvasConnection";
 import type { HomePhotoElementData } from "@/components/home/types";
@@ -9,12 +10,13 @@ import { sceneToScreen, visibleAnchor, windowRect, type Point, type Rect } from 
 
 export type AnchorRegistrar = (id: string, point: () => Point | null) => () => void;
 const ignoreAnchor = () => () => {};
-export function WorkCanvas({ work, scale, editing, disabled = false, openDisabled = false, onPhotoPreview, onPhotoCommit, onDeletePhoto, onPost, onSelect, selected, registerAnchor }: {
+export function WorkCanvas({ work, scale, editing, disabled = false, openDisabled = false, onPhotoPreview, onPhotoCommit, onDeletePhoto, onPost, onSelect, selected, registerAnchor, connectable = editing && !disabled, deleteAction }: {
   work: WorkSnapshot; scale: number; editing: boolean; disabled?: boolean; openDisabled?: boolean;
   onPhotoPreview: (id: string, patch: Partial<WorkElement>) => void;
   onPhotoCommit: (id: string, patch: Partial<WorkElement>) => void;
   onDeletePhoto: (id: string) => void; onPost: (id: string) => void; onSelect: (id: string) => void;
-  selected?: string | null; registerAnchor?: AnchorRegistrar;
+  selected?: string | null; registerAnchor?: AnchorRegistrar; connectable?: boolean;
+  deleteAction?: (connection: WorkSnapshot["connections"][number], index: number) => { label: string; disabled: boolean; onDelete: () => void } | undefined;
 }) {
   const stage = useRef<HTMLDivElement>(null), postNodes = useRef(new Map<string, HTMLDivElement>());
   const measuredHeights = useRef<Record<string, number>>({});
@@ -52,27 +54,39 @@ export function WorkCanvas({ work, scale, editing, disabled = false, openDisable
     return () => removers.forEach(remove => remove());
   }, [registerAnchor, elementIds]);
   const anchors = new Map(work.elements.map(e => [e.id, visibleAnchor(rectFor(e), e.rotation, [windowRect(work)])]));
+  const renderConnections = (actions: boolean) => work.connections.map((connection, index) => {
+    const from = anchors.get(connection.fromId), to = anchors.get(connection.toId);
+    if (!from || !to) return null;
+    const action = actions ? deleteAction?.(connection, index) : undefined;
+    if (actions && !action) return null;
+    const viewport = { x: work.viewportX, y: work.viewportY };
+    return <g key={connection.id} data-work-connection={actions ? undefined : connection.id} data-work-connection-action={actions ? connection.id : undefined}>
+      <CanvasConnection from={sceneToScreen(from, { x: 0, y: 0 }, viewport, scale)} to={sceneToScreen(to, { x: 0, y: 0 }, viewport, scale)} color={connection.color} deleteAction={action} hitOnly={actions} />
+    </g>;
+  });
   return <div ref={stage} className="work-crop" style={{ width: work.viewportWidth * scale, height: work.viewportHeight * scale }}>
+    <svg className="work-connections" width={work.viewportWidth * scale} height={work.viewportHeight * scale}>{renderConnections(true)}</svg>
     <div className="work-scene" style={{ width: work.viewportWidth, height: work.viewportHeight, transform: `scale(${scale})`, transformOrigin: "top left" }}>
       <div style={{ position: "absolute", transform: `translate(${-work.viewportX}px, ${-work.viewportY}px)` }}>
         {work.posts.map(post => {
           const rect = positions.get(post.elementId)!;
           return <div key={post.id} ref={node => { if (node) postNodes.current.set(post.id, node); else postNodes.current.delete(post.id); }} className="work-post" data-work-post={post.id} style={{ position: "absolute", left: rect.x, top: rect.y, width: 352 }}>
-            <PostCardView title={post.title || "未命名博文"} content={post.content} authorName={work.ownerName}
-              timestamp={post.publishedAt ?? work.updatedAt} authorTimezone={post.authorTimezone} authorCity={post.authorCity} authorCountry={post.authorCountry} draft={work.status === "draft"}
-              onOpen={() => selected !== undefined && selected !== null ? onSelect(post.elementId) : onPost(post.id)}
-              openDisabled={openDisabled}
-              actions={<>
-                {/* 保留操作行高度，切换编辑状态不移动后续卡片和连线锚点。 */}
-                <div className="mt-3 flex h-4 gap-2">
-                  {editing && work.canManage && <button type="button" className="post-card-edit" disabled={disabled} onClick={() => onPost(post.id)}>Edit</button>}
-                </div>
-                {editing && <button type="button" className="work-post-link" onClick={() => onSelect(post.elementId)}>选择为连线端点</button>}
-              </>}
-            />
+            <PostCardSpatialShell elementId={post.elementId} label={`连接博文：${post.title || "未命名博文"}`} isConnectFrom={selected === post.elementId} onSpatialClick={connectable && visibleAnchor(rect, 0, [windowRect(work)]) ? onSelect : undefined}>
+              <PostCardView title={post.title || "未命名博文"} content={post.content} authorName={work.ownerName}
+                timestamp={post.publishedAt ?? work.updatedAt} authorTimezone={post.authorTimezone} authorCity={post.authorCity} authorCountry={post.authorCountry} draft={work.status === "draft"}
+                onOpen={() => onPost(post.id)}
+                openDisabled={openDisabled}
+                actions={<>
+                  {/* 保留操作行高度，切换编辑状态不移动后续卡片和连线锚点。 */}
+                  <div className="mt-3 flex h-4 gap-2">
+                    {editing && work.canManage && <button type="button" className="post-card-edit" disabled={disabled} onClick={() => onPost(post.id)}>Edit</button>}
+                  </div>
+                </>}
+              />
+            </PostCardSpatialShell>
           </div>;
         })}
-        {work.elements.filter(e => e.type === "photo" && e.imageUrl).map(element => <HomePhotoElement key={element.id} element={element as HomePhotoElementData} viewScale={scale} readOnly={!editing} deleting={disabled} selected={selected === element.id} onSelect={onSelect}
+        {work.elements.filter(e => e.type === "photo" && e.imageUrl).map(element => <HomePhotoElement key={element.id} element={element as HomePhotoElementData} viewScale={scale} readOnly={!editing} connectable={connectable && !!anchors.get(element.id)} deleting={disabled} selected={selected === element.id} onSelect={onSelect}
           onMove={(id, x, y) => onPhotoPreview(id, { x, y })} onMoveEnd={(id, x, y) => onPhotoCommit(id, { x, y })}
           onResizePreview={(id, width, height) => onPhotoPreview(id, { width, height })} onResizeEnd={(id, width, height) => onPhotoCommit(id, { width, height })}
           onRotate={(id, rotation) => onPhotoPreview(id, { rotation })} onRotateEnd={(id, rotation) => onPhotoCommit(id, { rotation })}
@@ -80,16 +94,7 @@ export function WorkCanvas({ work, scale, editing, disabled = false, openDisable
         />)}
       </div>
     </div>
-    {/* SVG 留在缩放场景外；与普通画布、页面连线共用屏幕像素线宽及图钉。 */}
-    <svg className="work-connections" aria-hidden="true" width={work.viewportWidth * scale} height={work.viewportHeight * scale}>
-      {work.connections.map(connection => {
-        const from = anchors.get(connection.fromId), to = anchors.get(connection.toId);
-        if (!from || !to) return null;
-        const viewport = { x: work.viewportX, y: work.viewportY };
-        return <g key={connection.id} data-work-connection={connection.id}>
-          <CanvasConnection from={sceneToScreen(from, { x: 0, y: 0 }, viewport, scale)} to={sceneToScreen(to, { x: 0, y: 0 }, viewport, scale)} color={connection.color} />
-        </g>;
-      })}
-    </svg>
+    {/* 可见线条在内容上方，删除命中区在内容下方，不能抢占图片/卡片手势。 */}
+    <svg className="work-connections" aria-hidden="true" width={work.viewportWidth * scale} height={work.viewportHeight * scale}>{renderConnections(false)}</svg>
   </div>;
 }

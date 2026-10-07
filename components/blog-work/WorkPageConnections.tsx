@@ -2,9 +2,11 @@
 import { useEffect, useState } from "react";
 import type { HomeAnchor } from "@/components/home/types";
 import { visibleAnchor, type Point } from "@/lib/blog-work/geometry";
-import type { AtlasConnectionData } from "@/components/atlas/types";
+import { useCanvasConnections } from "@/components/home/CanvasConnectionProvider";
+import type { WorkSnapshot } from "@/lib/blog-work/types";
 import { CanvasConnection } from "@/components/home/CanvasConnection";
-export function WorkPageConnections({ connections, anchors, legacy }: { connections: AtlasConnectionData[]; anchors: Map<string, () => Point | null>; legacy: Map<string, HomeAnchor> }) {
+export function WorkPageConnections({ connections, anchors, legacy }: { connections: WorkSnapshot["connections"]; anchors: Map<string, () => Point | null>; legacy: Map<string, HomeAnchor> }) {
+  const controls = useCanvasConnections();
   const [lines, setLines] = useState<Array<{ id: string; color: string; a: Point; b: Point }>>([]);
   useEffect(() => {
     let frame = 0;
@@ -30,5 +32,16 @@ export function WorkPageConnections({ connections, anchors, legacy }: { connecti
     frame = requestAnimationFrame(measure);
     return () => cancelAnimationFrame(frame);
   }, [connections, anchors, legacy]);
-  return <svg className="work-page-connections" aria-hidden="true">{lines.map(({ id, color, a, b }) => <g key={id} data-external-connection={id}><CanvasConnection from={a} to={b} color={color} /></g>)}</svg>;
+  const renderLines = (actions: boolean) => lines.map(({ id, color, a, b }, index) => {
+    const connection = connections.find(item => item.id === id);
+    const action = actions && connection ? controls?.deleteAction(connection, index) : undefined;
+    if (actions && !action) return null;
+    return <g key={id} data-external-connection={actions ? undefined : id} data-external-connection-action={actions ? id : undefined}>
+      <CanvasConnection from={a} to={b} color={color} deleteAction={action} hitOnly={actions} />
+    </g>;
+  });
+  return <>
+    <svg className="work-page-connections work-page-connection-actions">{renderLines(true)}</svg>
+    <svg className="work-page-connections" aria-hidden="true">{renderLines(false)}</svg>
+  </>;
 }

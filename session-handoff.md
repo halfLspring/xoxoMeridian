@@ -1,35 +1,23 @@
 # 会话交接
 
-## 当前状态与唯一下一步
+## 当前状态
 
-2026-10-06：**feat-124 与用户明确授权的 feat-126 均已完成。** source-map-js 唯一锁定条目从 1.2.1 升至兼容补丁 1.2.2，补充 6 项有界行为回归及原始镜像包清单；生日主题私聊测试改为等待思考提示消失，默认主题仍验证“回复准备好啦。”，后续真实回复、权限、审批、刷新和共享 Chat 断言保留。应用主题行为未改变。
+2026-10-07：feat-127「统一草稿内外的点击连线交互」已完成，状态 `done`，前置 feat-091/103 均完成。草稿底部仅保留博文/图片；草稿、普通画板和已发布作品编辑态共享点击/键盘选择、1500ms 超时和取消。连线创建/删除保留原保存及权限链路，刷新和发布后删除已验证。图片手势、标题阅读、Edit、裁切及窄屏几何均保留。实现入口为 `components/home/CanvasConnectionProvider.tsx`、`components/blog-work/WorkEditor.tsx`、`WorkCanvas.tsx` 和 `WorkPageConnections.tsx`；旧 `WorkConnectionPicker.tsx` 已删除。
 
-长期证据：[实施与验收](docs/plan/2026-10-06-source-map-js-security.md)、[所有命令与结果](docs/plan/evidence/feat-124/verification.json)、[最终输入与范围核验](docs/plan/evidence/feat-124/scope-validation.json)。用户授权原文为“授权修正 feat-126，并完成 feat-124”。保留最初生日主题失败及修正后的通过记录。
+本项没有剩余阻塞。此前测试失败、修复原因、旧保护映射、负向检测与成本详见 `feature_list.json` 的 feat-127，不能把早期失败轮次当作通过样本。未修改服务端、数据库、依赖或运行配置。
 
-用户随后要求将工作区修改合并提交为一个 commit，并明确排除全部 `.png` 与 `docs/plan/` 下未追踪文件。PNG 和尚存的未追踪计划文档保留在本地；提交检查期间 `docs/plan/evidence/` 已从工作区删除，其中 feat-108 的 16 个已追踪文件删除随本次提交记录。上述新增计划和详细证据不包含在本次提交中，根 feature 条目及本交接仍保留验收摘要；指向已删除证据目录的链接当前不可用。提交后可用 `git log -1` 查看本次记录。
+## 验证与工件
 
-唯一推荐下一步：**复核 feat-125 的 typography 上游兼容修复条件**，有符合原验收的兼容方案后再单独实施。feat-121 的 braces 链继续等待上游修复；feat-092 仍需单独确认范围。
+- 入场 `./scripts/run-node22.sh ./init.sh` exit0：114 文件/1058 项。
+- 最终 `E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run check:full` exit0：115 文件/1068 项 Node/组件、生产构建、45 文件/201 项真实 PostgreSQL、142/142 生产浏览器全部通过，无 skip/retry。覆盖率 S/B/F/L 为 54.71%/48.78%/59.31%/55.87%；对应 runner 时长 25.46s、232.49s、14.3m。
+- 恢复构建生成的 `next-env.d.ts` 到入场开发路径后，`./scripts/run-node22.sh npm run typecheck` 再次 exit0。最终 JSON、状态/依赖、工件引用、归档完整性、`git diff --check` 与 `git status --short` 已核验。
+- 本轮临时副本、日志、trace、截图/视频、覆盖率与 Playwright 报告/auth 已清理；隔离数据库、上传目录和容器已回收，3100 已关闭。Docker Desktop 已启动，保留既有 `xoxo-meridian-postgres`、原网络和原卷。
+- 工作树保留本任务实现与状态改动；既有 6 个 `docs/plan/` 删除和未追踪 `ChatGPT 图像 2026年9月30日 12_12_21.png` 保持，不恢复或清除。没有提交、部署或改写历史。
 
-根列表 32 项：29 done、3 not-started（092/121/125），无 in-progress 或 blocked。归档 94 项，全局 126 个唯一 ID；featuresNumber=32<=40，跳过归档。其他 30 个既有 feature、历史证据和 feat-112 采样未改。
+根列表 33 项（30 done、3 not-started），全局 127 个唯一 ID，两份归档 94 项保持；`featuresNumber<=40`，不归档。
 
-## 验证与保留风险
+## 唯一建议下一步与恢复路径
 
-所有 npm 命令通过 `./scripts/run-node22.sh`，宿主 Node.js 22.23.2/npm 10.9.8；隔离源码不含真实 `.env`，使用真实临时 PostgreSQL 和模拟外部供应商。
+下一会话建议按既有优先级处理 P1 的 feat-121：先根据该条证据核对兼容上游修复是否可用；feat-092 与 feat-125 仍独立待办，本轮没有开始它们。
 
-- 官方 registry `npm ci` 在升级前后隔离副本及最终主工作区均成功。最小锁改动仅为 source-map-js 的 version/resolved/integrity，Next/ESLint 16.3.8、GLTF 4.5.0、Playwright 1.62.1 及视频时钟保护保持。
-- 最终同一行为回归在旧包下 4 失败/2 通过，新包下 6/6 通过；恶意输入子进程限堆 64 MiB、超时 2 秒。`./scripts/run-node22.sh ./init.sh` 修正前后均通过，最终 114 文件/1058 项。
-- 正式应用 feat-126 后，`./scripts/run-node22.sh npm run check:full` exit0（1029.101 秒）：类型、lint、正式资产检查、生产构建、114 文件/1058 项 Node/组件、45 文件/201 项真实 PostgreSQL、133/133 默认主题生产 E2E 全部通过。覆盖率 statements/branches/functions/lines 为 54.71/48.72/59.31/55.87%。未重复单独 `npm run check`、`npm run test:integration`，均已包含。
-- `./scripts/run-node22.sh npm run test:e2e:agent-entry:production:default` 28/28、246.048 秒。原 `test:e2e:agent-entry:production:birthday` 22 通过/1 失败、exit1、147.164 秒：848 行将生日主题静态反馈误判为默认主题完成提示；任务已在真实数据库 completed。授权修正的生日候选 23/23、exit0、155.883 秒，正式文件与其逐字节相同。最终 full 再次覆盖修正后的默认主题，全部浏览器验证均 0 skip/retry。
-- 最终 full 的 GLB 故障用例输出附近出现一次 `Error: The destination stream closed early.`（digest 2872961437），相邻用例通过，整体 exit0；记录观测但未归因。早期回归 fixture 错误及原生日失败均已保留命令、退出码、原因和恢复结果。
-- `./scripts/run-node22.sh npm run test:compose-smoke` exit0（167.747 秒）：真实构建隔离、init 迁移/seed、Web 健康、独立 Worker 共享/私聊任务、媒体上传与回收均通过。[原始镜像清单](docs/plan/evidence/feat-124/image-dependencies.json) 证明 Web/Worker 均含 source-map-js 1.2.2；镜像 Node 22.23.3/npm 10.9.9 与宿主版本分别记录。feat-126 只改 Docker 排除的 E2E 文件，无需重复构建。
-- `./scripts/run-node22.sh npm audit --json --registry=https://registry.npmjs.org` 仍 exit1：**6 high、2 moderate**；增加 `--omit=dev` 仍 exit1：**0 high、2 moderate**。本项 GHSA-68fv-2mgg-jv7q 已消失，剩余 braces（121）和 typography/selector-parser（125）继续独立跟踪，Worker 实际仍含这些路径。完整安装树均 exit0，原两项 optional extraneous 提示保留。未宣称所有审计为零或已证明线上攻击可达性。
-
-## 清理与恢复路径
-
-本轮独占隔离源码、临时数据库/账号、测试容器、网络、卷和镜像、浏览器报告、认证状态、视频/截图、原始日志与缓存均已清理。[资源记录](docs/plan/evidence/feat-124/resource-cleanup.json) 确认 Docker 前后资源 ID 集合一致（1 容器、5 镜像、3 卷、4 网络），3100 端口关闭。主工作区保留新锁定安装；所有既有用户改动按上述范围纳入本地提交或留在工作区，未推送或部署。实现收尾时已核验 JSON、状态/依赖、计数、相对链接与范围指纹；提交整理再次核验 JSON、状态/依赖、计数和 `git diff --cached --check`/`git status --short`。证据目录随后删除造成的链接缺失按上述现状保留，未恢复用户删除的文件。
-
-本次提交整理未改代码、依赖或运行配置；559 个代码/配置/资产输入与已通过的最终完整门禁指纹相同。因此未重复运行 `./scripts/run-node22.sh ./init.sh`、`./scripts/run-node22.sh npm run check`、`./scripts/run-node22.sh npm run check:full`、两主题 Agent 生产浏览器或 Compose smoke，沿用上面的实际验证结果；本次另外核验提交范围与差异格式。
-
-下一会话依次读取 AGENTS.md、根状态和本交接；只提取所选任务及依赖，不必加载全部历史正文。若上游仍无兼容修复，按文档例外只记录复核结果；若开始实现，单独标记 in-progress，再运行 `./scripts/run-node22.sh ./init.sh`，执行所选任务的完整验收。
-
-无需恢复任何临时目录。快速基线：`./scripts/run-node22.sh ./init.sh`；开发启动：`./scripts/run-node22.sh npm run dev`。本轮已验证 init 和隔离生产/Compose 启动路径，没有另启主工作区开发服务。
+恢复时依次阅读 `AGENTS.md`、`feature_list.json` 中所选条目的完整依赖/验收和本交接。开始代码实现时只标记所选 feature 为 `in-progress`，再执行 `./scripts/run-node22.sh ./init.sh`；运行环境仍使用 Node 22.23.2/npm 10.9.8。需要浏览器或数据库验证时直接使用现有 Docker Desktop 的 WSL 集成；不要复用已清理的测试账号或临时数据库连接。

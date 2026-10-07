@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { CanvasConnectionProvider, useCanvasConnections } from "@/components/home/CanvasConnectionProvider";
 import { BlogWorkspace } from "@/components/blog-work/BlogWorkspace";
 import { useBlogActions } from "@/components/blog-work/BlogActionProvider";
 import { WorkEditor } from "@/components/blog-work/WorkEditor";
@@ -16,7 +17,13 @@ import type { HomeAnchor, HomeBoardSnapshot, HomeContextMenuState, HomePhotoElem
 import { useHomeBoardMutations } from "@/components/home/useHomeBoardMutations";
 import { isHomeBlankTarget } from "@/lib/home-spatial";
 
-export function HomeTimelineBoard({
+type BoardProps = { posts: TimelinePost[]; feed?: BlogFeed; currentUserId: string; initialSnapshot: HomeBoardSnapshot };
+
+export function HomeTimelineBoard(props: BoardProps) {
+  return <CanvasConnectionProvider key={props.currentUserId}><HomeTimelineBoardContent {...props} /></CanvasConnectionProvider>;
+}
+
+function HomeTimelineBoardContent({
   posts,
   feed,
   currentUserId,
@@ -55,8 +62,7 @@ export function HomeTimelineBoard({
     elements, setElements, connections, setConnections, saveStates,
     updatePhoto, savePhotoPatch, deletePhoto, deleteConnection, retry,
   } = useHomeBoardMutations(initialSnapshot);
-  const [connectFromId, setConnectFromId] = useState<string | null>(null);
-  const connectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { selectedId: connectFromId, select: selectElement, register: registerConnections, unregister: unregisterConnections } = useCanvasConnections()!;
   const [contextMenu, setContextMenu] = useState<HomeContextMenuState | null>(null);
   const blogIntent = useBlogActions()?.intent;
   const [uploadPosition, setUploadPosition] = useState<{ x: number; y: number } | null>(null);
@@ -126,7 +132,12 @@ export function HomeTimelineBoard({
   const displayPosts = [...new Map([...(q ? (searchState?.posts ?? posts) : posts), ...additional.flatMap(entry => entry.kind === "post" ? [entry.post] : [])].map(post => [post.id, post])).values()].filter(post => post.type !== "agent_log");
   const displayWorks = [...new Map([...(q ? [] : publishedWorks), ...((q ? searchState?.works : undefined) ?? feed?.entries.flatMap(entry => entry.kind === "work" ? [entry.work] : []) ?? []), ...additional.flatMap(entry => entry.kind === "work" ? [entry.work] : [])].map(work => [work.id, work])).values()].filter(work => !deletedWorkIds.has(work.id));
   const nextCursor = extraPage?.query === q ? extraPage.cursor : q ? currentSearch?.nextCursor : feed?.nextCursor;
-  const externalConnections = [...new Map([...displayWorks.map(w => editedWorks[w.id] ?? w), ...(activeWork ? [activeWork] : [])].flatMap(w => w.connections.filter(c => !w.elements.some(e => e.id === c.fromId) || !w.elements.some(e => e.id === c.toId))).map(c => [c.id, c])).values()];
+  const visibleWorks = new Map([...displayWorks.map(w => editedWorks[w.id] ?? w), ...(activeWork ? [activeWork] : [])].map(w => [w.id, w]));
+  const externalConnections = [...new Map([...visibleWorks.values()].flatMap(w => w.connections.filter(c =>
+    (!w.elements.some(e => e.id === c.fromId) || !w.elements.some(e => e.id === c.toId))
+    // 所属作品的最新快照优先；删除后不能被另一端尚未回读的旧快照重新绘制。
+    && (!visibleWorks.has(c.workId) || visibleWorks.get(c.workId)!.connections.some(current => current.id === c.id))
+  )).map(c => [c.id, c])).values()];
   const emptyMessage = q && currentSearch && !currentSearch.error && displayPosts.length === 0 && displayWorks.length === 0
     ? "No posts match your search."
     : undefined;
@@ -215,40 +226,18 @@ export function HomeTimelineBoard({
     };
   }, [refreshBoardRect]);
 
-  const selectElement = useCallback(async (id: string) => {
-    if (!connectFromId) {
-      setConnectFromId(id);
-      if (connectTimerRef.current) clearTimeout(connectTimerRef.current);
-      connectTimerRef.current = setTimeout(() => {
-        setConnectFromId(null);
-        connectTimerRef.current = null;
-      }, 1500);
-      return;
-    }
-
-    if (connectFromId === id) {
-      setConnectFromId(null);
-      return;
-    }
-
-    if (connectTimerRef.current) {
-      clearTimeout(connectTimerRef.current);
-      connectTimerRef.current = null;
-    }
-
+  const createConnection = useCallback(async (fromId: string, toId: string) => {
     const response = await fetch("/api/home-board/connections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromId: connectFromId, toId: id }),
+      body: JSON.stringify({ fromId, toId }),
     });
-
-    if (response.ok) {
-      const { connection } = await response.json();
-      setConnections((prev) => [...prev, connection]);
-    }
-
-    setConnectFromId(null);
-  }, [connectFromId, setConnections]);
+    if (!response.ok) throw new Error("连线保存失败");
+    const { connection } = await response.json();
+    setConnections(previous => [...previous.filter(item => item.id !== connection.id), connection]);
+  }, [setConnections]);
+  useEffect(() => registerConnections({ id: "home-board", elements, editable: true, disabled: false, create: createConnection }), [registerConnections, elements, createConnection]);
+  useEffect(() => () => unregisterConnections("home-board"), [unregisterConnections]);
 
   return (
     <div

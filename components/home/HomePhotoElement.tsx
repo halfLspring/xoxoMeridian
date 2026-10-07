@@ -9,6 +9,7 @@ export function HomePhotoElement({
   element,
   viewScale = 1,
   readOnly = false,
+  connectable = !readOnly,
   onResizePreview,
   deleting,
   selected,
@@ -25,6 +26,7 @@ export function HomePhotoElement({
   element: HomePhotoElementData;
   viewScale?: number;
   readOnly?: boolean;
+  connectable?: boolean;
   onResizePreview?: (id: string, width: number, height: number) => void;
   deleting: boolean;
   selected: boolean;
@@ -45,6 +47,7 @@ export function HomePhotoElement({
   const dragRef = useRef({
     active: false,
     resizing: false,
+    moved: false,
     pointerId: null as number | null,
     target: null as HTMLElement | null,
     startClientX: 0,
@@ -80,9 +83,9 @@ export function HomePhotoElement({
   }, []);
 
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (deleting || readOnly || event.button !== 0 || event.isPrimary === false || dragRef.current.active) return;
+    if (deleting || (readOnly && !connectable) || event.button !== 0 || event.isPrimary === false || dragRef.current.active) return;
     const target = event.target as HTMLElement;
-    if (target.closest("[data-caption-area], [data-rotation-control]") || target.closest("button")) return;
+    if (target.closest("[data-caption-area], [data-rotation-control]") || (target.closest("button") && !target.closest("[data-connection-endpoint]"))) return;
 
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -90,6 +93,7 @@ export function HomePhotoElement({
       ...dragRef.current,
       active: true,
       resizing: false,
+      moved: false,
       pointerId: event.pointerId,
       target: event.currentTarget,
       startClientX: event.clientX,
@@ -98,7 +102,7 @@ export function HomePhotoElement({
       startY: element.y,
       downTime: Date.now(),
     };
-  }, [deleting, readOnly, element.x, element.y]);
+  }, [deleting, readOnly, connectable, element.x, element.y]);
 
   const onResizePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     if (deleting || readOnly || event.button !== 0 || event.isPrimary === false || dragRef.current.active) return;
@@ -123,8 +127,9 @@ export function HomePhotoElement({
     if (deleting || !dragRef.current.active || dragRef.current.resizing || dragRef.current.pointerId !== event.pointerId) return;
     const dx = (event.clientX - dragRef.current.startClientX) / viewScale;
     const dy = (event.clientY - dragRef.current.startClientY) / viewScale;
-    onMove(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
-  }, [deleting, element.id, onMove, viewScale]);
+    if (Math.hypot(dx, dy) >= 5) dragRef.current.moved = true;
+    if (dragRef.current.moved && !readOnly) onMove(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
+  }, [deleting, readOnly, element.id, onMove, viewScale]);
 
   const onPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (deleting || !dragRef.current.active || dragRef.current.resizing || dragRef.current.pointerId !== event.pointerId) return;
@@ -134,13 +139,13 @@ export function HomePhotoElement({
     const dist = Math.hypot(dx, dy);
     const duration = Date.now() - dragRef.current.downTime;
 
-    if (dist < 5 && duration < 300) {
-      onSelect(element.id);
+    if (!dragRef.current.moved && dist < 5 && duration < 300) {
+      if (connectable) onSelect(element.id);
       return;
     }
 
-    onMoveEnd(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
-  }, [deleting, element.id, onMoveEnd, onSelect, viewScale, finishGesture]);
+    if (!readOnly) onMoveEnd(element.id, dragRef.current.startX + dx, dragRef.current.startY + dy);
+  }, [deleting, readOnly, connectable, element.id, onMoveEnd, onSelect, viewScale, finishGesture]);
 
   const getResizeSize = useCallback((clientX: number, clientY: number) => {
     const drag = dragRef.current;
@@ -177,8 +182,8 @@ export function HomePhotoElement({
       rootRef.current?.style.setProperty("--home-photo-width", `${drag.startWidth}px`);
       rootRef.current?.style.setProperty("--home-photo-height", `${drag.startWidth / drag.aspectRatio}px`);
       onResizePreview?.(element.id, drag.startWidth, drag.startWidth / drag.aspectRatio);
-    } else onMove(element.id, drag.startX, drag.startY);
-  }, [element.id, onMove, onResizePreview, finishGesture]);
+    } else if (!readOnly) onMove(element.id, drag.startX, drag.startY);
+  }, [element.id, readOnly, onMove, onResizePreview, finishGesture]);
   const cancelPointerGesture = (event: React.PointerEvent<HTMLDivElement>) => {
     if (dragRef.current.pointerId === event.pointerId) cancelGesture();
   };
@@ -223,6 +228,10 @@ export function HomePhotoElement({
           className="pointer-events-none h-full w-full rounded-[8px] bg-[#f6f8f4] object-contain"
           draggable={false}
         />
+
+        {connectable && <button type="button" data-connection-endpoint className="canvas-photo-connect"
+          aria-label={`连接照片：${element.caption || "未标注照片"}`} aria-pressed={selected} disabled={deleting}
+          onClick={event => { if (event.detail === 0 && !deleting) { event.stopPropagation(); onSelect(element.id); } }} />}
 
         <div className="home-photo-caption" data-caption-area>
           {readOnly ? <span>{element.caption}</span> : editingCaption ? (

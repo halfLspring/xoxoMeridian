@@ -158,6 +158,7 @@ export function Timeline({
               <TimelineItem side={isLeft ? "left" : "right"}>
                 <PostCardSpatialShell
                   elementId={elementId}
+                  label={`连接博文：${post.title}`}
                   isConnectFrom={connectFromId === elementId}
                   onSpatialClick={onSpatialElementClick}
                   registerSpatialAnchor={registerSpatialAnchor}

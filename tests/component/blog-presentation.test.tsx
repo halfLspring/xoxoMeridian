@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PostCard } from "@/components/blog/PostCard";
 import { WorkCanvas } from "@/components/blog-work/WorkCanvas";
 import { CanvasConnection } from "@/components/home/CanvasConnection";
@@ -17,8 +17,11 @@ const work: WorkSnapshot = {
 
 beforeEach(() => {
   // 本层只检查内容与键盘回调；真实尺寸/字体由 Playwright 验证。
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(180);
   vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 it("作品摘要可键盘打开全文或选择端点，空文不会写入占位内容", async () => {
   const onPost = vi.fn(), onSelect = vi.fn();
@@ -29,26 +32,26 @@ it("作品摘要可键盘打开全文或选择端点，空文不会写入占位�
   screen.getByRole("button", { name: "标题" }).focus();
   await userEvent.keyboard("{Enter}");
   expect(onPost).toHaveBeenCalledWith("post");
-  screen.getByRole("button", { name: "选择为连线端点" }).focus();
+  screen.getByRole("button", { name: "连接博文：标题" }).focus();
   await userEvent.keyboard(" ");
   expect(onSelect).toHaveBeenCalledWith("element");
   view.rerender(<WorkCanvas {...props} selected="other" />);
   await userEvent.click(screen.getByRole("button", { name: "标题" }));
-  expect(onPost).toHaveBeenCalledTimes(1);
-  expect(onSelect).toHaveBeenCalledTimes(2);
+  expect(onPost).toHaveBeenCalledTimes(2);
+  expect(onSelect).toHaveBeenCalledTimes(1);
   screen.getByRole("button", { name: "Edit" }).focus();
   await userEvent.keyboard("{Enter}");
-  expect(onPost).toHaveBeenCalledTimes(2);
-  expect(onSelect).toHaveBeenCalledTimes(2);
+  expect(onPost).toHaveBeenCalledTimes(3);
+  expect(onSelect).toHaveBeenCalledTimes(1);
   view.rerender(<WorkCanvas {...props} disabled />);
   await userEvent.click(screen.getByRole("button", { name: "Edit" }));
   expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
-  expect(onPost).toHaveBeenCalledTimes(2);
+  expect(onPost).toHaveBeenCalledTimes(3);
   view.rerender(<WorkCanvas {...props} work={{ ...work, canManage: false }} />);
   expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   view.rerender(<WorkCanvas {...props} work={{ ...work, status: "published" }} />);
   await userEvent.click(screen.getByRole("button", { name: "Edit" }));
-  expect(onPost).toHaveBeenCalledTimes(3);
+  expect(onPost).toHaveBeenCalledTimes(4);
   view.rerender(<WorkCanvas {...props} work={{ ...work, status: "published", canManage: false }} />);
   expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   view.rerender(<WorkCanvas {...props} editing={false} work={{ ...work, status: "published" }} />);
@@ -57,7 +60,7 @@ it("作品摘要可键盘打开全文或选择端点，空文不会写入占位�
   expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "未命名博文" })).toBeEnabled();
   expect(screen.queryByText("写下此刻的心情…")).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "选择为连线端点" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "连接博文：标题" })).not.toBeInTheDocument();
   expect(work.posts[0].content).toBe(content);
 });
 

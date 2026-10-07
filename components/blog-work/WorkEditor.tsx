@@ -1,13 +1,13 @@
 "use client";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import Link from "next/link";
-import { FilePenLine, ImagePlus, Link2, LockKeyhole } from "lucide-react";
+import { FilePenLine, ImagePlus, LockKeyhole } from "lucide-react";
 import { useWorkMutations } from "@/components/blog-work/useWorkMutations";
 import { WorkCanvas, type AnchorRegistrar } from "@/components/blog-work/WorkCanvas";
 import { WorkFrame, type WorkFrameValue } from "@/components/blog-work/WorkFrame";
 import { WorkDialog } from "@/components/blog-work/WorkDialog";
 import { WorkPostForm } from "@/components/blog-work/WorkPostForm";
-import { WorkConnectionPicker } from "@/components/blog-work/WorkConnectionPicker";
+import { CanvasConnectionProvider, useCanvasConnections } from "@/components/home/CanvasConnectionProvider";
 import { WorkPublishedTime } from "@/components/blog-work/WorkPublishedTime";
 import { MarkdownContent } from "@/components/blog/MarkdownContent";
 import { fitHomePhotoSizeToBounds } from "@/lib/home-spatial";
@@ -22,10 +22,16 @@ const photoChanged = (work: WorkSnapshot, id: string, patch: Partial<WorkElement
   const stored = work.elements.find(element => element.id === id);
   return !!stored && photoPatchChanged(stored, patch);
 };
-export function WorkEditor({ initial, actorId, editable = false, focusPostId, leaveRef, onClose, onPublished, onDeleted, onChanged, registerAnchor }: {
+type WorkEditorProps = {
   initial: WorkSnapshot; actorId: string; editable?: boolean; focusPostId?: string; leaveRef?: MutableRefObject<LeaveHandler | null>;
   onClose: () => void; onPublished: (work: WorkSnapshot) => void; onDeleted: (id: string) => void; onChanged?: (work: WorkSnapshot) => void; registerAnchor?: AnchorRegistrar;
-}) {
+};
+export function WorkEditor(props: WorkEditorProps) {
+  const connections = useCanvasConnections();
+  return connections ? <WorkEditorContent {...props} /> : <CanvasConnectionProvider><WorkEditorContent {...props} /></CanvasConnectionProvider>;
+}
+function WorkEditorContent({ initial, actorId, editable = false, focusPostId, leaveRef, onClose, onPublished, onDeleted, onChanged, registerAnchor }: WorkEditorProps) {
+  const { selectedId: selected, select: chooseEndpoint, clear: clearSelection, register: registerConnections, unregister: unregisterConnections, deleteAction, hasWorkEditor } = useCanvasConnections()!;
   const save = useWorkMutations(initial, actorId), { work, state, enqueue, refresh } = save;
   const [editing, setEditing] = useState(editable || initial.status === "draft"), [modal, setModal] = useState<string | null>(focusPostId && initial.posts.some(p => p.id === focusPostId) ? `post:${focusPostId}` : null);
   const textVersion = useRef(0), sentVersions = useRef(new Map<string, number>());
@@ -41,7 +47,7 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const header = useRef<HTMLElement>(null), footer = useRef<HTMLElement>(null);
   const [controlsSize, setControlsSize] = useState({ header: 0, footer: 0 });
   const viewportWidth = useRef(initial.viewportWidth);
-  const [selected, setSelected] = useState<string | null>(null), [localError, setLocalError] = useState("");
+  const [localError, setLocalError] = useState("");
   const [leaving, setLeaving] = useState(false), pendingLeave = useRef<(() => void) | null>(null), [uploading, setUploading] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -51,6 +57,11 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const dirtyFrame = !!framePreview || (!!frame && (["viewportX", "viewportY", "viewportWidth", "viewportHeight", "draftX", "draftY"] as const).some(key => frame[key] !== work[key]));
   const busy = state !== "clean" || dirtyText || dirtyPhotos || dirtyFrame || uploading || publishing || deleting;
   const locked = leaving || publishing || deleting;
+  const createConnection = useCallback((fromId: string, toId: string) => enqueue({ operation: "connection.create", data: { fromId, toId, color: "#72975a" } }), [enqueue]);
+  const removeConnection = useCallback((id: string) => { void enqueue({ operation: "connection.delete", id }); }, [enqueue]);
+  const connectionDisabled = locked || state === "auth-invalid" || !!modal;
+  useEffect(() => registerConnections({ id: work.id, status: work.status, elements: work.elements, editable: editing, disabled: connectionDisabled, saving: busy, create: createConnection, remove: removeConnection }), [registerConnections, work.id, work.status, work.elements, editing, connectionDisabled, busy, createConnection, removeConnection]);
+  useEffect(() => () => unregisterConnections(work.id), [unregisterConnections, work.id]);
   const flush = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
@@ -68,10 +79,11 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const requestLeave = useCallback((next: () => void) => {
     if (deleting) return;
     if (work.status === "published" && Object.keys(textRef.current).length && !window.confirm("保存并公开博文修改后离开？")) return;
+    clearSelection();
     pendingLeave.current = next;
     if (!save.isClean() || Object.keys(textRef.current).length || uploading || dirtyFrame) { setLeaving(true); flush(); }
     else { pendingLeave.current = null; next(); }
-  }, [save, flush, uploading, dirtyFrame, work.status, deleting]);
+  }, [save, flush, uploading, dirtyFrame, work.status, deleting, clearSelection]);
   useEffect(() => { if (leaveRef) leaveRef.current = requestLeave; return () => { if (leaveRef) leaveRef.current = null; }; }, [leaveRef, requestLeave]);
   useEffect(() => {
     if (leaving && !busy && pendingLeave.current) {
@@ -92,11 +104,6 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     return () => { window.removeEventListener("beforeunload", warn); document.removeEventListener("click", navigate, true); };
   }, [busy, uploading, requestLeave]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  useEffect(() => {
-    const cancel = (event: KeyboardEvent) => { if (event.key === "Escape") setSelected(null); };
-    window.addEventListener("keydown", cancel);
-    return () => window.removeEventListener("keydown", cancel);
-  }, []);
   useLayoutEffect(() => { viewportWidth.current = framePreview?.viewportWidth ?? frame?.viewportWidth ?? work.viewportWidth; }, [framePreview?.viewportWidth, frame?.viewportWidth, work.viewportWidth]);
   // 可用宽度来自不随裁切框变化的宿主；调整边框不能反过来触发自动缩放。
   const fit = useCallback(() => {
@@ -193,7 +200,6 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     const draftPosition = work.status === "draft" ? { draftX: next.draftX, draftY: next.draftY } : {};
     void enqueue({ operation: "frame", data: { ...(kind === "resize" ? onlyWindow(next) : {}), ...draftPosition } }).then(result => { if (result) setFrame(previous => previous === next ? null : previous); });
   };
-  const chooseEndpoint = (id: string) => { if (!editing || locked) return; if (!selected) setSelected(id); else if (selected === id) setSelected(null); else { void enqueue({ operation: "connection.create", data: { fromId: selected, toId: id, color: "#72975a" } }); setSelected(null); } };
   const updateText = (id: string, data: { title: string; content: string }) => {
     const next = { ...textRef.current, [id]: { ...data, version: ++textVersion.current } }; textRef.current = next; setTexts(next);
     if (work.status === "draft") { if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(flush, 600); }
@@ -202,14 +208,14 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
   const deleteWork = () => {
     if (busy || leaving || !work.canManage || work.ownerId !== actorId || work.status !== "published") return;
     if (!window.confirm("删除这组已发布作品及其中的全部博文、图片和相关连线？外部相连作品会保留，此操作无法撤销。")) return;
-    setDeleting(true); setSelected(null); setLocalError("");
+    setDeleting(true); clearSelection(); setLocalError("");
     void enqueue({ operation: "delete" }).then(result => {
       setDeleting(false);
       if (result) { onDeleted(work.id); onClose(); }
     });
   };
   const canvas = <WorkFrame frame={{ ...onlyWindow(merged), ...(work.status === "draft" ? { draftX: merged.draftX ?? 24, draftY: merged.draftY ?? 40 } : {}) }} scale={scale} editing={editing && work.canManage && !locked} movable={work.status === "draft" && work.ownerId === actorId} onPreview={setFramePreview} onCommit={commitFrame}>
-    <WorkCanvas work={merged} scale={scale} editing={editing} disabled={state === "auth-invalid" || locked} openDisabled={!ready} onPhotoPreview={previewPhoto} onPhotoCommit={commitPhoto} onDeletePhoto={id => { void enqueue({ operation: "photo.delete", id }); }} onPost={id => { if (!locked) setModal(`post:${id}`); }} onSelect={chooseEndpoint} selected={selected} registerAnchor={registerAnchor} />
+    <WorkCanvas work={merged} scale={scale} editing={editing} disabled={state === "auth-invalid" || locked} openDisabled={!ready} onPhotoPreview={previewPhoto} onPhotoCommit={commitPhoto} onDeletePhoto={id => { void enqueue({ operation: "photo.delete", id }); }} onPost={id => { if (!locked) { clearSelection(); setModal(`post:${id}`); } }} onSelect={chooseEndpoint} selected={selected} connectable={(editing || (work.status === "published" && hasWorkEditor)) && !connectionDisabled} deleteAction={deleteAction} registerAnchor={registerAnchor} />
   </WorkFrame>;
   if (state === "auth-invalid") return <div role="alert">登录已失效。<Link href="/">重新登录</Link></div>;
   return <div ref={root} className="work-editor-host"><section ref={workFrame} style={frameStyle} className={`blog-work ${editing ? "blog-work-editing" : ""} ${controlsOutside ? "work-controls-outside" : ""}`} data-work-id={work.id} aria-label={work.status === "draft" ? "空间草稿" : "已发布作品"}>
@@ -217,9 +223,9 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
     <header ref={header} className="work-header">
       {work.status === "draft" && <span className="work-badge"><strong>DRAFT</strong><LockKeyhole size={14} />仅自己可见</span>}
       <div className="work-actions">
-        {editing && <span role="status" className={!busy ? "work-save-status work-save-status-saved" : "work-save-status"}>{state === "failed" ? deleting ? "删除失败" : "保存失败" : state === "conflict" ? deleting ? "删除冲突" : "修改冲突" : deleting ? "删除中…" : publishing ? "发布中…" : busy ? "保存中…" : "已自动保存"}</span>}
+        {editing && <span role="status" className={!busy && !save.error ? "work-save-status work-save-status-saved" : "work-save-status"}>{state === "failed" || (state === "clean" && !!save.error) ? deleting ? "删除失败" : "保存失败" : state === "conflict" ? deleting ? "删除冲突" : "修改冲突" : deleting ? "删除中…" : publishing ? "发布中…" : busy ? "保存中…" : "已自动保存"}</span>}
         {editing && work.status === "published" && work.canManage && work.ownerId === actorId && <button className="work-danger" disabled={busy || leaving} onClick={deleteWork}>删除作品</button>}
-        {editing ? <button disabled={deleting} onClick={() => requestLeave(() => { setEditing(false); onClose(); })}>{work.status === "draft" ? "退出草稿" : "退出编辑"}</button> : <button onClick={() => { setEditing(true); void save.refresh(); }}>编辑作品</button>}
+        {editing ? <button disabled={deleting} onClick={() => requestLeave(() => { setEditing(false); onClose(); })}>{work.status === "draft" ? "退出草稿" : "退出编辑"}</button> : <button onClick={() => { clearSelection(); setEditing(true); void save.refresh(); }}>编辑作品</button>}
         {work.status === "draft" && <button className="work-primary" disabled={busy} onClick={() => { setPublishing(true); void enqueue({ operation: "publish" }).then(result => { setPublishing(false); if (result) onPublished(result); }); }}>发布</button>}
       </div>
     </header>
@@ -234,7 +240,6 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
           void enqueue({ operation: "post.create", data: { title: "", content: "" } }).then(result => { const post = result?.posts.at(-1); if (post) setModal(`post:${post.id}`); });
         }}><FilePenLine size={19} />博文</button>}
         <button disabled={locked || uploading} onClick={() => fileInput.current?.click()}><ImagePlus size={19} />图片</button>
-        <button disabled={locked} onClick={() => setModal("connections")}><Link2 size={19} />连线</button>
       </div>
     </footer>}
     <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="上传作品图片" className="sr-only" disabled={locked} onChange={async e => {
@@ -246,7 +251,6 @@ export function WorkEditor({ initial, actorId, editable = false, focusPostId, le
       } catch { setLocalError("无法读取图片，请选择有效的 JPG、PNG 或 WebP 图片"); }
       finally { setUploading(false); }
     }} />
-    {modal === "connections" && <WorkConnectionPicker work={merged} actorId={actorId} onConnect={(fromId, toId) => { void enqueue({ operation: "connection.create", data: { fromId, toId, color: "#72975a" } }); }} onDelete={id => { void enqueue({ operation: "connection.delete", id }); }} onClose={() => setModal(null)} />}
     {currentPost && <WorkDialog title={work.canManage && editing ? "编辑博文" : "阅读博文"} onClose={() => { if (work.status === "draft") flush(); setModal(null); }}>
       {work.canManage && editing ? <><WorkPostForm value={currentPost} onChange={data => updateText(currentPost.id, data)} />{work.status === "published" && <button className="work-primary" onClick={flush}>保存博文</button>}<button onClick={() => { if (window.confirm("删除这篇博文？")) { void enqueue({ operation: "post.delete", id: currentPost.id }); setTexts(previous => { const next = { ...previous }; delete next[currentPost.id]; textRef.current = next; return next; }); setModal(null); } }}>删除博文</button></> : <><h3>{currentPost.title}</h3><MarkdownContent content={currentPost.content} /></>}
     </WorkDialog>}
