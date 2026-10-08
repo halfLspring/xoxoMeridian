@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { PrismaClient } from "@prisma/client";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+
+import { answerReferencesSchema, readAnswerReferences } from "@/lib/answer-references";
 
 import { privateDatabaseUrl } from "./support/agent-conversation";
 import { withStudyUser } from "./support/study";
@@ -30,6 +32,127 @@ async function jsonBody(request: IncomingMessage): Promise<Record<string, unknow
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(Buffer.from(chunk));
   return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+}
+
+function longAnswer(label: string) {
+  const content = Array.from({ length: 12 }, (_, index) => `${label}第 ${index + 1} 条合成资料结论，用于验证长引用的滚动边界。`).join("\n");
+  const sources = Array.from({ length: 5 }, (_, index) => ({
+    id: `s${index + 1}`, title: `${label}来源 ${index + 1}`, url: new URL(`https://source.example.test/${label}/${index + 1}`).href,
+    dates: [{ kind: "published", value: "2026-10-08" }],
+  }));
+  const references = answerReferencesSchema.parse({
+    version: 1, sources, citations: [{ start: 0, end: content.length, sourceIds: sources.map(({ id }) => id) }],
+  });
+  const metadata = { answerReferences: references };
+  expect(readAnswerReferences(metadata, content)).toEqual(references);
+  return { content, metadata };
+}
+
+async function referenceLayout(summary: Locator) {
+  return summary.evaluate((element) => {
+    // 从交互入口找实际滚动容器，不依赖样式类名或伪造 jsdom 几何。
+    let list = element.parentElement;
+    while (list && !/^(auto|scroll)$/u.test(getComputedStyle(list).overflowY)) list = list.parentElement;
+    if (!list?.parentElement || !document.scrollingElement) throw new Error("来源必须位于消息滚动区内。");
+    const root = document.scrollingElement;
+    const input = document.querySelector('[aria-label="消息内容"]');
+    const inputRect = input?.getBoundingClientRect();
+    return {
+      rootHeight: root.scrollHeight, rootClientHeight: root.clientHeight, windowY: window.scrollY,
+      mainHeight: document.querySelector("main")!.getBoundingClientRect().height,
+      hostHeight: list.parentElement.getBoundingClientRect().height,
+      listHeight: list.clientHeight, listScrollHeight: list.scrollHeight, listTop: list.scrollTop,
+      inputHeight: inputRect?.height ?? 0, inputTop: inputRect ? inputRect.top + window.scrollY : 0,
+    };
+  });
+}
+
+async function expectReferenceBoundary(summary: Locator, baseline: Awaited<ReturnType<typeof referenceLayout>>) {
+  await expect.poll(async () => {
+    const current = await referenceLayout(summary);
+    return Math.max(...([
+      "rootHeight", "rootClientHeight", "mainHeight", "hostHeight", "listHeight", "inputHeight", "inputTop",
+    ] as const).map((key) => Math.abs(current[key] - baseline[key])));
+  }, { message: "展开来源只能增加消息区内部滚动，不得撑大整页、宿主或输入区" }).toBeLessThanOrEqual(1);
+  const current = await referenceLayout(summary);
+  expect(current.windowY).toBeLessThanOrEqual(baseline.rootHeight - baseline.rootClientHeight + 1);
+  return current;
+}
+
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }, { width: 1280, height: 600 }]) {
+  test(`长来源展开仅滚动聊天消息区，发送、SSE 和刷新后保持边界（${viewport.width}×${viewport.height}）`, async ({ context }) => {
+    await withStudyUser(context, async ({ page, db, roomId, userId }) => {
+      await page.setViewportSize(viewport);
+      const agent = await db.agent.findUniqueOrThrow({ where: { slug: "life-assistant" } });
+      await db.message.createMany({ data: Array.from({ length: 12 }, (_, index) => ({
+        roomId, senderId: userId, senderType: "human" as const, content: `历史消息 ${index + 1}`,
+        createdAt: new Date(Date.UTC(2026, 9, 1, 0, index)),
+      })) });
+      await db.message.create({ data: { roomId, senderType: "agent", senderAgentId: agent.id, ...longAnswer("历史") } });
+      await page.goto(`/chat/${roomId}`);
+      const summaries = page.locator("summary").filter({ hasText: "参考来源（5）" });
+      const summary = summaries.first();
+      await expect(summaries).toHaveCount(1);
+      await summary.focus();
+      const baseline = await referenceLayout(summary);
+      // 短视口原本有 720px 最小高度，只约束展开增量。
+      expect(baseline.mainHeight).toBe(Math.max(720, viewport.height));
+      const measurements = [{ phase: "收起", ...baseline }];
+
+      await summary.press("Enter");
+      const links = page.getByRole("link", { name: /^历史来源 \d\s*（新窗口打开）$/u });
+      await expect(links).toHaveCount(5);
+      const expanded = await referenceLayout(summary);
+      await test.info().attach("长来源展开前后尺寸", { contentType: "application/json", body: JSON.stringify({ baseline, expanded }) });
+      measurements.push({ phase: "展开", ...await expectReferenceBoundary(summary, baseline) });
+      expect(expanded.listScrollHeight).toBeGreaterThan(baseline.listScrollHeight);
+      for (let index = 0; index < 5; index++) await page.keyboard.press("Tab");
+      await expect(links.last()).toBeFocused();
+      await expect(links.last()).toBeInViewport();
+      await expect(links.last()).toHaveAttribute("target", "_blank");
+      await expect(links.last()).toHaveAttribute("rel", "noopener noreferrer");
+      await expect(links.last()).toHaveAttribute("href", new URL("https://source.example.test/历史/5").href);
+      const focused = await expectReferenceBoundary(summary, baseline);
+      expect(focused.listTop).toBeGreaterThan(expanded.listTop);
+      measurements.push({ phase: "末项聚焦", ...focused });
+      await summary.press("Space");
+      await expect(links).toHaveCount(0);
+      measurements.push({ phase: "收起恢复", ...await expectReferenceBoundary(summary, baseline) });
+      await summary.click();
+      await expect(links).toHaveCount(5);
+      await expectReferenceBoundary(summary, baseline);
+      await summary.click();
+      await expect(links).toHaveCount(0);
+
+      const input = page.getByLabel("消息内容");
+      const sentText = "来源切换后仍可发送消息";
+      await input.fill(sentText);
+      const accepted = page.waitForResponse((response) => response.request().method() === "POST"
+        && new URL(response.url()).pathname === `/api/rooms/${roomId}/messages`);
+      await input.press("Enter");
+      expect((await accepted).ok()).toBe(true);
+      await expect(input).toHaveValue("");
+      await expect(input).toBeFocused();
+      await expect(page.getByText(sentText, { exact: true })).toBeVisible();
+      await expectReferenceBoundary(summary, baseline);
+
+      // 页面不刷新、不注入响应：新增持久化消息经真实 SSE 快照进入界面。
+      await db.message.create({ data: { roomId, senderType: "agent", senderAgentId: agent.id, ...longAnswer("实时") } });
+      await expect(summaries).toHaveCount(2);
+      const latest = summaries.last();
+      await latest.focus();
+      await latest.press("Enter");
+      await expect(page.getByRole("link", { name: /^实时来源 5\s*（新窗口打开）$/u })).toHaveCount(1);
+      measurements.push({ phase: "SSE 新消息展开", ...await expectReferenceBoundary(latest, baseline) });
+      await latest.press("Space");
+      await page.reload();
+      await expect(summaries).toHaveCount(2);
+      await expect(page.getByRole("link", { name: /来源 \d\s*（新窗口打开）$/u })).toHaveCount(0);
+      await latest.click();
+      measurements.push({ phase: "刷新后展开", ...await expectReferenceBoundary(latest, baseline) });
+      await test.info().attach("来源完整旅程尺寸", { contentType: "application/json", body: JSON.stringify(measurements) });
+    });
+  });
 }
 
 test("指定日期天气与台风追问经过真实工具综合，来源与答复刷新后保持一致", async ({ page }) => {
@@ -225,14 +348,15 @@ test("共享Chat、Study与专属私聊的来源均支持键盘展开、历史�
       slug: `${userId}-private`, name: "专属来源验证", kind: "agent_private", privateOwnerId: userId, maxHumanUsers: 1,
       participants: { create: { userId, role: "owner" } },
     } });
-    const sharedText = "共享展览十点开门。";
-    const privateText = "专属展览十一点开门。";
-    const source = (text: string, label: string) => ({ version: 1, sources: [{ id: "s1", title: label, url: `https://museum.example.test/${label}`, dates: [{ kind: "published", value: "2026-09-20" }] }], citations: [{ start: 0, end: text.length, sourceIds: ["s1"] }] });
+    const shared = longAnswer("shared");
+    const privateAnswer = longAnswer("private");
+    const sharedText = shared.content;
+    const privateText = privateAnswer.content;
     try {
       await db.message.createMany({ data: [
-        { roomId, senderType: "agent", senderAgentId: agent.id, content: sharedText, metadata: { answerReferences: source(sharedText, "shared"), toolResults: "内部载荷不得显示" } },
+        { roomId, senderType: "agent", senderAgentId: agent.id, ...shared, metadata: { ...shared.metadata, toolResults: "内部载荷不得显示" } },
         { roomId, senderType: "agent", senderAgentId: agent.id, content: "没有来源的历史消息。" },
-        { roomId: privateRoom.id, senderType: "agent", senderAgentId: agent.id, content: privateText, metadata: { answerReferences: source(privateText, "private") } },
+        { roomId: privateRoom.id, senderType: "agent", senderAgentId: agent.id, ...privateAnswer },
       ] });
       for (const path of [`/chat/${roomId}`, "/study", "/home"]) {
         await page.goto(path);
@@ -243,22 +367,31 @@ test("共享Chat、Study与专属私聊的来源均支持键盘展开、历史�
         await expect(summary).toHaveCount(1);
         await expect(scope.getByText(isPrivate ? privateText : sharedText, { exact: true }).first()).toBeVisible();
         await expect(scope.getByText(isPrivate ? sharedText : privateText, { exact: true })).toHaveCount(0);
-        const link = scope.getByRole("link", { name: isPrivate ? /^private\s*（新窗口打开）$/u : /^shared\s*（新窗口打开）$/u });
+        const links = scope.getByRole("link", { name: isPrivate ? /^private来源 \d\s*（新窗口打开）$/u : /^shared来源 \d\s*（新窗口打开）$/u });
+        const link = links.first();
         await expect(link).toHaveCount(0);
         await summary.focus();
+        const baseline = await referenceLayout(summary);
         await page.keyboard.press("Enter");
         await expect(link).toBeVisible();
+        await expectReferenceBoundary(summary, baseline);
         await page.keyboard.press("Tab");
         await expect(link).toBeFocused();
-        await expect(link).toHaveAttribute("href", `https://museum.example.test/${isPrivate ? "private" : "shared"}`);
-        await expect(scope.getByText("发布/更新：2026-09-20")).toBeVisible();
+        await expect(link).toHaveAttribute("href", `https://source.example.test/${isPrivate ? "private" : "shared"}/1`);
+        await expect(scope.getByText("发布/更新：2026-10-08")).toHaveCount(5);
+        for (let index = 1; index < 5; index++) await page.keyboard.press("Tab");
+        await expect(links.last()).toBeFocused();
+        await expect(links.last()).toBeInViewport();
+        await expectReferenceBoundary(summary, baseline);
         await page.reload();
         if (isPrivate) await page.getByRole("button", { name: entryName }).click();
         await expect(summary).toBeVisible();
         await expect(link).toHaveCount(0);
         await summary.focus();
+        const refreshed = await referenceLayout(summary);
         await page.keyboard.press("Space");
         await expect(link).toBeVisible();
+        await expectReferenceBoundary(summary, refreshed);
         await expect(scope.getByText("内部载荷不得显示")).toHaveCount(0);
       }
     } finally {

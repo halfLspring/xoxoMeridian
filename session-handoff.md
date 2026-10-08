@@ -1,23 +1,31 @@
 # 会话交接
 
-## 当前状态
+## 当前状态与提交范围
 
-2026-10-07：feat-127「统一草稿内外的点击连线交互」已完成，状态 `done`，前置 feat-091/103 均完成。草稿底部仅保留博文/图片；草稿、普通画板和已发布作品编辑态共享点击/键盘选择、1500ms 超时和取消。连线创建/删除保留原保存及权限链路，刷新和发布后删除已验证。图片手势、标题阅读、Edit、裁切及窄屏几何均保留。实现入口为 `components/home/CanvasConnectionProvider.tsx`、`components/blog-work/WorkEditor.tsx`、`WorkCanvas.tsx` 和 `WorkPageConnections.tsx`；旧 `WorkConnectionPicker.tsx` 已删除。
+2026-10-08：[feat-135](feature_list.json) 已完成，状态 `done`；本轮按用户要求整理为独立本地提交，主题为 `fix(chat): 修复参考来源展开导致整页溢出（feat-135）`。可用 `git log -1 --format='%h %s'` 查看提交标识。没有推送或部署生产。
 
-本项没有剩余阻塞。此前测试失败、修复原因、旧保护映射、负向检测与成本详见 `feature_list.json` 的 feat-127，不能把早期失败轮次当作通过样本。未修改服务端、数据库、依赖或运行配置。
+提交包含 [AnswerReferences](components/chat/AnswerReferences.tsx) 的局部定位修复、[来源 E2E](tests/e2e/agent-answer-quality.spec.ts)、feat-135 完整条目与本文。来源容器建立包含块后，绝对定位的可访问辅助文本受消息区裁切，长来源展开不再增加根文档滚动高度；鼠标、键盘、末项可达、输入/发送、SSE 和刷新均有真实浏览器保护。
 
-## 验证与工件
+账本按 feature 单独暂存：提交版本基于原 33 项只新增 feat-135，`featuresNumber=34`（31 done、3 not-started）；当前本地工作区仍为 41 项（33 done、8 not-started）。本地 feat-092 的调整及 feat-128～134 保留为未提交修改，后续不得用提交版本覆盖工作区账本。两份归档合计 94 项；提交版本全局 128 项、本地全局 135 项，ID 均唯一，feat-135 的前置 feat-108 已完成。两个版本均不触发归档。
 
-- 入场 `./scripts/run-node22.sh ./init.sh` exit0：114 文件/1058 项。
-- 最终 `E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run check:full` exit0：115 文件/1068 项 Node/组件、生产构建、45 文件/201 项真实 PostgreSQL、142/142 生产浏览器全部通过，无 skip/retry。覆盖率 S/B/F/L 为 54.71%/48.78%/59.31%/55.87%；对应 runner 时长 25.46s、232.49s、14.3m。
-- 恢复构建生成的 `next-env.d.ts` 到入场开发路径后，`./scripts/run-node22.sh npm run typecheck` 再次 exit0。最终 JSON、状态/依赖、工件引用、归档完整性、`git diff --check` 与 `git status --short` 已核验。
-- 本轮临时副本、日志、trace、截图/视频、覆盖率与 Playwright 报告/auth 已清理；隔离数据库、上传目录和容器已回收，3100 已关闭。Docker Desktop 已启动，保留既有 `xoxo-meridian-postgres`、原网络和原卷。
-- 工作树保留本任务实现与状态改动；既有 6 个 `docs/plan/` 删除和未追踪 `ChatGPT 图像 2026年9月30日 12_12_21.png` 保持，不恢复或清除。没有提交、部署或改写历史。
+## 验证与证据边界
 
-根列表 33 项（30 done、3 not-started），全局 127 个唯一 ID，两份归档 94 项保持；`featuresNumber<=40`，不归档。
+上一轮已完成真实 Next16.3.8 生产构建、独立 PostgreSQL16.15、Chromium151.0.7922.34 的修复前/后对照：1440×900 根高度原为 900→2518，390×844 原为 844→3574，1280×600 原为 720→2518；修复后分别始终为 900、844、720px。输入框尺寸与位置保持，内容在消息区内部滚动。短屏 720px 为原有最小高度。
 
-## 唯一建议下一步与恢复路径
+- `./scripts/run-node22.sh ./init.sh`：exit0，116 文件/1071 项 Node/组件测试。
+- 生产定向回归：修复前三视口均按预期在根高度断言失败；修复后 `--grep '长来源展开|共享Chat'` 为 5/5 通过（含 setup）。原失败尺寸、命令与测试成本在 feat-135 中保留。
+- `E2E_SOFTWARE_WEBGL=true ./scripts/run-node22.sh npm run check:full`：exit0，CLI 单调 1120.288 秒；静态检查、生产构建、覆盖率通过，1071 项 Node/组件、201 项真实 PostgreSQL、145 项生产 Playwright 通过，0 跳过/重试。覆盖率 S/B/F/L 为 54.71%/48.72%/59.31%/55.87%。
 
-下一会话建议按既有优先级处理 P1 的 feat-121：先根据该条证据核对兼容上游修复是否可用；feat-092 与 feat-125 仍独立待办，本轮没有开始它们。
+上述门禁来自上一轮完整工作区，包含当时的既有未提交改动；本次提交未纳入它们。两份 feat-135 应用/测试文件与已验证版本的指纹一致。本轮只整理提交与状态，按文档/状态例外不重复运行 `init.sh`、`check`、`check:full` 或 Compose smoke；只核验暂存/工作区 JSON、依赖/计数/归档/链接、差异范围与保留性。本轮结构核验、三个暂存相对链接及工作区/暂存 `git diff --check` 均通过；SHA-256 确认其他 40 项 feature、既有用户文件和两份归档保持。该核验不代表新跑过应用门禁。
 
-恢复时依次阅读 `AGENTS.md`、`feature_list.json` 中所选条目的完整依赖/验收和本交接。开始代码实现时只标记所选 feature 为 `in-progress`，再执行 `./scripts/run-node22.sh ./init.sh`；运行环境仍使用 Node 22.23.2/npm 10.9.8。需要浏览器或数据库验证时直接使用现有 Docker Desktop 的 WSL 集成；不要复用已清理的测试账号或临时数据库连接。
+## 工作区与清理
+
+继续保留未提交的 `components/chat/MessageList.tsx`、`tests/e2e/authenticated.spec.ts`、`tests/component/message-list.test.tsx`、账本中的其他 feature、`docs/plan/2026-10-07-draft-agent-material-library.md` 及三张用户 PNG。不要擅自恢复、覆盖、提交或删除这些内容。
+
+上一轮测试副本、构建、报告、认证状态、截图/视频和临时日志均已清理；测试 Web/PostgreSQL/Ryuk 已退出，3100 关闭，原开发 PostgreSQL 保留。本轮不启动测试服务、不安装依赖、不改变数据库或部署配置。提交整理不创建交接备份或额外归档。
+
+## 唯一建议下一步
+
+在当前本地工作区按已确认设计实施 feat-130「双人共享照片素材库与独立资产生命周期」，本轮不启动。先依次阅读 `AGENTS.md`、本地账本 feat-130 与前置 feat-129、本文，以及本地未提交的 `docs/plan/2026-10-07-draft-agent-material-library.md`；确认依赖后只将 feat-130 设为 `in-progress`，执行 `./scripts/run-node22.sh ./init.sh`。
+
+若从仅包含本提交的独立检出恢复，先取回用户保留的 feat-129～134 账本与设计文档，再开始 feat-130；不能据本文重建或覆盖这些未提交内容。feat-092、feat-121/125 与其余后续条目继续以本地账本及长期设计为准。

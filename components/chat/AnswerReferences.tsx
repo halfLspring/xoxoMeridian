@@ -4,8 +4,9 @@ const dateLabels = { published: "发布/更新", issued: "预报发布", observe
 
 export function AnswerReferences({ content, references }: { content: string; references?: References }) {
   if (!references?.sources.length) return null;
+  // 为 sr-only 的绝对定位建立局部包含块，防止辅助文本越过消息区裁切并撑大整页。
   return (
-    <details className="mt-2 rounded-lg border border-black/10 bg-white/60 p-2 text-xs text-black/60">
+    <details className="relative mt-2 rounded-lg border border-black/10 bg-white/60 p-2 text-xs text-black/60">
       <summary className="cursor-pointer rounded-sm px-1 py-0.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage-600">
         参考来源（{references.sources.length}）
       </summary>
